@@ -1,0 +1,33 @@
+# Warehouse IPAM internal HTTPS reverse proxy for Nginx.
+#
+# Put this in your Nginx sites config and update server_name/cert paths.
+# Keep the Next.js app listening on localhost:3000.
+
+server {
+  listen 80;
+  server_name ipam.warehouse.local;
+  return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name ipam.warehouse.local;
+
+  ssl_certificate     C:/certs/ipam.warehouse.local.pem;
+  ssl_certificate_key C:/certs/ipam.warehouse.local-key.pem;
+
+  ssl_protocols TLSv1.2 TLSv1.3;
+
+  client_max_body_size 20m;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}

@@ -1,0 +1,784 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum DeviceCategory {
+  THERMAL_PRINTER
+  MFP_PRINTER
+  OTHER_PRINTER
+  SCALE
+  PHONE
+  SCANNER
+  LAPTOP
+  DESKTOP
+  MONITOR
+  ACCESS_POINT
+  SWITCH
+  CAMERA
+  NVR
+  DOCKING_STATION
+  TABLET
+  CAMERA_NVR
+  OTHER
+}
+
+enum DeviceStatus {
+  ACTIVE
+  RESERVED
+  AVAILABLE
+  IN_USE_ASSIGNED
+  LOANED_OUT
+  IN_REPAIR_RMA
+  RETIRED
+  MISSING
+  LOST
+  DISPOSED
+}
+
+enum DeviceCondition {
+  NEW
+  GOOD
+  FAIR
+  DAMAGED
+  NOT_WORKING
+  NEEDS_REVIEW
+  MISSING_ACCESSORIES
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  RETURNED
+  PARTIALLY_RETURNED
+  CANCELLED
+}
+
+enum AssignmentItemReturnStatus {
+  NOT_RETURNED
+  RETURNED
+  DAMAGED
+  LOST
+  MISSING_ACCESSORIES
+}
+
+enum StockItemType {
+  CONSUMABLE
+  PERIPHERAL
+  SPARE_PART
+  SUPPLY
+}
+
+enum StockCategory {
+  KEYBOARD
+  MOUSE
+  HEADSET
+  CABLE
+  ADAPTER
+  TONER
+  INK
+  THERMAL_LABEL
+  RIBBON
+  BATTERY
+  PRINTER_PART
+  MAINTENANCE_KIT
+  OTHER
+}
+
+enum StockMovementType {
+  ADD
+  REMOVE
+  ADJUST
+  USED_FOR_REPAIR
+  HANDED_OUT
+  RETURNED_TO_STOCK
+}
+
+enum MaintenanceType {
+  CLEANING
+  PREVENTIVE_MAINTENANCE
+  TONER_REPLACEMENT
+  INK_REPLACEMENT
+  DRUM_REPLACEMENT
+  FUSER_REPLACEMENT
+  PRINTHEAD_REPLACEMENT
+  PLATEN_ROLLER_REPLACEMENT
+  CUTTER_REPLACEMENT
+  POWER_SUPPLY_REPLACEMENT
+  REPAIR
+  INSPECTION
+  OTHER
+}
+
+enum AlertType {
+  LOW_STOCK
+  MFP_LOW_TONER
+  MFP_LOW_INK
+  MFP_DRUM_LOW
+  MFP_MAINTENANCE_KIT_DUE
+  THERMAL_CLEANING_DUE
+  THERMAL_MAINTENANCE_DUE
+  PRINTHEAD_REPLACEMENT_DUE
+  PLATEN_ROLLER_REPLACEMENT_DUE
+  STOCK_ITEM_USED
+  STOCK_BELOW_MINIMUM
+  CONFLICT_DUPLICATE_IP
+  CONFLICT_DUPLICATE_MAC
+  CONFLICT_OUTSIDE_RANGE
+  CONFLICT_VLAN_MISMATCH
+  CONFLICT_UNKNOWN_ACTIVE_IP
+  CONFLICT_ACTIVE_WHILE_AVAILABLE
+  WARRANTY_EXPIRING
+  FACTURA_WARRANTY_EXPIRING
+  MISSING_ASSET_SEEN_ONLINE
+  FIXED_ASSET_MOVED
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  IGNORED
+}
+
+enum AlertSource {
+  IPAM
+  STOCK
+  PRINTER
+  FACTURA
+  WARRANTY
+  MISSING_ASSET
+  UNIFI
+  MOVEMENT
+  SYSTEM
+}
+
+enum ScheduledJobType {
+  ALERT_REFRESH
+  CONFLICT_DETECTION
+  STOCK_ALERT_CHECK
+  WARRANTY_ALERT_CHECK
+  PRINTER_MAINTENANCE_CHECK
+  MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY
+}
+
+enum ScheduledJobLastStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum JobRunStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+enum AssetPhotoType {
+  MAIN
+  SERIAL_LABEL
+  MAC_IP_LABEL
+  CONDITION
+  DAMAGE
+  ACCESSORIES
+  RETURN_CONDITION
+  OTHER
+}
+
+enum LocationSource {
+  UNIFI
+}
+
+enum ConflictType {
+  DUPLICATE_IP
+  DUPLICATE_MAC
+  OUTSIDE_RANGE
+  VLAN_MISMATCH
+  DUPLICATE_DEVICE_NAME
+  UNKNOWN_ACTIVE_IP
+  ACTIVE_WHILE_AVAILABLE
+}
+
+enum ConflictSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Device {
+  id                            String                 @id @default(cuid())
+  assetTag                      String?                @unique
+  name                          String
+  category                      DeviceCategory
+  ipAddress                     String?
+  macAddress                    String?
+  vlan                          Int?
+  location                      String?
+  areaDepartment                String?
+  brand                         String?
+  model                         String?
+  serialNumber                  String?
+  status                        DeviceStatus           @default(ACTIVE)
+  condition                     DeviceCondition        @default(GOOD)
+  assignedTo                    String?
+  employeeId                    String?
+  employee                      Employee?              @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  purchaseDate                  DateTime?
+  warrantyExpiresAt             DateTime?
+  repairNotes                   String?
+  blackTonerLevel               Int?
+  cyanTonerLevel                Int?
+  magentaTonerLevel             Int?
+  yellowTonerLevel              Int?
+  drumLevel                     Int?
+  fuserStatus                   String?
+  pageCount                     Int?
+  lastSupplyReplacementAt       DateTime?
+  lowSupplyThreshold            Int?
+  lastCleanedAt                 DateTime?
+  cleaningIntervalDays          Int?
+  lastPrintheadReplacementAt    DateTime?
+  lastPlatenRollerReplacementAt DateTime?
+  lastCutterReplacementAt       DateTime?
+  estimatedPrintheadLife        Int?
+  maintenanceDueAt              DateTime?
+  maintenanceNotes              String?
+  notes                         String?
+  lastSeenAt                    DateTime?
+  facturaId                     String?
+  factura                       Factura?               @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  isFixedAsset                  Boolean                @default(false)
+  usesStaticIp                  Boolean                @default(false)
+  expectedLocationZoneId        String?
+  expectedLocationZone          LocationZone?          @relation(fields: [expectedLocationZoneId], references: [id], onDelete: SetNull)
+  movementAlertsEnabled         Boolean                @default(false)
+  allowedZoneDistance           Int                    @default(0)
+  ipRangeId                     String?
+  ipRange                       IpRange?               @relation(fields: [ipRangeId], references: [id], onDelete: SetNull)
+  photos                        AssetPhoto[]
+  locationHistory               AssetLocationHistory[]
+  unifiSnapshots                UnifiClientSnapshot[]
+  assignmentItems               AssignmentItem[]
+  maintenanceRecords            MaintenanceRecord[]
+  stockMovements                StockMovement[]
+  alerts                        Alert[]
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
+
+  @@index([ipAddress])
+  @@index([macAddress])
+  @@index([assetTag])
+  @@index([serialNumber])
+  @@index([category])
+  @@index([status])
+  @@index([condition])
+  @@index([employeeId])
+  @@index([facturaId])
+  @@index([expectedLocationZoneId])
+  @@index([vlan])
+}
+
+model LocationZone {
+  id             String                   @id @default(cuid())
+  name           String
+  description    String?
+  floorName      String?
+  color          String?
+  active         Boolean                  @default(true)
+  mapId          String?
+  map            WarehouseMap?            @relation(fields: [mapId], references: [id], onDelete: SetNull)
+  accessPoints   AccessPointMapLocation[]
+  expectedAssets Device[]
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([name])
+  @@index([active])
+  @@index([mapId])
+}
+
+model AssetPhoto {
+  id               String         @id @default(cuid())
+  assetId          String
+  asset            Device         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  photoType        AssetPhotoType @default(OTHER)
+  caption          String?
+  originalFilename String?
+  storedFilename   String
+  filePath         String
+  mimeType         String
+  fileSize         Int
+  width            Int?
+  height           Int?
+  isPrimary        Boolean        @default(false)
+  uploadedBy       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([assetId])
+  @@index([photoType])
+  @@index([isPrimary])
+}
+
+model Factura {
+  id               String          @id @default(cuid())
+  facturaNumber    String
+  vendorName       String
+  vendorRfc        String?
+  purchaseDate     DateTime?
+  receivedDate     DateTime?
+  poNumber         String?
+  totalAmount      Float?
+  currency         String          @default("USD")
+  warrantyStartAt  DateTime?
+  warrantyEndAt    DateTime?
+  notes            String?
+  originalFilename String?
+  storedFilename   String?
+  filePath         String?
+  mimeType         String?
+  fileSize         Int?
+  assets           Device[]
+  stockItems       StockItem[]
+  stockMovements   StockMovement[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([facturaNumber])
+  @@index([vendorName])
+  @@index([poNumber])
+  @@index([purchaseDate])
+}
+
+model StockItem {
+  id                      String              @id @default(cuid())
+  name                    String
+  sku                     String?             @unique
+  category                StockCategory
+  itemType                StockItemType
+  compatibleAssetCategory DeviceCategory?
+  compatibleModels        String?
+  quantityOnHand          Int                 @default(0)
+  minimumQuantity         Int                 @default(0)
+  reorderQuantity         Int?
+  unitCost                Float?
+  currency                String?             @default("USD")
+  vendorName              String?
+  storageLocation         String?
+  notes                   String?
+  active                  Boolean             @default(true)
+  facturaId               String?
+  factura                 Factura?            @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  movements               StockMovement[]
+  maintenanceRecords      MaintenanceRecord[]
+  alerts                  Alert[]
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([name])
+  @@index([sku])
+  @@index([category])
+  @@index([itemType])
+  @@index([facturaId])
+  @@index([active])
+}
+
+model StockMovement {
+  id               String            @id @default(cuid())
+  stockItemId      String
+  stockItem        StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  assetId          String?
+  asset            Device?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  employeeId       String?
+  employee         Employee?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  movementType     StockMovementType
+  quantity         Int
+  previousQuantity Int
+  newQuantity      Int
+  reason           String?
+  notes            String?
+  performedBy      String?
+  facturaId        String?
+  factura          Factura?          @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
+
+  @@index([stockItemId])
+  @@index([assetId])
+  @@index([employeeId])
+  @@index([movementType])
+  @@index([facturaId])
+  @@index([createdAt])
+}
+
+model MaintenanceRecord {
+  id               String          @id @default(cuid())
+  assetId          String
+  asset            Device          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  maintenanceType  MaintenanceType
+  performedAt      DateTime        @default(now())
+  performedBy      String?
+  notes            String?
+  stockItemId      String?
+  stockItem        StockItem?      @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
+  quantityUsed     Int?
+  partSerialNumber String?
+  previousPartInfo String?
+  newPartInfo      String?
+  cost             Float?
+  currency         String?         @default("USD")
+  nextDueAt        DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([assetId])
+  @@index([stockItemId])
+  @@index([maintenanceType])
+  @@index([performedAt])
+  @@index([nextDueAt])
+}
+
+model Alert {
+  id             String        @id @default(cuid())
+  type           AlertType
+  source         AlertSource   @default(SYSTEM)
+  severity       AlertSeverity @default(MEDIUM)
+  status         AlertStatus   @default(OPEN)
+  title          String
+  message        String
+  assetId        String?
+  asset          Device?       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  stockItemId    String?
+  stockItem      StockItem?    @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  firstSeenAt    DateTime      @default(now())
+  lastSeenAt     DateTime      @default(now())
+  acknowledgedAt DateTime?
+  ignoredAt      DateTime?
+  resolvedAt     DateTime?
+  resolutionNote String?
+  metadata       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([type])
+  @@index([source])
+  @@index([status])
+  @@index([assetId])
+  @@index([stockItemId])
+  @@index([lastSeenAt])
+}
+
+model Employee {
+  id              String          @id @default(cuid())
+  fullName        String
+  employeeId      String?         @unique
+  email           String?
+  department      String?
+  title           String?
+  site            String?
+  supervisorName  String?
+  supervisorEmail String?
+  phoneNumber     String?
+  status          EmployeeStatus  @default(ACTIVE)
+  notes           String?
+  assignedDevices Device[]
+  assignments     Assignment[]
+  stockMovements  StockMovement[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([fullName])
+  @@index([email])
+  @@index([department])
+  @@index([site])
+  @@index([status])
+}
+
+model Assignment {
+  id               String           @id @default(cuid())
+  assignmentNumber String           @unique
+  employeeId       String
+  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  assignedBy       String?
+  assignmentDate   DateTime         @default(now())
+  signatureData    String?
+  termsAccepted    Boolean          @default(false)
+  termsText        String?
+  notes            String?
+  status           AssignmentStatus @default(ACTIVE)
+  emailSentAt      DateTime?
+  emailTo          String?
+  emailCc          String?
+  emailError       String?
+  items            AssignmentItem[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([assignmentDate])
+}
+
+model AssignmentItem {
+  id                String                     @id @default(cuid())
+  assignmentId      String
+  assignment        Assignment                 @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assetId           String
+  asset             Device                     @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  assignedCondition DeviceCondition?
+  returnedCondition DeviceCondition?
+  returnedAt        DateTime?
+  returnNotes       String?
+  returnStatus      AssignmentItemReturnStatus @default(NOT_RETURNED)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([assignmentId])
+  @@index([assetId])
+  @@index([returnStatus])
+}
+
+model WarehouseMap {
+  id           String                   @id @default(cuid())
+  name         String
+  imageUrl     String
+  floorName    String?
+  notes        String?
+  active       Boolean                  @default(true)
+  accessPoints AccessPointMapLocation[]
+  zones        LocationZone[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([active])
+}
+
+model AccessPointMapLocation {
+  id             String                 @id @default(cuid())
+  apName         String
+  apMac          String
+  unifiDeviceId  String?
+  locationLabel  String
+  floorName      String?
+  mapName        String?
+  x              Float
+  y              Float
+  notes          String?
+  active         Boolean                @default(true)
+  locationZoneId String?
+  locationZone   LocationZone?          @relation(fields: [locationZoneId], references: [id], onDelete: SetNull)
+  zoneOrder      Int?
+  mapId          String?
+  map            WarehouseMap?          @relation(fields: [mapId], references: [id], onDelete: SetNull)
+  history        AssetLocationHistory[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([apMac])
+  @@index([active])
+  @@index([locationZoneId])
+  @@index([mapId])
+}
+
+model AssetLocationHistory {
+  id              String                  @id @default(cuid())
+  assetId         String
+  asset           Device                  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  source          LocationSource          @default(UNIFI)
+  apName          String
+  apMac           String
+  locationLabel   String
+  x               Float
+  y               Float
+  ipAddress       String?
+  signalStrength  Int?
+  seenAt          DateTime
+  syncedAt        DateTime                @default(now())
+  notes           String?
+  apMapLocationId String?
+  apMapLocation   AccessPointMapLocation? @relation(fields: [apMapLocationId], references: [id], onDelete: SetNull)
+
+  @@index([assetId, seenAt])
+  @@index([apMac])
+  @@index([source])
+}
+
+model UnifiClientSnapshot {
+  id             String    @id @default(cuid())
+  assetId        String?
+  asset          Device?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  clientMac      String
+  ipAddress      String?
+  hostname       String?
+  name           String?
+  apName         String?
+  apMac          String?
+  unifiApId      String?
+  online         Boolean   @default(false)
+  signalStrength Int?
+  lastSeenAt     DateTime?
+  syncedAt       DateTime  @default(now())
+  raw            String?
+
+  @@index([clientMac])
+  @@index([assetId])
+  @@index([online])
+}
+
+model IpRange {
+  id        String         @id @default(cuid())
+  name      String
+  category  DeviceCategory
+  vlan      Int
+  subnet    String?
+  startIp   String
+  endIp     String
+  location  String?
+  notes     String?
+  active    Boolean        @default(true)
+  devices   Device[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([category])
+  @@index([vlan])
+  @@index([active])
+}
+
+model ScanRun {
+  id          String       @id @default(cuid())
+  rangeId     String?
+  rangeName   String
+  startIp     String
+  endIp       String
+  status      String       @default("completed")
+  message     String?
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
+  results     ScanResult[]
+}
+
+model ScanResult {
+  id         String   @id @default(cuid())
+  scanRunId  String
+  scanRun    ScanRun  @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+  ipAddress  String
+  reachable  Boolean
+  macAddress String?
+  hostname   String?
+  note       String?
+  seenAt     DateTime @default(now())
+
+  @@index([ipAddress])
+  @@index([macAddress])
+}
+
+model Conflict {
+  id                String           @id @default(cuid())
+  type              ConflictType
+  severity          ConflictSeverity
+  title             String
+  description       String
+  affectedDeviceIds String?
+  affectedIps       String?
+  suggestedFix      String
+  resolved          Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([type])
+  @@index([severity])
+  @@index([resolved])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  message   String
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model ScheduledJob {
+  id              String                 @id @default(cuid())
+  name            String
+  type            ScheduledJobType
+  enabled         Boolean                @default(true)
+  intervalMinutes Int
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  lastStatus      ScheduledJobLastStatus?
+  lastError       String?
+  running         Boolean                @default(false)
+  lockedAt        DateTime?
+  runs            JobRun[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([type])
+  @@index([enabled])
+  @@index([nextRunAt])
+  @@index([running])
+}
+
+model JobRun {
+  id           String           @id @default(cuid())
+  scheduleId   String?
+  schedule     ScheduledJob?    @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  type         ScheduledJobType
+  startedAt    DateTime
+  finishedAt   DateTime?
+  status       JobRunStatus
+  summaryJson  String?
+  errorMessage String?
+  createdAt    DateTime         @default(now())
+
+  @@index([scheduleId])
+  @@index([type])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model AppSettings {
+  id                                 String         @id @default("default")
+  defaultVlan                        Int            @default(10)
+  defaultCategory                    DeviceCategory @default(OTHER)
+  maxScanSize                        Int            @default(64)
+  pingTimeoutMs                      Int            @default(800)
+  autoSaveScanResults                Boolean        @default(true)
+  siteName                           String         @default("Warehouse IT Inventory")
+  defaultLowStockThreshold           Int            @default(2)
+  defaultThermalCleaningIntervalDays Int            @default(30)
+  defaultMfpLowSupplyThreshold       Int            @default(20)
+  enablePrinterMaintenanceAlerts     Boolean        @default(true)
+  enableLowStockAlerts               Boolean        @default(true)
+  enableConflictAlerts               Boolean        @default(true)
+  enableWarrantyAlerts               Boolean        @default(true)
+  warrantyAlertThresholdDays         Int            @default(60)
+  enableMovementAlerts               Boolean        @default(true)
+  defaultAllowedZoneDistance         Int            @default(0)
+  autoResolveMovementAlerts          Boolean        @default(false)
+  enableMissingAssetSeenOnlineAlerts Boolean        @default(true)
+  alertDuplicateSuppressionEnabled   Boolean        @default(true)
+  defaultCurrency                    String         @default("USD")
+  createdAt                          DateTime       @default(now())
+  updatedAt                          DateTime       @updatedAt
+}

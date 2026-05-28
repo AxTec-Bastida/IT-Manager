@@ -1,0 +1,28 @@
+# Warehouse IPAM internal HTTPS reverse proxy.
+#
+# Recommended DNS:
+#   Create an internal DNS record such as ipam.warehouse.local
+#   pointing to this server's LAN IP.
+#
+# App process:
+#   Run Next.js on localhost:3000:
+#     npm run build
+#     npm start
+#
+# Option A: Caddy internal CA.
+# Phones must trust Caddy's local root CA for camera access without warnings.
+ipam.warehouse.local {
+  tls internal
+
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3000
+}
+
+# Option B: Use mkcert-generated cert files instead of Caddy's internal CA.
+# Replace the site block above with this block after generating certs:
+#
+# ipam.warehouse.local {
+#   tls C:\certs\ipam.warehouse.local.pem C:\certs\ipam.warehouse.local-key.pem
+#   encode zstd gzip
+#   reverse_proxy 127.0.0.1:3000
+# }
