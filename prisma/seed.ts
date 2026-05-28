@@ -47,6 +47,10 @@ const ranges = [
 
 async function main() {
   await prisma.activityLog.deleteMany();
+  await prisma.purchaseNoteItem.deleteMany();
+  await prisma.purchaseNote.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.toolLink.deleteMany();
   await prisma.jobRun.deleteMany();
   await prisma.scheduledJob.deleteMany();
   await prisma.alert.deleteMany();
@@ -87,6 +91,21 @@ async function main() {
       alertDuplicateSuppressionEnabled: true,
       defaultCurrency: "USD",
     },
+  });
+
+  await prisma.toolLink.createMany({
+    data: [
+      { name: "UniFi Network", url: "https://unifi.local", category: "NETWORK", description: "Normal web link to the UniFi Network console. No API integration.", isFavorite: true, requiresVpn: true, internalOnly: true },
+      { name: "GLPI", url: "https://glpi.example.local", category: "INVENTORY", description: "IT asset and support reference portal.", isFavorite: true, requiresVpn: true, internalOnly: true },
+      { name: "Google Admin", url: "https://admin.google.com", category: "GOOGLE_ADMIN", description: "Google Workspace administration." },
+      { name: "Microsoft MyApps", url: "https://myapps.microsoft.com", category: "MICROSOFT", description: "User app launcher and access portal.", isFavorite: true },
+      { name: "Microsoft Admin", url: "https://admin.microsoft.com", category: "MICROSOFT", description: "Microsoft 365 administration." },
+      { name: "Printer Management Portal", url: "https://printers.example.local", category: "PRINTERS", description: "Internal printer management portal.", requiresVpn: true, internalOnly: true },
+      { name: "Camera / NVR Portal", url: "https://cameras.example.local", category: "SECURITY_CAMERAS", description: "Security camera portal link.", requiresVpn: true, internalOnly: true },
+      { name: "Zebra Support", url: "https://www.zebra.com/us/en/support-downloads.html", category: "VENDORS", description: "Zebra manuals, drivers, and support downloads." },
+      { name: "Internal SOP Folder", url: "https://drive.google.com", category: "DOCUMENTS_SOPS", description: "Shared IT documentation and warehouse SOP folder." },
+      { name: "RMA / Warranty Portal", url: "https://support.example.com", category: "RMA_WARRANTY", description: "Vendor warranty and RMA portal link." },
+    ],
   });
 
   const now = new Date();

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Edit, MapPin, Route, ScanLine, Wrench } from "lucide-react";
+import { ClipboardList, Edit, MapPin, Route, ScanLine, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -89,6 +89,10 @@ export default async function DeviceDetailPage({ params }: Props) {
             <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <Wrench size={16} />
               Add maintenance
+            </Link>
+            <Link href={`/tasks/new?relatedDeviceId=${device.id}&category=INVENTORY&title=${encodeURIComponent(`Follow up ${device.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <ClipboardList size={16} />
+              Create Task
             </Link>
             <RetireButton id={device.id} />
           </div>

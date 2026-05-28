@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, Database, MapPin, Network, Package, Plus, Router, ScanLine, SearchX, Wrench } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, ClipboardCheck, Database, ExternalLink, MapPin, Network, Package, Plus, Router, ScanLine, SearchX, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [devices, ranges, recent, recentLocationCount, onlineTrackedAssets, stockItems, recentMaintenance, recentStockUsage, openAlerts, activeAssignments] = await Promise.all([
+  const [devices, ranges, recent, recentLocationCount, onlineTrackedAssets, stockItems, recentMaintenance, recentStockUsage, openAlerts, activeAssignments, openTasks, tasksDueToday, overdueTasks, poFollowUpsDue, posAwaitingFactura, favoriteTools] = await Promise.all([
     prisma.device.findMany({ include: { ipRange: true } }),
     prisma.ipRange.findMany({ where: { active: true }, include: { devices: true } }),
     prisma.device.findMany({ orderBy: { updatedAt: "desc" }, take: 6, include: { ipRange: true } }),
@@ -28,6 +28,12 @@ export default async function DashboardPage() {
     prisma.stockMovement.findMany({ orderBy: { createdAt: "desc" }, take: 5, include: { stockItem: true, asset: true, employee: true } }),
     prisma.alert.count({ where: { status: { in: ["OPEN", "ACKNOWLEDGED"] } } }),
     prisma.assignment.count({ where: { status: "ACTIVE" } }),
+    prisma.task.count({ where: { status: { notIn: ["DONE", "CANCELLED"] } } }),
+    prisma.task.count({ where: { status: { notIn: ["DONE", "CANCELLED"] }, dueDate: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()), lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) } } }),
+    prisma.task.count({ where: { status: { notIn: ["DONE", "CANCELLED"] }, dueDate: { lt: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } } }),
+    prisma.purchaseNote.count({ where: { status: { notIn: ["CLOSED", "CANCELLED"] }, followUpDate: { lte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } } }),
+    prisma.purchaseNote.count({ where: { status: "FACTURA_PENDING" } }),
+    prisma.toolLink.findMany({ where: { active: true, isFavorite: true }, orderBy: { name: "asc" }, take: 5 }),
   ]);
 
   const conflicts = detectInventoryConflicts(devices);
@@ -130,6 +136,43 @@ export default async function DashboardPage() {
           <p className="mt-3 text-3xl font-semibold text-slate-950">{lowStockItems.length + maintenanceDue}</p>
           <Link href="/alerts" className="mt-3 inline-flex min-h-11 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700">Review alerts</Link>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-slate-950">Workspace</h2>
+            <p className="text-sm text-slate-500">Lightweight IT follow-ups and purchase notes.</p>
+          </div>
+          <Link href="/workspace" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <BriefcaseBusiness size={16} />
+            Open
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            ["Open Tasks", openTasks, "/tasks"],
+            ["Due Today", tasksDueToday, "/tasks?dueToday=true"],
+            ["Overdue Tasks", overdueTasks, "/tasks?overdue=true"],
+            ["PO Follow-ups", poFollowUpsDue, "/po-tracker?followUpDue=true"],
+            ["Awaiting Factura", posAwaitingFactura, "/po-tracker?facturaPending=true"],
+          ].map(([label, value, href]) => (
+            <Link key={String(label)} href={String(href)} className="rounded-md bg-slate-50 p-3 hover:bg-slate-100">
+              <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+            </Link>
+          ))}
+        </div>
+        {favoriteTools.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {favoriteTools.map((tool) => (
+              <a key={tool.id} href={tool.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <ExternalLink size={15} />
+                {tool.name}
+              </a>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <details className="rounded-lg border border-slate-200 bg-white p-4" open={false}>

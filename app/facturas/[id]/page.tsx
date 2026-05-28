@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Edit, FileText } from "lucide-react";
+import { ClipboardList, Edit, FileText, ReceiptText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 
@@ -16,6 +16,7 @@ export default async function FacturaDetailPage({ params }: Props) {
       assets: { orderBy: { name: "asc" }, include: { photos: true } },
       stockItems: { orderBy: { name: "asc" } },
       stockMovements: { include: { stockItem: true, asset: true }, orderBy: { createdAt: "desc" } },
+      purchaseNotes: { orderBy: { updatedAt: "desc" } },
     },
   });
   if (!factura) notFound();
@@ -26,10 +27,20 @@ export default async function FacturaDetailPage({ params }: Props) {
         title={factura.facturaNumber}
         description={`${factura.vendorName}${factura.poNumber ? ` • PO ${factura.poNumber}` : ""}`}
         action={
-          <Link href={`/facturas/${factura.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-            <Edit size={16} />
-            Edit
-          </Link>
+          <div className="grid gap-2 sm:flex">
+            <Link href={`/tasks/new?relatedFacturaId=${factura.id}&category=PURCHASE&title=${encodeURIComponent(`Follow up ${factura.facturaNumber}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <ClipboardList size={16} />
+              Create Task
+            </Link>
+            <Link href={`/po-tracker/new?relatedFacturaId=${factura.id}&poNumber=${encodeURIComponent(factura.poNumber || "")}&title=${encodeURIComponent(`PO note for ${factura.facturaNumber}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <ReceiptText size={16} />
+              PO Note
+            </Link>
+            <Link href={`/facturas/${factura.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+              <Edit size={16} />
+              Edit
+            </Link>
+          </div>
         }
       />
 
@@ -106,6 +117,19 @@ export default async function FacturaDetailPage({ params }: Props) {
             </div>
           ))}
           {factura.stockMovements.length === 0 ? <p className="text-sm text-slate-500">No stock movements linked.</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 className="font-semibold text-slate-950">Related PO tracker notes</h2>
+        <div className="mt-3 divide-y divide-slate-100">
+          {factura.purchaseNotes.map((note) => (
+            <Link key={note.id} href={`/po-tracker/${note.id}`} className="block py-3 text-sm hover:bg-slate-50">
+              <p className="font-medium text-slate-950">{note.poNumber ? `${note.poNumber} - ` : ""}{note.title}</p>
+              <p className="text-slate-500">{note.status.replaceAll("_", " ")}</p>
+            </Link>
+          ))}
+          {factura.purchaseNotes.length === 0 ? <p className="text-sm text-slate-500">No PO tracker notes linked to this factura yet.</p> : null}
         </div>
       </section>
     </div>

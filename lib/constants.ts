@@ -11,11 +11,16 @@ import type {
   EmployeeStatus,
   MaintenanceType,
   JobRunStatus,
+  PurchaseNoteStatus,
   ScheduledJobLastStatus,
   ScheduledJobType,
   StockCategory,
   StockItemType,
   StockMovementType,
+  TaskCategory,
+  TaskPriority,
+  TaskStatus,
+  ToolLinkCategory,
 } from "@prisma/client";
 
 export const categoryLabels: Record<DeviceCategory, string> = {
@@ -250,3 +255,97 @@ export const assetPhotoTypeLabels: Record<AssetPhotoType, string> = {
 };
 
 export const assetPhotoTypeOptions = Object.keys(assetPhotoTypeLabels) as AssetPhotoType[];
+
+export const taskStatusLabels: Record<TaskStatus, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  WAITING: "Waiting",
+  DONE: "Done",
+  CANCELLED: "Cancelled",
+};
+
+export const taskStatusOptions = Object.keys(taskStatusLabels) as TaskStatus[];
+
+export const taskStatusTone: Record<TaskStatus, string> = {
+  OPEN: "bg-blue-100 text-blue-800 ring-blue-200",
+  IN_PROGRESS: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+  WAITING: "bg-amber-100 text-amber-900 ring-amber-200",
+  DONE: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+export const taskPriorityLabels: Record<TaskPriority, string> = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+  URGENT: "Urgent",
+};
+
+export const taskPriorityOptions = Object.keys(taskPriorityLabels) as TaskPriority[];
+
+export const taskPriorityTone: Record<TaskPriority, string> = {
+  LOW: "bg-sky-100 text-sky-800 ring-sky-200",
+  MEDIUM: "bg-slate-100 text-slate-700 ring-slate-200",
+  HIGH: "bg-orange-100 text-orange-900 ring-orange-200",
+  URGENT: "bg-rose-100 text-rose-800 ring-rose-200",
+};
+
+export const taskCategoryLabels: Record<TaskCategory, string> = {
+  GENERAL: "General",
+  INVENTORY: "Inventory",
+  MAINTENANCE: "Maintenance",
+  STOCK: "Stock",
+  PURCHASE: "Purchase",
+  RMA: "RMA",
+  WARRANTY: "Warranty",
+  ALERT: "Alert",
+  OTHER: "Other",
+};
+
+export const taskCategoryOptions = Object.keys(taskCategoryLabels) as TaskCategory[];
+
+export const purchaseNoteStatusLabels: Record<PurchaseNoteStatus, string> = {
+  DRAFT: "Draft",
+  REQUESTED: "Requested",
+  QUOTED: "Quoted",
+  APPROVED: "Approved",
+  ORDERED: "Ordered",
+  PARTIALLY_RECEIVED: "Partially Received",
+  RECEIVED: "Received",
+  FACTURA_PENDING: "Factura Pending",
+  CLOSED: "Closed",
+  CANCELLED: "Cancelled",
+};
+
+export const purchaseNoteStatusOptions = Object.keys(purchaseNoteStatusLabels) as PurchaseNoteStatus[];
+
+export const purchaseNoteStatusTone: Record<PurchaseNoteStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
+  REQUESTED: "bg-blue-100 text-blue-800 ring-blue-200",
+  QUOTED: "bg-cyan-100 text-cyan-800 ring-cyan-200",
+  APPROVED: "bg-indigo-100 text-indigo-800 ring-indigo-200",
+  ORDERED: "bg-violet-100 text-violet-800 ring-violet-200",
+  PARTIALLY_RECEIVED: "bg-amber-100 text-amber-900 ring-amber-200",
+  RECEIVED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  FACTURA_PENDING: "bg-orange-100 text-orange-900 ring-orange-200",
+  CLOSED: "bg-green-100 text-green-800 ring-green-200",
+  CANCELLED: "bg-zinc-200 text-zinc-700 ring-zinc-300",
+};
+
+export const toolLinkCategoryLabels: Record<ToolLinkCategory, string> = {
+  NETWORK: "Network",
+  INVENTORY: "Inventory",
+  PRINTERS: "Printers",
+  WAREHOUSE_SYSTEMS: "Warehouse Systems",
+  SECURITY_CAMERAS: "Security Cameras",
+  GOOGLE_ADMIN: "Google Admin",
+  MICROSOFT: "Microsoft",
+  MDM: "MDM",
+  VENDORS: "Vendors",
+  DOCUMENTS_SOPS: "Documents / SOPs",
+  RMA_WARRANTY: "RMA / Warranty",
+  REPORTS: "Reports",
+  OTHER: "Other",
+};
+
+export const toolLinkCategoryOptions = Object.keys(toolLinkCategoryLabels) as ToolLinkCategory[];

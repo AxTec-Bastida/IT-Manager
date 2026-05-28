@@ -219,6 +219,62 @@ enum ConflictSeverity {
   HIGH
 }
 
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskCategory {
+  GENERAL
+  INVENTORY
+  MAINTENANCE
+  STOCK
+  PURCHASE
+  RMA
+  WARRANTY
+  ALERT
+  OTHER
+}
+
+enum PurchaseNoteStatus {
+  DRAFT
+  REQUESTED
+  QUOTED
+  APPROVED
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  FACTURA_PENDING
+  CLOSED
+  CANCELLED
+}
+
+enum ToolLinkCategory {
+  NETWORK
+  INVENTORY
+  PRINTERS
+  WAREHOUSE_SYSTEMS
+  SECURITY_CAMERAS
+  GOOGLE_ADMIN
+  MICROSOFT
+  MDM
+  VENDORS
+  DOCUMENTS_SOPS
+  RMA_WARRANTY
+  REPORTS
+  OTHER
+}
+
 model Device {
   id                            String                 @id @default(cuid())
   assetTag                      String?                @unique
@@ -276,6 +332,8 @@ model Device {
   maintenanceRecords            MaintenanceRecord[]
   stockMovements                StockMovement[]
   alerts                        Alert[]
+  tasks                         Task[]
+  purchaseNoteItems             PurchaseNoteItem[]
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
 
@@ -355,6 +413,8 @@ model Factura {
   assets           Device[]
   stockItems       StockItem[]
   stockMovements   StockMovement[]
+  tasks            Task[]
+  purchaseNotes    PurchaseNote[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -386,6 +446,8 @@ model StockItem {
   movements               StockMovement[]
   maintenanceRecords      MaintenanceRecord[]
   alerts                  Alert[]
+  tasks                   Task[]
+  purchaseNoteItems       PurchaseNoteItem[]
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
 
@@ -470,6 +532,7 @@ model Alert {
   resolvedAt     DateTime?
   resolutionNote String?
   metadata       String?
+  tasks          Task[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -497,6 +560,7 @@ model Employee {
   assignedDevices Device[]
   assignments     Assignment[]
   stockMovements  StockMovement[]
+  tasks           Task[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -702,6 +766,118 @@ model Conflict {
   @@index([type])
   @@index([severity])
   @@index([resolved])
+}
+
+model Task {
+  id                 String       @id @default(cuid())
+  title              String
+  description        String?
+  status             TaskStatus   @default(OPEN)
+  priority           TaskPriority @default(MEDIUM)
+  dueDate            DateTime?
+  reminderDate       DateTime?
+  assignedTo         String?
+  category           TaskCategory @default(GENERAL)
+  relatedDeviceId    String?
+  relatedDevice      Device?      @relation(fields: [relatedDeviceId], references: [id], onDelete: SetNull)
+  relatedEmployeeId  String?
+  relatedEmployee    Employee?    @relation(fields: [relatedEmployeeId], references: [id], onDelete: SetNull)
+  relatedStockItemId String?
+  relatedStockItem   StockItem?   @relation(fields: [relatedStockItemId], references: [id], onDelete: SetNull)
+  relatedFacturaId   String?
+  relatedFactura     Factura?     @relation(fields: [relatedFacturaId], references: [id], onDelete: SetNull)
+  relatedAlertId     String?
+  relatedAlert       Alert?       @relation(fields: [relatedAlertId], references: [id], onDelete: SetNull)
+  notes              String?
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([dueDate])
+  @@index([assignedTo])
+  @@index([relatedDeviceId])
+  @@index([relatedEmployeeId])
+  @@index([relatedStockItemId])
+  @@index([relatedFacturaId])
+  @@index([relatedAlertId])
+}
+
+model PurchaseNote {
+  id                 String             @id @default(cuid())
+  poNumber           String?
+  title              String
+  vendorName         String?
+  status             PurchaseNoteStatus @default(DRAFT)
+  priority           TaskPriority?
+  requestedBy        String?
+  requestedAt        DateTime?
+  approvedAt         DateTime?
+  orderedAt          DateTime?
+  expectedDeliveryAt DateTime?
+  receivedAt         DateTime?
+  followUpDate       DateTime?
+  estimatedAmount    Float?
+  currency           String?            @default("USD")
+  relatedFacturaId   String?
+  relatedFactura     Factura?           @relation(fields: [relatedFacturaId], references: [id], onDelete: SetNull)
+  notes              String?
+  items              PurchaseNoteItem[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([poNumber])
+  @@index([title])
+  @@index([vendorName])
+  @@index([status])
+  @@index([priority])
+  @@index([followUpDate])
+  @@index([expectedDeliveryAt])
+  @@index([relatedFacturaId])
+}
+
+model PurchaseNoteItem {
+  id                 String       @id @default(cuid())
+  purchaseNoteId     String
+  purchaseNote       PurchaseNote @relation(fields: [purchaseNoteId], references: [id], onDelete: Cascade)
+  description        String
+  quantity           Int?
+  unitCost           Float?
+  relatedStockItemId String?
+  relatedStockItem   StockItem?   @relation(fields: [relatedStockItemId], references: [id], onDelete: SetNull)
+  relatedDeviceId    String?
+  relatedDevice      Device?      @relation(fields: [relatedDeviceId], references: [id], onDelete: SetNull)
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([purchaseNoteId])
+  @@index([relatedStockItemId])
+  @@index([relatedDeviceId])
+}
+
+model ToolLink {
+  id           String           @id @default(cuid())
+  name         String
+  url          String
+  category     ToolLinkCategory
+  description  String?
+  icon         String?
+  color        String?
+  isFavorite   Boolean          @default(false)
+  requiresVpn  Boolean          @default(false)
+  internalOnly Boolean          @default(false)
+  notes        String?
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([name])
+  @@index([category])
+  @@index([isFavorite])
+  @@index([active])
 }
 
 model ActivityLog {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Activity, AlertTriangle, ClipboardCheck, Database, LayoutDashboard, ListChecks, Map, MapPinned, MoreHorizontal, Package, Radar, ReceiptText, Router, ScanLine, SearchX, Settings, Users, Warehouse } from "lucide-react";
+import { Activity, AlertTriangle, BriefcaseBusiness, ClipboardCheck, ClipboardList, Database, ExternalLink, LayoutDashboard, ListChecks, Map, MapPinned, MoreHorizontal, Package, Radar, ReceiptText, Router, ScanLine, SearchX, Settings, Users, Warehouse } from "lucide-react";
 import { clsx } from "clsx";
 
 const links = [
@@ -11,6 +11,10 @@ const links = [
   { href: "/devices", label: "Inventory", icon: Database },
   { href: "/scan", label: "Scan", icon: ScanLine },
   { href: "/alerts", label: "Alerts", icon: AlertTriangle },
+  { href: "/workspace", label: "IT Workspace", icon: BriefcaseBusiness },
+  { href: "/tasks", label: "Quick Tasks", icon: ClipboardList },
+  { href: "/po-tracker", label: "PO Tracker", icon: ReceiptText },
+  { href: "/tools", label: "Resources", icon: ExternalLink },
   { href: "/jobs", label: "Jobs", icon: ListChecks },
   { href: "/stock", label: "Stock", icon: Package },
   { href: "/facturas", label: "Facturas", icon: ReceiptText },

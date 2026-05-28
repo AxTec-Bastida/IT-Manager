@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, MapPin, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ClipboardList, MapPin, SlidersHorizontal } from "lucide-react";
 import { AlertSeverity, AlertSource, AlertStatus, AlertType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
@@ -104,6 +104,7 @@ export default async function AlertsPage({ searchParams }: Props) {
                 <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
                   {alert.assetId ? <Link href={`/devices/${alert.assetId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"><AlertTriangle size={16} />Open asset</Link> : null}
                   {alert.assetId && ["MOVEMENT", "MISSING_ASSET", "UNIFI"].includes(alert.source) ? <Link href={`/map?asset=${alert.assetId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"><MapPin size={16} />Open map</Link> : null}
+                  <Link href={`/tasks/new?relatedAlertId=${alert.id}${alert.assetId ? `&relatedDeviceId=${alert.assetId}` : ""}&category=ALERT&title=${encodeURIComponent(alert.title)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"><ClipboardList size={16} />Create task</Link>
                 </div>
               </div>
               <AlertActions alertId={alert.id} />

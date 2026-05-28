@@ -11,6 +11,7 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, read-onl
 - Generates central operational alerts for IPAM conflicts, low stock, printer maintenance, warranty expiration, missing assets seen online, and fixed/static asset movement anomalies.
 - Stores asset photo metadata with files on disk for main photos, serial labels, MAC/IP labels, condition, damage, accessories, and other documentation.
 - Tracks facturas/purchase records, attached factura PDFs/photos, linked assets, linked stock items, vendor details, PO numbers, costs, and warranty dates.
+- Adds a lightweight IT Workspace for quick follow-up tasks, PO tracker notes, and common IT resource links.
 - Manages employees and long-term assignment records with captured signatures.
 - Defines reserved IP pools by category, VLAN, range, location, and active status.
 - Validates IPv4 addresses strictly. For example, `192.168.163.280` is rejected because `280` is outside `0-255`.
@@ -19,7 +20,7 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, read-onl
 - Runs limited server-side ping/ARP scans and compares discovered addresses against inventory.
 - Uses the phone camera to scan QR codes and barcodes for device labels, serial numbers, MACs, IP labels, and internal tags.
 - Shows approximate last known asset locations on a warehouse map from read-only UniFi access point association data.
-- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, conflicts, and scan results.
+- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, facturas, tasks, PO tracker notes, tool links, conflicts, and scan results.
 - Includes sample warehouse data and intentional conflicts for testing.
 
 ## Stack
@@ -111,6 +112,18 @@ By default, the app runs on `http://localhost:3000`. For phone camera scanning, 
 ## Main Pages
 
 - `/dashboard` summary cards, category/range summaries, recent updates, and conflicts.
+- `/workspace` lightweight IT Workspace hub for Quick Tasks, PO Tracker, and Resources.
+- `/tasks` phone-first quick follow-up tasks.
+- `/tasks/new` create a small IT action item tied to assets, employees, stock, facturas, or alerts.
+- `/tasks/[id]` task detail with status actions.
+- `/tasks/[id]/edit` update a task.
+- `/po-tracker` lightweight purchase-order and vendor follow-up notes.
+- `/po-tracker/new` create a purchase note and optional item rows.
+- `/po-tracker/[id]` PO tracker detail with status actions.
+- `/po-tracker/[id]/edit` update a purchase note.
+- `/tools` internal Resources / IT Link Tree.
+- `/tools/new` add a resource link.
+- `/tools/[id]/edit` update or deactivate a resource link.
 - `/devices` searchable/filterable asset inventory with mobile cards and desktop table.
 - `/devices/new` add an asset or reservation.
 - `/devices/[id]` detail page with inventory, assignment, network, map, conflicts, scan history, and activity.
@@ -146,6 +159,8 @@ By default, the app runs on `http://localhost:3000`. For phone camera scanning, 
 
 Use `/settings` for CSV tools.
 
+Workspace export types include `tasks`, `po-tracker`, and `tool-links`. These are export-only additions for this phase; CSV import for the workspace module is intentionally not included.
+
 Device import headers can include:
 
 ```csv
@@ -167,6 +182,30 @@ name,sku,category,itemType,quantityOnHand,minimumQuantity,vendorName,storageLoca
 Valid stock item types are `CONSUMABLE`, `PERIPHERAL`, `SPARE_PART`, and `SUPPLY`. Valid stock categories include `KEYBOARD`, `MOUSE`, `HEADSET`, `CABLE`, `ADAPTER`, `TONER`, `INK`, `THERMAL_LABEL`, `RIBBON`, `BATTERY`, `PRINTER_PART`, `MAINTENANCE_KIT`, and `OTHER`.
 
 Imports preview rows before saving, validate IPs and stock quantities, and check duplicate device IPs or stock SKUs.
+
+## IT Workspace
+
+The IT Workspace is a small internal hub for the warehouse IT work that does not need a full service-desk workflow. It keeps quick follow-ups, purchase notes, and common links near the inventory records they reference while staying phone-first for floor walks.
+
+### Quick Tasks
+
+Use `/tasks` for simple action items such as replacing a printhead, checking a scale, following up on a missing scanner, ordering toner, or reviewing a warranty issue. Tasks support status, priority, category, due/reminder dates, an assignee text field, notes, and optional links to assets, employees, stock items, facturas, or alerts.
+
+Task cards are designed for phone use: search and filters stay at the top, cards show only the key context, and the main actions are `Open`, `Mark done`, and `Edit`. Asset, stock, factura, alert, and scan views include lightweight task creation shortcuts where they are useful.
+
+### PO Tracker
+
+Use `/po-tracker` for purchase-order notes and vendor follow-ups that are too lightweight for a purchasing system. A PO tracker note can hold a PO number, title, vendor, status, priority, dates, estimated amount, related factura, notes, and optional requested item rows linked to stock items or assets.
+
+The PO Tracker is informative tracking only. It does not implement approvals, procurement automation, email, RMA workflows, scheduled follow-ups, or vendor integrations. Stock detail pages can start a PO note, and factura detail pages can show related PO notes.
+
+### Resources / IT Links
+
+Use `/tools` as an internal IT link tree for dashboards, portals, SOPs, vendor pages, documentation, and support sites. Links can be categorized, favorited, marked as VPN required, marked as internal only, or deactivated.
+
+Resources store links only. Do not store passwords, API keys, tokens, secrets, or recovery details in link notes. If credentials are required, link to the approved password manager entry or SOP instead.
+
+Links are not integrations. For example, a UniFi Network resource may point to the UniFi web UI, but the workspace module does not add UniFi API calls or expand the existing read-only UniFi behavior.
 
 ## Stock, Supplies, And Maintenance
 

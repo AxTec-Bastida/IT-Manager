@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Edit, PackagePlus } from "lucide-react";
+import { ClipboardList, Edit, PackagePlus, ReceiptText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -36,10 +36,20 @@ export default async function StockDetailPage({ params }: Props) {
         title={stockItem.name}
         description={`${stockCategoryLabels[stockItem.category]} • ${stockItemTypeLabels[stockItem.itemType]}`}
         action={
-          <Link href={`/stock/${stockItem.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-            <Edit size={16} />
-            Edit
-          </Link>
+          <div className="grid gap-2 sm:flex">
+            <Link href={`/tasks/new?relatedStockItemId=${stockItem.id}&category=STOCK&title=${encodeURIComponent(`Follow up ${stockItem.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <ClipboardList size={16} />
+              Create Task
+            </Link>
+            <Link href={`/po-tracker/new?relatedStockItemId=${stockItem.id}&title=${encodeURIComponent(`Order ${stockItem.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <ReceiptText size={16} />
+              PO Note
+            </Link>
+            <Link href={`/stock/${stockItem.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+              <Edit size={16} />
+              Edit
+            </Link>
+          </div>
         }
       />
 

@@ -40,8 +40,21 @@ export async function GET(_request: Request, context: Context) {
     rows = await prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }] });
   } else if (type === "maintenance-records") {
     rows = await prisma.maintenanceRecord.findMany({ orderBy: { performedAt: "desc" }, take: 2000 });
+  } else if (type === "tasks") {
+    const tasks = await prisma.task.findMany({ orderBy: [{ status: "asc" }, { dueDate: "asc" }, { updatedAt: "desc" }], include: { relatedDevice: true, relatedStockItem: true, relatedFactura: true } });
+    rows = tasks.map((task) => ({
+      ...task,
+      relatedDevice: task.relatedDevice?.name ?? "",
+      relatedStockItem: task.relatedStockItem?.name ?? "",
+      relatedFactura: task.relatedFactura?.facturaNumber ?? "",
+    }));
+  } else if (type === "po-tracker") {
+    const notes = await prisma.purchaseNote.findMany({ orderBy: [{ status: "asc" }, { followUpDate: "asc" }, { updatedAt: "desc" }], include: { relatedFactura: true } });
+    rows = notes.map((note) => ({ ...note, relatedFactura: note.relatedFactura?.facturaNumber ?? "" }));
+  } else if (type === "tool-links") {
+    rows = await prisma.toolLink.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
   } else {
-    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, or facturas.", 400);
+    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, facturas, tasks, po-tracker, or tool-links.", 400);
   }
 
   return new NextResponse(toCsv(rows), {

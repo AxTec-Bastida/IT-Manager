@@ -210,6 +210,10 @@ export function QuickScanPanel() {
                 <Wrench size={17} />
                 Maintenance
               </Link>
+              <Link href={`/tasks/new?relatedDeviceId=${device.id}&category=INVENTORY&title=${encodeURIComponent(`Follow up ${device.name}`)}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Plus size={17} />
+                Create Task
+              </Link>
               <Link href={`/alerts?assetId=${device.id}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 <AlertTriangle size={17} />
                 Alerts
@@ -248,6 +252,14 @@ export function QuickScanPanel() {
               <Link href={`/stock/${item.id}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 <Package size={17} />
                 Use / adjust
+              </Link>
+              <Link href={`/tasks/new?relatedStockItemId=${item.id}&category=STOCK&title=${encodeURIComponent(`Follow up ${item.name}`)}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Plus size={17} />
+                Create Task
+              </Link>
+              <Link href={`/po-tracker/new?relatedStockItemId=${item.id}&title=${encodeURIComponent(`Order ${item.name}`)}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Package size={17} />
+                PO Note
               </Link>
             </div>
           </article>

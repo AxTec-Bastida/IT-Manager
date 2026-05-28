@@ -5,9 +5,14 @@ import {
   DeviceStatus,
   EmployeeStatus,
   MaintenanceType,
+  PurchaseNoteStatus,
   StockCategory,
   StockItemType,
   StockMovementType,
+  TaskCategory,
+  TaskPriority,
+  TaskStatus,
+  ToolLinkCategory,
 } from "@prisma/client";
 import { z } from "zod";
 import { validateIPv4, validateIpRange } from "./ip";
@@ -205,6 +210,66 @@ export const maintenanceRecordSchema = z.object({
   cost: optionalNumber.refine((value) => value == null || value >= 0, "Cost must be zero or higher."),
   currency: optionalText.transform((value) => value || "USD"),
   nextDueAt: optionalDate,
+});
+
+export const taskSchema = z.object({
+  title: z.string().trim().min(1, "Task title is required."),
+  description: optionalText,
+  status: z.nativeEnum(TaskStatus).default("OPEN"),
+  priority: z.nativeEnum(TaskPriority).default("MEDIUM"),
+  dueDate: optionalDate,
+  reminderDate: optionalDate,
+  assignedTo: optionalText,
+  category: z.nativeEnum(TaskCategory).default("GENERAL"),
+  relatedDeviceId: optionalText,
+  relatedEmployeeId: optionalText,
+  relatedStockItemId: optionalText,
+  relatedFacturaId: optionalText,
+  relatedAlertId: optionalText,
+  notes: optionalText,
+});
+
+export const purchaseNoteItemSchema = z.object({
+  description: z.string().trim().min(1, "Item description is required."),
+  quantity: optionalInt.refine((value) => value == null || value >= 1, "Quantity must be at least 1."),
+  unitCost: optionalNumber.refine((value) => value == null || value >= 0, "Unit cost must be zero or higher."),
+  relatedStockItemId: optionalText,
+  relatedDeviceId: optionalText,
+  notes: optionalText,
+});
+
+export const purchaseNoteSchema = z.object({
+  poNumber: optionalText,
+  title: z.string().trim().min(1, "PO tracker title is required."),
+  vendorName: optionalText,
+  status: z.nativeEnum(PurchaseNoteStatus).default("DRAFT"),
+  priority: z.nativeEnum(TaskPriority).optional().nullable().transform((value) => value || null),
+  requestedBy: optionalText,
+  requestedAt: optionalDate,
+  approvedAt: optionalDate,
+  orderedAt: optionalDate,
+  expectedDeliveryAt: optionalDate,
+  receivedAt: optionalDate,
+  followUpDate: optionalDate,
+  estimatedAmount: optionalNumber.refine((value) => value == null || value >= 0, "Estimated amount must be zero or higher."),
+  currency: optionalText.transform((value) => value || "USD"),
+  relatedFacturaId: optionalText,
+  notes: optionalText,
+  items: z.array(purchaseNoteItemSchema).optional().default([]),
+});
+
+export const toolLinkSchema = z.object({
+  name: z.string().trim().min(1, "Tool name is required."),
+  url: z.string().trim().url("Enter a valid URL."),
+  category: z.nativeEnum(ToolLinkCategory),
+  description: optionalText,
+  icon: optionalText,
+  color: optionalText,
+  isFavorite: z.coerce.boolean().default(false),
+  requiresVpn: z.coerce.boolean().default(false),
+  internalOnly: z.coerce.boolean().default(false),
+  notes: optionalText.refine((value) => !value || !/password|secret|token|api key/i.test(value), "Do not store passwords, tokens, API keys, or secrets in tool notes."),
+  active: z.coerce.boolean().default(true),
 });
 
 export const locationZoneSchema = z.object({
