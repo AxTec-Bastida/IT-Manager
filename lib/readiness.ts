@@ -44,6 +44,39 @@ export function summarizeReadiness(checks: ReadinessCheck[]): ReadinessStatus {
   return "PASS";
 }
 
+export function describeAppBaseUrl(value?: string | null) {
+  const cleanValue = value?.trim();
+  if (!cleanValue) {
+    return {
+      configured: false,
+      scope: "missing" as const,
+      message: "APP_BASE_URL is not configured.",
+      suggestion: "Set APP_BASE_URL for email links and production-like local runs.",
+    };
+  }
+
+  try {
+    const url = new URL(cleanValue);
+    const host = url.hostname.toLowerCase();
+    const localhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    return {
+      configured: true,
+      scope: localhost ? "localhost" as const : "lan" as const,
+      message: localhost
+        ? `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (localhost/server-only).`
+        : `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (LAN/hostname candidate).`,
+      suggestion: localhost ? "For teammate/phone beta access, switch APP_BASE_URL to the reachable LAN IP or hostname." : undefined,
+    };
+  } catch {
+    return {
+      configured: true,
+      scope: "invalid" as const,
+      message: `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} but is not a valid URL.`,
+      suggestion: "Use a full URL such as http://localhost:3000 or http://SERVER-IP:3000.",
+    };
+  }
+}
+
 export async function checkWritableDirectory(folderPath: string, options: { createIfMissing?: boolean } = {}): Promise<WritableDirectoryResult> {
   const resolved = path.resolve(folderPath);
   let created = false;
@@ -168,11 +201,12 @@ export async function collectReadinessChecks(options: { projectRoot?: string; en
     suggestion: mailConfig.configured ? undefined : "Manual workflows still save records; configure SMTP only when receipts/reminders should send.",
   });
 
+  const appBaseUrl = describeAppBaseUrl(env.APP_BASE_URL);
   checks.push({
     name: "APP_BASE_URL",
-    status: env.APP_BASE_URL ? "PASS" : "WARN",
-    message: `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", env.APP_BASE_URL)}.`,
-    suggestion: env.APP_BASE_URL ? undefined : "Set APP_BASE_URL for email links and production-like local runs.",
+    status: appBaseUrl.configured && appBaseUrl.scope !== "invalid" ? "PASS" : "WARN",
+    message: appBaseUrl.message,
+    suggestion: appBaseUrl.suggestion,
   });
 
   checks.push(await packageScriptCheck(projectRoot, "jobs:run-due", "Scheduled jobs command", "Keep npm run jobs:run-due available for Windows Task Scheduler."));

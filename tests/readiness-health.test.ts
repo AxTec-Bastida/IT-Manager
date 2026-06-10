@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildHealthPayload } from "@/lib/health";
-import { checkWritableDirectory, collectReadinessChecks, isOneDrivePath, maskEnvValue } from "@/lib/readiness";
+import { checkWritableDirectory, collectReadinessChecks, describeAppBaseUrl, isOneDrivePath, maskEnvValue } from "@/lib/readiness";
 
 let tempRoot = "";
 
@@ -37,6 +37,20 @@ describe("deployment readiness helpers", () => {
   it("detects OneDrive runtime paths", () => {
     expect(isOneDrivePath("C:\\Users\\abastida\\OneDrive - TechStyle\\Documents\\New project 3")).toBe(true);
     expect(isOneDrivePath("C:\\Dev\\warehouse-it-inventory")).toBe(false);
+  });
+
+  it("describes APP_BASE_URL as localhost or LAN without exposing secrets", () => {
+    expect(describeAppBaseUrl("http://localhost:3000")).toMatchObject({
+      configured: true,
+      scope: "localhost",
+      suggestion: "For teammate/phone beta access, switch APP_BASE_URL to the reachable LAN IP or hostname.",
+    });
+    expect(describeAppBaseUrl("http://192.168.163.29:3000")).toMatchObject({
+      configured: true,
+      scope: "lan",
+      suggestion: undefined,
+    });
+    expect(describeAppBaseUrl("not-a-url")).toMatchObject({ configured: true, scope: "invalid" });
   });
 
   it("creates and verifies writable upload folders", async () => {
@@ -118,5 +132,36 @@ describe("health payload", () => {
     expect(payload.status).toBe("error");
     expect(payload.databaseReachable).toBe(false);
     expect(payload.warnings).toContain("Database is not reachable.");
+  });
+});
+
+describe("team beta ops artifacts", () => {
+  const projectRoot = process.cwd();
+
+  it("documents beta SMTP and APP_BASE_URL settings", async () => {
+    const envExample = await fs.readFile(path.join(projectRoot, ".env.example"), "utf8");
+    expect(envExample).toContain("SMTP_HOST=");
+    expect(envExample).toContain("SMTP_PORT=");
+    expect(envExample).toContain("SMTP_USER=");
+    expect(envExample).toContain("SMTP_PASS=");
+    expect(envExample).toContain("SMTP_FROM=");
+    expect(envExample).toContain("MAIL_FROM=");
+    expect(envExample).toContain("APP_BASE_URL=");
+  });
+
+  it("includes beta SOP and Windows helper scripts for the C:\\Dev runtime path", async () => {
+    const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+    const registerTask = await fs.readFile(path.join(projectRoot, "scripts", "register-jobs-task.ps1"), "utf8");
+    const startProduction = await fs.readFile(path.join(projectRoot, "scripts", "start-production.ps1"), "utf8");
+
+    expect(sop).toContain("Team Beta SOP");
+    expect(sop).toContain("QA-SMOKE-001");
+    expect(sop).toContain("npm run backup");
+    expect(registerTask).toContain("Warehouse IT Inventory Jobs");
+    expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
+    expect(registerTask).toContain("jobs:run-due");
+    expect(startProduction).toContain("C:\\Dev\\warehouse-it-inventory");
+    expect(startProduction).toContain("npm.cmd run doctor");
+    expect(startProduction).toContain("npm.cmd run start");
   });
 });

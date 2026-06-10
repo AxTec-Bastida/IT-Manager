@@ -22,6 +22,7 @@ describe("email notifications", () => {
     expect(configured.secure).toBe(true);
     expect(configured.port).toBe(465);
     expect(configured.pass).toBe("secret");
+    expect(getMailConfig({ SMTP_HOST: "smtp.example.com", SMTP_FROM: "fallback@example.com" }).from).toBe("fallback@example.com");
   });
 
   it("returns a skipped result when SMTP is not configured", async () => {

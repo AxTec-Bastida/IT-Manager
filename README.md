@@ -80,6 +80,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
+SMTP_FROM=
 MAIL_FROM=
 MAIL_REPLY_TO=
 IT_NOTIFICATION_CC=
@@ -91,6 +92,8 @@ IT_STOCK_CC=
 ```
 
 Do not commit real `.env` files or SMTP credentials.
+
+`MAIL_FROM` is the primary sender setting. `SMTP_FROM` is accepted as a fallback alias for beta setup notes, but keep one sender value consistent.
 
 Generate Prisma Client:
 
@@ -156,6 +159,166 @@ Before using this with more internal users:
 - Use HTTPS for phone camera scanning and PWA install. `localhost` works for desktop development, but phones on the LAN normally need HTTPS or a trusted internal certificate.
 - Verify asset photos, stock photos, map images, and factura files still open after backup/restore testing.
 - UniFi/API sync is disabled and unavailable due to company rules. Normal operations should rely on manual location updates, IPAM, scheduled jobs, alerts, data quality checks, RMA/loan reminders, stock thresholds, and photo compliance.
+
+## Team Beta Ops Setup
+
+Use this checklist for the controlled Axel + one IT teammate beta. Keep the active project at:
+
+```text
+C:\Dev\warehouse-it-inventory
+```
+
+Run a backup before changing settings, creating beta users, running migrations, bulk intake, imports, decommission testing, or any major workflow test:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run backup
+```
+
+### APP_BASE_URL And LAN Access
+
+`APP_BASE_URL="http://localhost:3000"` only works on the server itself. For phone or teammate access, set `APP_BASE_URL` in `.env` to the reachable server IP or hostname, for example:
+
+```env
+APP_BASE_URL="http://192.168.X.X:3000"
+```
+
+Find candidate server IPs with:
+
+```powershell
+ipconfig
+```
+
+Then test from another PC or phone on the same network:
+
+```text
+http://SERVER-IP:3000/login
+```
+
+If the phone camera is blocked on `http://SERVER-IP:3000`, that is a browser/trusted-origin limitation. Manual scan input and gallery upload can still be used for early beta; full phone camera/PWA testing may require HTTPS or a trusted internal origin.
+
+### Windows Firewall Checklist
+
+Do not make broad firewall changes casually. For beta access:
+
+1. Confirm the app is running on port `3000`.
+2. Confirm the server IP with `ipconfig`.
+3. Allow Node.js/npm through Windows Firewall or open inbound TCP `3000` for the trusted internal network profile.
+4. Test from another PC: `http://SERVER-IP:3000/login`.
+5. Test from a phone on the same Wi-Fi.
+6. If it fails, check VPN, guest Wi-Fi, VLAN, or network segmentation rules.
+
+### Scheduled Jobs
+
+Manual verification:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run jobs:run-due
+```
+
+Recommended Windows Task Scheduler action:
+
+```text
+Program:
+npm.cmd
+
+Arguments:
+run jobs:run-due
+
+Start in:
+C:\Dev\warehouse-it-inventory
+
+Cadence:
+Every 15 minutes
+```
+
+Optional helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\register-jobs-task.ps1
+```
+
+The helper registers `Warehouse IT Inventory Jobs`, runs from `C:\Dev\warehouse-it-inventory`, writes to `logs\jobs-run-due.log`, and may need an elevated PowerShell window depending on Windows policy. It does not store or print secrets.
+
+### Startup Helper
+
+Production-like local start:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run start
+```
+
+Optional helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-production.ps1
+```
+
+Use `-Build` only when you intentionally want the helper to run `npm run build` before starting.
+
+### SMTP Readiness
+
+Email is optional for beta. Without SMTP, workflows still save normally and `/api/health` may show degraded only because email is not configured.
+
+SMTP enables manual email receipts/summaries where implemented. Configure `.env` without committing secrets:
+
+```env
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+MAIL_FROM=
+SMTP_FROM=
+APP_BASE_URL=
+```
+
+Use `/settings` to verify email status and the existing test email flow. Do not send real emails until credentials and recipients are intentional.
+
+### Beta Users
+
+Recommended roles:
+
+- Axel: `ADMIN`
+- IT teammate: `IT_STAFF`
+- Optional test/read account: `VIEWER`
+- Optional audit test account: `AUDITOR`
+
+Role intent:
+
+- `ADMIN`: users, settings, backups, imports, jobs, and daily work.
+- `IT_STAFF`: daily inventory work, intake, stock, assignments, loans, RMA, photos, labels, tasks, audits.
+- `AUDITOR`: inventory read and audit scanning/review.
+- `VIEWER`: read-only inventory access.
+
+Do not write passwords into README, tickets, screenshots, or chat logs. If Phase 50 QA smoke users are still present, keep them only if they are useful for testing, otherwise deactivate them from `/admin/users` before real beta.
+
+### Phone / PWA / Camera Smoke Checklist
+
+On the phone:
+
+1. Open `http://SERVER-IP:3000/login`.
+2. Log in as the IT Staff beta user.
+3. Add to Home Screen if the browser supports it.
+4. Open from the home screen.
+5. Open `/scan`.
+6. Allow camera if the browser permits.
+7. Scan a safe QR/barcode/Data Matrix.
+8. If camera is unavailable, manually search `QA-SMOKE-001`.
+9. Open the asset detail page.
+10. Upload one photo using camera or gallery.
+11. Verify the thumbnail appears.
+12. Verify bottom navigation and the More drawer.
+13. Check for horizontal overflow at phone width.
+14. Log out.
+
+If camera access is blocked because the LAN origin is not trusted, document HTTPS/trusted-origin setup as pending and continue early beta with manual scan and gallery fallback.
+
+### Team Beta SOP
+
+See [`docs/BETA-SOP.md`](docs/BETA-SOP.md) for the daily-use SOP, admin approval rules, bug report format, and beta release checklist.
 
 Recommended local production path:
 
@@ -250,7 +413,7 @@ Deployment checklist before daily use:
 
 Before team rollout:
 
-- Add authentication and roles.
+- Review authentication, roles, and active users.
 - Review permission model.
 - Automate backups and monitor job output.
 - Test restore from a real backup.
@@ -1031,6 +1194,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
+SMTP_FROM=
 MAIL_FROM=
 MAIL_REPLY_TO=
 IT_NOTIFICATION_CC=

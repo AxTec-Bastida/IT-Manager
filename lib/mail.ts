@@ -48,7 +48,7 @@ export type EmailLogRelations = {
 
 export function getMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig {
   const host = clean(env.SMTP_HOST);
-  const from = clean(env.MAIL_FROM);
+  const from = clean(env.MAIL_FROM) || clean(env.SMTP_FROM);
   const port = Number(clean(env.SMTP_PORT) || 587);
   const missing = [];
   if (!host) missing.push("SMTP_HOST");
