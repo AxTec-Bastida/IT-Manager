@@ -1,0 +1,1 @@
+-- SQLite stores Prisma enum values as TEXT, so adding AssetPhotoType values requires no enum DDL.

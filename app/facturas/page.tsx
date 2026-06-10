@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Plus, ReceiptText, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
+import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function FacturasPage({ searchParams }: Props) {
+  const canWriteInventory = await hasPagePermission("inventory.write");
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.trim() : "";
   const facturas = await prisma.factura.findMany({
@@ -32,10 +34,10 @@ export default async function FacturasPage({ searchParams }: Props) {
         title="Facturas"
         description="Purchase records, vendor details, attached files, and linked assets or stock."
         action={
-          <Link href="/facturas/new" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+          canWriteInventory ? <Link href="/facturas/new" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
             <Plus size={16} />
             Add factura
-          </Link>
+          </Link> : null
         }
       />
 

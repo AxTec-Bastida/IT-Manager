@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { AccessPointMapLocation, AssetLocationHistory, Device, UnifiClientSnapshot, WarehouseMap } from "@prisma/client";
 import { Badge } from "@/components/badge";
 import { statusLabels, statusTone } from "@/lib/constants";
+import { buildAnchorDisplayPath } from "@/lib/map-anchors";
 
 type MapHistory = AssetLocationHistory & {
   asset: Pick<Device, "id" | "name" | "status" | "assignedTo" | "category"> & {
@@ -33,17 +34,20 @@ export function WarehouseMapView({ map, accessPoints, histories, snapshotsByAsse
             {showMovement && movementPoints ? <polyline points={movementPoints} fill="none" stroke="#2563eb" strokeWidth="0.6" strokeDasharray="1.2 1" /> : null}
           </svg>
 
-          {accessPoints.map((ap) => (
-            <div
-              key={ap.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${ap.x}%`, top: `${ap.y}%` }}
-              title={`${ap.apName} - ${ap.locationLabel}`}
-            >
-              <div className="flex size-9 items-center justify-center rounded-full border-2 border-white bg-slate-950 text-xs font-bold text-white shadow-md">AP</div>
-              <div className="mt-1 hidden max-w-28 rounded bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow sm:block">{ap.locationLabel}</div>
-            </div>
-          ))}
+          {accessPoints.map((ap) => {
+            const path = buildAnchorDisplayPath(ap);
+            return (
+              <div
+                key={ap.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${ap.x}%`, top: `${ap.y}%` }}
+                title={`${ap.apName} - ${path}`}
+              >
+                <div className="flex size-9 items-center justify-center rounded-full border-2 border-white bg-slate-950 text-xs font-bold text-white shadow-md">LOC</div>
+                <div className="mt-1 hidden max-w-36 rounded bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow sm:block">{path}</div>
+              </div>
+            );
+          })}
 
           {histories.map((history, index) => (
             <Link
@@ -80,12 +84,12 @@ export function WarehouseMapView({ map, accessPoints, histories, snapshotsByAsse
                     <Badge className={statusTone[history.asset.status]}>{statusLabels[history.asset.status]}</Badge>
                   </div>
                   <p className="mt-2 text-slate-500">{history.apName}</p>
-                  <p className="text-slate-500">Expected: {history.asset.expectedLocationZone?.name ?? "Not set"} • Actual: {history.apMapLocation?.locationZone?.name ?? history.locationLabel}</p>
+                  <p className="text-slate-500">Expected: {history.asset.expectedLocationZone?.name ?? "Not set"} / Actual: {history.apMapLocation?.locationZone?.name ?? history.locationLabel}</p>
                   {importantAlert ? <Link href={`/alerts?assetId=${history.assetId}`} className="mt-2 block rounded-md bg-amber-50 p-2 text-xs font-semibold text-amber-900">{importantAlert.severity}: {importantAlert.title}</Link> : null}
                   <p className="text-slate-500">{history.seenAt.toLocaleString()}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    UniFi: {snapshot?.online ? "online" : snapshot ? "offline" : "unknown"}
-                    {history.signalStrength != null ? ` • ${history.signalStrength} dBm` : ""}
+                    Network status: {snapshot?.online ? "online" : snapshot ? "offline" : "unknown"}
+                    {history.signalStrength != null ? ` / ${history.signalStrength} dBm` : ""}
                   </p>
                 </div>
               );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
+import { makeActivityActor, requirePermission } from "@/lib/auth";
 import { maintenanceRecordSchema } from "@/lib/validation";
 import { calculateStockMovement } from "@/lib/stock";
 
@@ -17,6 +18,7 @@ function deviceMaintenanceUpdate(maintenanceType: string, performedAt: Date, nex
 
 export async function POST(request: NextRequest) {
   try {
+    const actor = await requirePermission("inventory.write");
     const payload = await request.json();
     const data = maintenanceRecordSchema.parse(payload);
     const asset = await prisma.device.findUnique({ where: { id: data.assetId } });
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
         prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(data.maintenanceType, data.performedAt, data.nextDueAt) }),
         prisma.activityLog.create({
           data: {
+            ...makeActivityActor(actor),
             action: "maintenance.created",
             entity: "device",
             entityId: asset.id,
@@ -65,6 +68,7 @@ export async function POST(request: NextRequest) {
       prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(data.maintenanceType, data.performedAt, data.nextDueAt) }),
       prisma.activityLog.create({
         data: {
+          ...makeActivityActor(actor),
           action: "maintenance.created",
           entity: "device",
           entityId: asset.id,

@@ -217,7 +217,7 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
       </fieldset>
 
       <fieldset className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-2">
-        <legend className="px-2 text-sm font-semibold text-slate-950">Fixed asset movement alerts</legend>
+        <legend className="px-2 text-sm font-semibold text-slate-950">Fixed / static asset location fields</legend>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <input className="size-4" name="isFixedAsset" type="checkbox" defaultChecked={device?.isFixedAsset ?? false} />
           Fixed/installed asset
@@ -228,10 +228,10 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
         </label>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <input className="size-4" name="movementAlertsEnabled" type="checkbox" defaultChecked={device?.movementAlertsEnabled ?? false} />
-          Enable movement alerts
+          Legacy AP-based movement alert flag
         </label>
         <label className={labelClass}>
-          Allowed zone distance
+          Allowed zone distance for legacy AP review
           <input className={inputClass} name="allowedZoneDistance" type="number" min="0" max="10" defaultValue={device?.allowedZoneDistance ?? 0} />
         </label>
         <label className={`${labelClass} lg:col-span-2`}>

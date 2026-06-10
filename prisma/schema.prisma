@@ -40,6 +40,46 @@ enum DeviceStatus {
   DISPOSED
 }
 
+enum AssetDecommissionReason {
+  RETIRED
+  DISPOSED
+  RECYCLED
+  LOST
+  STOLEN
+  DESTROYED
+  DONATED
+  SOLD
+  RETURNED_TO_VENDOR
+  OTHER
+}
+
+enum DeviceAliasType {
+  SCAN_CODE
+  PHYSICAL_LABEL
+  LEGACY_ASSET_TAG
+  OLD_AN
+  LABEL_DB
+  LAST_LABEL
+  LEGACY_LABEL
+  IMPORT_REFERENCE
+  OTHER
+}
+
+enum DeviceRelationshipType {
+  PAIRED_WITH
+  IPOD_SLED_PAIR
+  IPHONE_SLED_PAIR
+  KIT_MEMBER
+  USES_ACCESSORY
+  OTHER
+}
+
+enum DeviceRelationshipStatus {
+  ACTIVE
+  INACTIVE
+  NEEDS_REVIEW
+}
+
 enum DeviceCondition {
   NEW
   GOOD
@@ -62,6 +102,15 @@ enum AssignmentStatus {
   CANCELLED
 }
 
+enum AssignmentTargetType {
+  EMPLOYEE
+  DEPARTMENT
+  TEAM
+  AREA
+  STATION
+  ORGANIZATIONAL_UNIT
+}
+
 enum AssignmentItemReturnStatus {
   NOT_RETURNED
   RETURNED
@@ -82,7 +131,12 @@ enum StockCategory {
   MOUSE
   HEADSET
   CABLE
+  CHARGER
   ADAPTER
+  ACCESSORY
+  DISPLAY_BASE
+  DOCK
+  PRINTER_SUPPLY
   TONER
   INK
   THERMAL_LABEL
@@ -99,7 +153,28 @@ enum StockMovementType {
   ADJUST
   USED_FOR_REPAIR
   HANDED_OUT
+  LOANED_OUT
   RETURNED_TO_STOCK
+}
+
+enum StockIssueType {
+  HANDOUT
+  LOAN
+}
+
+enum StockIssueStatus {
+  ACTIVE
+  RETURNED
+  PARTIALLY_RETURNED
+  CANCELLED
+}
+
+enum StockReturnCondition {
+  GOOD
+  FAIR
+  DAMAGED
+  NOT_WORKING
+  MISSING
 }
 
 enum MaintenanceType {
@@ -140,6 +215,12 @@ enum AlertType {
   FACTURA_WARRANTY_EXPIRING
   MISSING_ASSET_SEEN_ONLINE
   FIXED_ASSET_MOVED
+  RMA_FOLLOW_UP_DUE
+  RMA_ACTIVE_REMINDER
+  RMA_OVERDUE
+  ASSET_LOAN_OVERDUE
+  STOCK_LOAN_OVERDUE
+  DATA_INTEGRITY_WARNING
 }
 
 enum AlertSeverity {
@@ -169,10 +250,14 @@ enum AlertSource {
 
 enum ScheduledJobType {
   ALERT_REFRESH
+  RMA_REMINDER_REFRESH
+  ASSET_LOAN_OVERDUE_CHECK
+  STOCK_LOAN_OVERDUE_CHECK
   CONFLICT_DETECTION
   STOCK_ALERT_CHECK
   WARRANTY_ALERT_CHECK
   PRINTER_MAINTENANCE_CHECK
+  DATA_INTEGRITY_CHECK
   MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY
 }
 
@@ -186,16 +271,66 @@ enum JobRunStatus {
   SUCCESS
   FAILED
   PARTIAL
+  SKIPPED
+}
+
+enum EmailLogStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum AppRole {
+  ADMIN
+  IT_STAFF
+  VIEWER
+  AUDITOR
+}
+
+enum EmailLogType {
+  ASSIGNMENT_RECEIPT
+  ASSIGNMENT_RETURN_CONFIRMATION
+  ASSET_LOAN_CHECKOUT
+  ASSET_LOAN_RETURN
+  STOCK_ISSUE_HANDOUT
+  STOCK_LOAN_CHECKOUT
+  STOCK_LOAN_RETURN
+  RMA_SENT
+  RMA_FOLLOW_UP
+  RMA_CLOSED
+  OVERDUE_ASSET_LOAN_REMINDER
+  OVERDUE_STOCK_LOAN_REMINDER
+  TEST_EMAIL
 }
 
 enum AssetPhotoType {
   MAIN
+  OVERVIEW
+  ASSET_TAG
   SERIAL_LABEL
   MAC_IP_LABEL
   CONDITION
   DAMAGE
   ACCESSORIES
+  LOCATION_INSTALLED
+  FACTURA_EVIDENCE
+  RMA_CONDITION
   RETURN_CONDITION
+  OTHER
+}
+
+enum PhotoSource {
+  CAMERA
+  GALLERY
+  IMPORT
+  UNKNOWN
+}
+
+enum StockItemPhotoType {
+  OVERVIEW
+  PACKAGING
+  SKU_LABEL
+  STORAGE_LOCATION
   OTHER
 }
 
@@ -244,6 +379,18 @@ enum TaskCategory {
   WARRANTY
   ALERT
   OTHER
+  ASSET_FOLLOW_UP
+  INSTALL_COMMISSION
+  MOVE_RELOCATE
+  REPAIR_RMA
+  STOCK_CONSUMABLES
+  AUDIT_FINDING
+  LABEL_QR_ISSUE
+  PHOTO_COMPLIANCE
+  NETWORK_IP_MAC
+  WARRANTY_FACTURA
+  PURCHASE_PO
+  SECURITY_ACCESS
 }
 
 enum PurchaseNoteStatus {
@@ -273,6 +420,98 @@ enum ToolLinkCategory {
   RMA_WARRANTY
   REPORTS
   OTHER
+}
+
+enum RmaCaseStatus {
+  DRAFT
+  SENT
+  ACTIVE
+  PARTIALLY_RETURNED
+  RETURNED
+  CLOSED
+  CANCELLED
+}
+
+enum RmaItemResult {
+  PENDING
+  REPAIRED
+  REPLACED
+  REJECTED
+  LOST
+  RETIRED
+  RETURNED_AS_IS
+}
+
+enum AssetLoanStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+  PARTIALLY_RETURNED
+  CANCELLED
+  LOST
+  RETURNED_DAMAGED
+}
+
+enum AssetLoanItemReturnStatus {
+  PENDING
+  RETURNED
+  RETURNED_DAMAGED
+  MISSING_ACCESSORIES
+  LOST
+  CANCELLED
+}
+
+enum AssetLoanReturnCondition {
+  GOOD
+  FAIR
+  DAMAGED
+  NOT_WORKING
+  MISSING_ACCESSORIES
+  LOST
+}
+
+enum ImportSourceType {
+  LEGACY_XLSX
+}
+
+enum ImportRunStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+enum InventoryAuditSessionStatus {
+  DRAFT
+  ACTIVE
+  REVIEW
+  CLOSED
+  CANCELLED
+}
+
+enum InventoryAuditScopeType {
+  AREA_LOCATION
+  CATEGORY
+  AREA_CATEGORY
+  CUSTOM
+}
+
+enum InventoryAuditExpectedResult {
+  PENDING
+  FOUND
+  MISSING
+  FOUND_WRONG_AREA
+  EXCLUDED
+  NEEDS_REVIEW
+}
+
+enum InventoryAuditScanResult {
+  FOUND_EXPECTED
+  FOUND_WRONG_AREA
+  UNKNOWN_LABEL
+  DUPLICATE_SCAN
+  FOUND_NOT_EXPECTED
+  IGNORED
+  NEEDS_REVIEW
 }
 
 model Device {
@@ -323,6 +562,8 @@ model Device {
   expectedLocationZone          LocationZone?          @relation(fields: [expectedLocationZoneId], references: [id], onDelete: SetNull)
   movementAlertsEnabled         Boolean                @default(false)
   allowedZoneDistance           Int                    @default(0)
+  currentMapAnchorId            String?
+  currentMapAnchor              AccessPointMapLocation? @relation("DeviceCurrentMapAnchor", fields: [currentMapAnchorId], references: [id], onDelete: SetNull)
   ipRangeId                     String?
   ipRange                       IpRange?               @relation(fields: [ipRangeId], references: [id], onDelete: SetNull)
   photos                        AssetPhoto[]
@@ -334,6 +575,16 @@ model Device {
   alerts                        Alert[]
   tasks                         Task[]
   purchaseNoteItems             PurchaseNoteItem[]
+  rmaItems                      RmaItem[]              @relation("RmaItemDevice")
+  replacementForRmaItems        RmaItem[]              @relation("RmaItemReplacementDevice")
+  assetLoanItems                AssetLoanItem[]
+  emailLogs                     EmailLog[]
+  aliases                       DeviceAlias[]
+  sourceRelationships           DeviceRelationship[]   @relation("DeviceRelationshipSource")
+  targetRelationships           DeviceRelationship[]   @relation("DeviceRelationshipTarget")
+  auditExpectedItems            InventoryAuditExpectedItem[]
+  auditScans                    InventoryAuditScan[]
+  decommissionRecords           AssetDecommissionRecord[]
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
 
@@ -347,7 +598,72 @@ model Device {
   @@index([employeeId])
   @@index([facturaId])
   @@index([expectedLocationZoneId])
+  @@index([currentMapAnchorId])
   @@index([vlan])
+}
+
+model AssetDecommissionRecord {
+  id                String                    @id @default(cuid())
+  deviceId          String
+  device            Device                    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  reason            AssetDecommissionReason
+  finalStatus       DeviceStatus
+  checklistJson     String?
+  notes             String?
+  approvedByUserId  String?
+  approvedByName    String?
+  performedByUserId String?
+  performedByName   String?
+  performedAt       DateTime                  @default(now())
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([deviceId])
+  @@index([reason])
+  @@index([finalStatus])
+  @@index([performedAt])
+  @@index([performedByUserId])
+}
+
+model DeviceAlias {
+  id           String          @id @default(cuid())
+  deviceId     String
+  device       Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  aliasType    DeviceAliasType
+  value        String
+  sourceSheet  String?
+  sourceColumn String?
+  sourceRow    Int?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([deviceId, aliasType, value])
+  @@index([deviceId])
+  @@index([aliasType])
+  @@index([value])
+  @@index([sourceSheet, sourceRow])
+}
+
+model DeviceRelationship {
+  id               String                   @id @default(cuid())
+  sourceDeviceId   String
+  sourceDevice     Device                   @relation("DeviceRelationshipSource", fields: [sourceDeviceId], references: [id], onDelete: Cascade)
+  targetDeviceId   String
+  targetDevice     Device                   @relation("DeviceRelationshipTarget", fields: [targetDeviceId], references: [id], onDelete: Cascade)
+  relationshipType DeviceRelationshipType
+  status           DeviceRelationshipStatus @default(ACTIVE)
+  sourceReference  String?
+  confidence       Float?
+  notes            String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@unique([sourceDeviceId, targetDeviceId, relationshipType])
+  @@index([sourceDeviceId])
+  @@index([targetDeviceId])
+  @@index([relationshipType])
+  @@index([status])
 }
 
 model LocationZone {
@@ -380,8 +696,18 @@ model AssetPhoto {
   filePath         String
   mimeType         String
   fileSize         Int
+  sizeBytes        Int?
   width            Int?
   height           Int?
+  thumbnailFilename String?
+  thumbnailPath    String?
+  optimizedFilename String?
+  optimizedPath    String?
+  uploadedByUserId String?
+  uploadedByUser   AppUser?       @relation("AssetPhotoUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedByName   String?
+  compressionApplied Boolean      @default(false)
+  source           PhotoSource    @default(UNKNOWN)
   isPrimary        Boolean        @default(false)
   uploadedBy       String?
   createdAt        DateTime       @default(now())
@@ -390,6 +716,8 @@ model AssetPhoto {
   @@index([assetId])
   @@index([photoType])
   @@index([isPrimary])
+  @@index([uploadedByUserId])
+  @@index([source])
 }
 
 model Factura {
@@ -428,6 +756,7 @@ model StockItem {
   id                      String              @id @default(cuid())
   name                    String
   sku                     String?             @unique
+  barcodeValue            String?             @unique
   category                StockCategory
   itemType                StockItemType
   compatibleAssetCategory DeviceCategory?
@@ -444,6 +773,8 @@ model StockItem {
   facturaId               String?
   factura                 Factura?            @relation(fields: [facturaId], references: [id], onDelete: SetNull)
   movements               StockMovement[]
+  photos                  StockItemPhoto[]
+  stockIssues             StockIssue[]
   maintenanceRecords      MaintenanceRecord[]
   alerts                  Alert[]
   tasks                   Task[]
@@ -453,37 +784,131 @@ model StockItem {
 
   @@index([name])
   @@index([sku])
+  @@index([barcodeValue])
   @@index([category])
   @@index([itemType])
   @@index([facturaId])
   @@index([active])
 }
 
+model StockItemPhoto {
+  id                String             @id @default(cuid())
+  stockItemId       String
+  stockItem         StockItem          @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  photoType         StockItemPhotoType @default(OTHER)
+  caption           String?
+  originalFilename  String?
+  storedFilename    String
+  filePath          String
+  mimeType          String
+  sizeBytes         Int
+  width             Int?
+  height            Int?
+  thumbnailFilename String?
+  thumbnailPath     String?
+  uploadedByUserId  String?
+  uploadedByUser    AppUser?           @relation("StockItemPhotoUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedByName    String?
+  source            PhotoSource        @default(UNKNOWN)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([stockItemId])
+  @@index([photoType])
+  @@index([uploadedByUserId])
+}
+
 model StockMovement {
-  id               String            @id @default(cuid())
-  stockItemId      String
-  stockItem        StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
-  assetId          String?
-  asset            Device?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  employeeId       String?
-  employee         Employee?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  movementType     StockMovementType
-  quantity         Int
-  previousQuantity Int
-  newQuantity      Int
-  reason           String?
-  notes            String?
-  performedBy      String?
-  facturaId        String?
-  factura          Factura?          @relation(fields: [facturaId], references: [id], onDelete: SetNull)
-  createdAt        DateTime          @default(now())
+  id                  String             @id @default(cuid())
+  stockItemId         String
+  stockItem           StockItem          @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  assetId             String?
+  asset               Device?            @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  employeeId          String?
+  employee            Employee?          @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  temporaryBorrowerId String?
+  temporaryBorrower   TemporaryBorrower? @relation(fields: [temporaryBorrowerId], references: [id], onDelete: SetNull)
+  stockIssueId        String?
+  stockIssue          StockIssue?        @relation(fields: [stockIssueId], references: [id], onDelete: SetNull)
+  movementType        StockMovementType
+  quantity            Int
+  previousQuantity    Int
+  newQuantity         Int
+  reason              String?
+  notes               String?
+  performedBy         String?
+  facturaId           String?
+  factura             Factura?           @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  createdAt           DateTime           @default(now())
 
   @@index([stockItemId])
   @@index([assetId])
   @@index([employeeId])
+  @@index([temporaryBorrowerId])
+  @@index([stockIssueId])
   @@index([movementType])
   @@index([facturaId])
   @@index([createdAt])
+}
+
+model TemporaryBorrower {
+  id             String          @id @default(cuid())
+  tempId         String          @unique
+  name           String
+  department     String?
+  area           String?
+  supervisorName String?
+  phone          String?
+  email          String?
+  reason         String?
+  notes          String?
+  active         Boolean         @default(true)
+  stockIssues    StockIssue[]
+  stockMovements StockMovement[]
+  assetLoans     AssetLoan[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([tempId])
+  @@index([name])
+  @@index([department])
+  @@index([area])
+  @@index([active])
+}
+
+model StockIssue {
+  id                  String                @id @default(cuid())
+  issueNumber         String?               @unique
+  stockItemId         String
+  stockItem           StockItem             @relation(fields: [stockItemId], references: [id], onDelete: Restrict)
+  quantity            Int
+  returnedQuantity    Int                   @default(0)
+  issueType           StockIssueType
+  status              StockIssueStatus      @default(ACTIVE)
+  employeeId          String?
+  employee            Employee?             @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  temporaryBorrowerId String?
+  temporaryBorrower   TemporaryBorrower?    @relation(fields: [temporaryBorrowerId], references: [id], onDelete: SetNull)
+  issuedBy            String?
+  issuedAt            DateTime              @default(now())
+  expectedReturnAt    DateTime?
+  returnedAt          DateTime?
+  conditionOut        String?
+  conditionIn         StockReturnCondition?
+  returnNotes         String?
+  notes               String?
+  movements           StockMovement[]
+  emailLogs           EmailLog[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([stockItemId])
+  @@index([issueType])
+  @@index([status])
+  @@index([employeeId])
+  @@index([temporaryBorrowerId])
+  @@index([issuedAt])
+  @@index([expectedReturnAt])
 }
 
 model MaintenanceRecord {
@@ -533,6 +958,7 @@ model Alert {
   resolutionNote String?
   metadata       String?
   tasks          Task[]
+  emailLogs      EmailLog[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -560,6 +986,8 @@ model Employee {
   assignedDevices Device[]
   assignments     Assignment[]
   stockMovements  StockMovement[]
+  stockIssues     StockIssue[]
+  assetLoans      AssetLoan[]
   tasks           Task[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -571,11 +999,52 @@ model Employee {
   @@index([status])
 }
 
+model AppUser {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  username     String?       @unique
+  passwordHash String
+  role         AppRole       @default(VIEWER)
+  isActive     Boolean       @default(true)
+  lastLoginAt  DateTime?
+  sessions     AppSession[]
+  activityLogs ActivityLog[]
+  assignedTasks Task[]       @relation("TaskAssignedUser")
+  uploadedAssetPhotos AssetPhoto[] @relation("AssetPhotoUploadedByUser")
+  uploadedStockItemPhotos StockItemPhoto[] @relation("StockItemPhotoUploadedByUser")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([isActive])
+}
+
+model AppSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Assignment {
   id               String           @id @default(cuid())
   assignmentNumber String           @unique
-  employeeId       String
-  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  employeeId       String?
+  employee         Employee?        @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  targetId         String?
+  target           AssignmentTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  targetType       AssignmentTargetType @default(EMPLOYEE)
+  targetName       String?
+  targetPath       String?
   assignedBy       String?
   assignmentDate   DateTime         @default(now())
   signatureData    String?
@@ -588,12 +1057,35 @@ model Assignment {
   emailCc          String?
   emailError       String?
   items            AssignmentItem[]
+  emailLogs        EmailLog[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   @@index([employeeId])
+  @@index([targetId])
+  @@index([targetType])
   @@index([status])
   @@index([assignmentDate])
+}
+
+model AssignmentTarget {
+  id          String                 @id @default(cuid())
+  type        AssignmentTargetType
+  name        String
+  parentId    String?
+  parent      AssignmentTarget?      @relation("AssignmentTargetTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    AssignmentTarget[]     @relation("AssignmentTargetTree")
+  path        String
+  isActive    Boolean                @default(true)
+  assignments Assignment[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@unique([type, path])
+  @@index([type])
+  @@index([parentId])
+  @@index([isActive])
+  @@index([path])
 }
 
 model AssignmentItem {
@@ -616,18 +1108,25 @@ model AssignmentItem {
 }
 
 model WarehouseMap {
-  id           String                   @id @default(cuid())
-  name         String
-  imageUrl     String
-  floorName    String?
-  notes        String?
-  active       Boolean                  @default(true)
-  accessPoints AccessPointMapLocation[]
-  zones        LocationZone[]
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
+  id                       String                   @id @default(cuid())
+  name                     String
+  imageUrl                 String
+  floorName                String?
+  notes                    String?
+  active                   Boolean                  @default(true)
+  uploadedOriginalFilename String?
+  uploadedStoredFilename   String?
+  uploadedMimeType         String?
+  uploadedSizeBytes        Int?
+  uploadedBy               String?
+  uploadedAt               DateTime?
+  accessPoints             AccessPointMapLocation[]
+  zones                    LocationZone[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
   @@index([active])
+  @@index([uploadedStoredFilename])
 }
 
 model AccessPointMapLocation {
@@ -636,6 +1135,10 @@ model AccessPointMapLocation {
   apMac          String
   unifiDeviceId  String?
   locationLabel  String
+  area           String?
+  department     String?
+  station        String?
+  displayPath    String?
   floorName      String?
   mapName        String?
   x              Float
@@ -648,11 +1151,14 @@ model AccessPointMapLocation {
   mapId          String?
   map            WarehouseMap?          @relation(fields: [mapId], references: [id], onDelete: SetNull)
   history        AssetLocationHistory[]
+  currentDevices Device[]               @relation("DeviceCurrentMapAnchor")
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 
   @@index([apMac])
   @@index([active])
+  @@index([area])
+  @@index([department])
   @@index([locationZoneId])
   @@index([mapId])
 }
@@ -777,6 +1283,10 @@ model Task {
   dueDate            DateTime?
   reminderDate       DateTime?
   assignedTo         String?
+  assignedToUserId   String?
+  assignedToUser     AppUser?     @relation("TaskAssignedUser", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  assignedToName     String?
+  assignedToRole     AppRole?
   category           TaskCategory @default(GENERAL)
   relatedDeviceId    String?
   relatedDevice      Device?      @relation(fields: [relatedDeviceId], references: [id], onDelete: SetNull)
@@ -798,6 +1308,7 @@ model Task {
   @@index([category])
   @@index([dueDate])
   @@index([assignedTo])
+  @@index([assignedToUserId])
   @@index([relatedDeviceId])
   @@index([relatedEmployeeId])
   @@index([relatedStockItemId])
@@ -880,34 +1391,250 @@ model ToolLink {
   @@index([active])
 }
 
+model RmaCase {
+  id                 String        @id @default(cuid())
+  rmaNumber          String
+  title              String?
+  destination        String
+  vendorName         String?
+  contactName        String?
+  contactEmail       String?
+  carrier            String?
+  trackingNumber     String?
+  sentAt             DateTime?
+  expectedFollowUpAt DateTime?
+  reminderAfterDays  Int           @default(7)
+  status             RmaCaseStatus @default(DRAFT)
+  notes              String?
+  items              RmaItem[]
+  emailLogs          EmailLog[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([rmaNumber])
+  @@index([status])
+  @@index([destination])
+  @@index([vendorName])
+  @@index([sentAt])
+  @@index([expectedFollowUpAt])
+}
+
+model RmaItem {
+  id                  String        @id @default(cuid())
+  rmaCaseId           String
+  rmaCase             RmaCase       @relation(fields: [rmaCaseId], references: [id], onDelete: Cascade)
+  deviceId            String
+  device              Device        @relation("RmaItemDevice", fields: [deviceId], references: [id], onDelete: Cascade)
+  issueDescription    String?
+  conditionSent       String?
+  accessoriesSent     String?
+  sentAt              DateTime?
+  returnedAt          DateTime?
+  returnCondition     String?
+  result              RmaItemResult @default(PENDING)
+  replacementDeviceId String?
+  replacementDevice   Device?       @relation("RmaItemReplacementDevice", fields: [replacementDeviceId], references: [id], onDelete: SetNull)
+  notes               String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([rmaCaseId, deviceId])
+  @@index([rmaCaseId])
+  @@index([deviceId])
+  @@index([replacementDeviceId])
+  @@index([result])
+  @@index([returnedAt])
+}
+
+model AssetLoan {
+  id                  String             @id @default(cuid())
+  loanNumber          String             @unique
+  employeeId          String?
+  employee            Employee?          @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  temporaryBorrowerId String?
+  temporaryBorrower   TemporaryBorrower? @relation(fields: [temporaryBorrowerId], references: [id], onDelete: SetNull)
+  loanedBy            String?
+  loanStartAt         DateTime           @default(now())
+  expectedReturnAt    DateTime
+  actualReturnAt      DateTime?
+  status              AssetLoanStatus    @default(ACTIVE)
+  signatureData       String?
+  termsAccepted       Boolean            @default(false)
+  termsText           String?
+  checkoutNotes       String?
+  returnNotes         String?
+  items               AssetLoanItem[]
+  emailLogs           EmailLog[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([loanNumber])
+  @@index([employeeId])
+  @@index([temporaryBorrowerId])
+  @@index([status])
+  @@index([loanStartAt])
+  @@index([expectedReturnAt])
+}
+
+model AssetLoanItem {
+  id                  String                    @id @default(cuid())
+  loanId              String
+  loan                AssetLoan                 @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  deviceId            String
+  device              Device                    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  conditionOut        DeviceCondition?
+  conditionIn         AssetLoanReturnCondition?
+  accessoriesOut      String?
+  accessoriesReturned String?
+  returnStatus        AssetLoanItemReturnStatus @default(PENDING)
+  returnNotes         String?
+  returnedAt          DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@unique([loanId, deviceId])
+  @@index([loanId])
+  @@index([deviceId])
+  @@index([returnStatus])
+  @@index([returnedAt])
+}
+
 model ActivityLog {
-  id        String   @id @default(cuid())
-  action    String
-  entity    String
-  entityId  String?
-  message   String
-  metadata  String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  action      String
+  entity      String
+  entityId    String?
+  message     String
+  metadata    String?
+  actorUserId String?
+  actorUser   AppUser? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorName   String?
+  actorRole   AppRole?
+  createdAt   DateTime @default(now())
 
   @@index([entity])
+  @@index([actorUserId])
   @@index([createdAt])
 }
 
+model ImportRun {
+  id          String           @id @default(cuid())
+  fileName    String
+  sourceType  ImportSourceType @default(LEGACY_XLSX)
+  startedAt   DateTime         @default(now())
+  finishedAt  DateTime?
+  status      ImportRunStatus
+  summaryJson String?
+  createdBy   String?
+  rowErrors   ImportRowError[]
+
+  @@index([sourceType])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ImportRowError {
+  id          String    @id @default(cuid())
+  importRunId String
+  importRun   ImportRun @relation(fields: [importRunId], references: [id], onDelete: Cascade)
+  sheetName   String
+  rowNumber   Int
+  errorType   String
+  message     String
+  rawJson     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([importRunId])
+  @@index([sheetName])
+  @@index([errorType])
+}
+
+model InventoryAuditSession {
+  id           String                       @id @default(cuid())
+  auditNumber  String?                      @unique
+  title        String
+  scopeType    InventoryAuditScopeType
+  area         String?
+  department   String?
+  location     String?
+  category     DeviceCategory?
+  status       InventoryAuditSessionStatus  @default(ACTIVE)
+  startedAt    DateTime                     @default(now())
+  completedAt  DateTime?
+  createdBy    String?
+  notes        String?
+  expectedItems InventoryAuditExpectedItem[]
+  scans        InventoryAuditScan[]
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+
+  @@index([auditNumber])
+  @@index([status])
+  @@index([scopeType])
+  @@index([area])
+  @@index([department])
+  @@index([location])
+  @@index([category])
+  @@index([startedAt])
+}
+
+model InventoryAuditExpectedItem {
+  id                  String                       @id @default(cuid())
+  auditSessionId      String
+  auditSession        InventoryAuditSession        @relation(fields: [auditSessionId], references: [id], onDelete: Cascade)
+  deviceId            String
+  device              Device                       @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  expectedAssetTag    String?
+  expectedDisplayName String
+  expectedCategory    DeviceCategory
+  expectedLocation    String?
+  expectedStatus      DeviceStatus
+  resultStatus        InventoryAuditExpectedResult @default(PENDING)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+
+  @@unique([auditSessionId, deviceId])
+  @@index([auditSessionId])
+  @@index([deviceId])
+  @@index([resultStatus])
+  @@index([expectedCategory])
+}
+
+model InventoryAuditScan {
+  id             String                    @id @default(cuid())
+  auditSessionId String
+  auditSession   InventoryAuditSession     @relation(fields: [auditSessionId], references: [id], onDelete: Cascade)
+  scannedValue   String
+  normalizedValue String
+  matchedDeviceId String?
+  matchedDevice  Device?                   @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
+  resultType     InventoryAuditScanResult
+  scannedAt      DateTime                  @default(now())
+  notes          String?
+  createdAt      DateTime                  @default(now())
+
+  @@index([auditSessionId])
+  @@index([matchedDeviceId])
+  @@index([resultType])
+  @@index([normalizedValue])
+  @@index([scannedAt])
+}
+
 model ScheduledJob {
-  id              String                 @id @default(cuid())
+  id              String                  @id @default(cuid())
   name            String
   type            ScheduledJobType
-  enabled         Boolean                @default(true)
+  enabled         Boolean                 @default(true)
   intervalMinutes Int
   lastRunAt       DateTime?
   nextRunAt       DateTime?
   lastStatus      ScheduledJobLastStatus?
   lastError       String?
-  running         Boolean                @default(false)
+  running         Boolean                 @default(false)
   lockedAt        DateTime?
   runs            JobRun[]
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
 
   @@index([type])
   @@index([enabled])
@@ -933,6 +1660,41 @@ model JobRun {
   @@index([startedAt])
 }
 
+model EmailLog {
+  id              String         @id @default(cuid())
+  type            EmailLogType
+  recipient       String
+  cc              String?
+  subject         String
+  status          EmailLogStatus
+  errorMessage    String?
+  messageId       String?
+  relatedDeviceId String?
+  relatedDevice   Device?        @relation(fields: [relatedDeviceId], references: [id], onDelete: SetNull)
+  assignmentId    String?
+  assignment      Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  assetLoanId     String?
+  assetLoan       AssetLoan?     @relation(fields: [assetLoanId], references: [id], onDelete: SetNull)
+  stockIssueId    String?
+  stockIssue      StockIssue?    @relation(fields: [stockIssueId], references: [id], onDelete: SetNull)
+  rmaCaseId       String?
+  rmaCase         RmaCase?       @relation(fields: [rmaCaseId], references: [id], onDelete: SetNull)
+  alertId         String?
+  alert           Alert?         @relation(fields: [alertId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([recipient])
+  @@index([relatedDeviceId])
+  @@index([assignmentId])
+  @@index([assetLoanId])
+  @@index([stockIssueId])
+  @@index([rmaCaseId])
+  @@index([alertId])
+  @@index([createdAt])
+}
+
 model AppSettings {
   id                                 String         @id @default("default")
   defaultVlan                        Int            @default(10)
@@ -955,6 +1717,12 @@ model AppSettings {
   enableMissingAssetSeenOnlineAlerts Boolean        @default(true)
   alertDuplicateSuppressionEnabled   Boolean        @default(true)
   defaultCurrency                    String         @default("USD")
+  autoSendAssignmentReceipts         Boolean        @default(false)
+  autoSendAssetLoanReceipts          Boolean        @default(false)
+  autoSendStockIssueReceipts         Boolean        @default(false)
+  autoSendRmaEmails                  Boolean        @default(false)
+  autoSendReturnConfirmations        Boolean        @default(false)
+  autoSendOverdueReminderEmails      Boolean        @default(false)
   createdAt                          DateTime       @default(now())
   updatedAt                          DateTime       @updatedAt
 }

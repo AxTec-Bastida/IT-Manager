@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError } from "@/lib/api";
 import { stockItemSchema } from "@/lib/validation";
+import { requirePermission } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("stock.write");
     const payload = await request.json();
     const data = stockItemSchema.parse(payload);
     const stockItem = await prisma.stockItem.create({ data });

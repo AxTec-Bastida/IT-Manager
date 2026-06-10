@@ -2,41 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deviceSchema } from "@/lib/validation";
 import { handleApiError } from "@/lib/api";
+import { requirePermission } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const query = searchParams.get("q")?.trim();
-  const category = searchParams.get("category") || undefined;
-  const status = searchParams.get("status") || undefined;
-  const vlan = searchParams.get("vlan") ? Number(searchParams.get("vlan")) : undefined;
+  try {
+    await requirePermission("inventory.read");
+    const searchParams = request.nextUrl.searchParams;
+    const query = searchParams.get("q")?.trim();
+    const category = searchParams.get("category") || undefined;
+    const status = searchParams.get("status") || undefined;
+    const vlan = searchParams.get("vlan") ? Number(searchParams.get("vlan")) : undefined;
 
-  const devices = await prisma.device.findMany({
-    where: {
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query } },
-              { ipAddress: { contains: query } },
-              { macAddress: { contains: query } },
-              { serialNumber: { contains: query } },
-              { location: { contains: query } },
-              { assignedTo: { contains: query } },
-            ],
-          }
-        : {}),
-      ...(category ? { category: category as never } : {}),
-      ...(status ? { status: status as never } : {}),
-      ...(vlan ? { vlan } : {}),
-    },
-    include: { ipRange: true },
-    orderBy: [{ status: "asc" }, { ipAddress: "asc" }],
-  });
+    const devices = await prisma.device.findMany({
+      where: {
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query } },
+                { ipAddress: { contains: query } },
+                { macAddress: { contains: query } },
+                { serialNumber: { contains: query } },
+                { location: { contains: query } },
+                { assignedTo: { contains: query } },
+              ],
+            }
+          : {}),
+        ...(category ? { category: category as never } : {}),
+        ...(status ? { status: status as never } : {}),
+        ...(vlan ? { vlan } : {}),
+      },
+      include: { ipRange: true },
+      orderBy: [{ status: "asc" }, { ipAddress: "asc" }],
+    });
 
-  return NextResponse.json({ devices });
+    return NextResponse.json({ devices });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("inventory.write");
     const payload = await request.json();
     const data = deviceSchema.parse(payload);
     const device = await prisma.device.create({ data });

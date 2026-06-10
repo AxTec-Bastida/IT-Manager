@@ -1,4 +1,7 @@
 import { PrismaClient, type DeviceCategory, type DeviceStatus, type DeviceCondition } from "@prisma/client";
+import { assertDestructiveSeedAllowed } from "../lib/seed-safety";
+
+assertDestructiveSeedAllowed();
 
 const prisma = new PrismaClient();
 
@@ -115,12 +118,12 @@ async function main() {
     { name: "Stock alert check", type: "STOCK_ALERT_CHECK" as const, intervalMinutes: 60 },
     { name: "Printer maintenance check", type: "PRINTER_MAINTENANCE_CHECK" as const, intervalMinutes: 60 },
     { name: "Warranty check", type: "WARRANTY_ALERT_CHECK" as const, intervalMinutes: 1440 },
-    { name: "Movement alert check", type: "MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY" as const, intervalMinutes: 30 },
+    { name: "Movement alert check (legacy AP sync disabled)", type: "MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY" as const, intervalMinutes: 30, enabled: false },
   ]) {
     await prisma.scheduledJob.create({
       data: {
         ...job,
-        enabled: true,
+        enabled: "enabled" in job ? job.enabled : true,
         nextRunAt: new Date(now.getTime() + job.intervalMinutes * 60 * 1000),
       },
     });

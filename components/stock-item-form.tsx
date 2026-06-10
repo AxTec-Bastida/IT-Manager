@@ -54,6 +54,10 @@ export function StockItemForm({ stockItem, defaults, facturas = [] }: Props) {
             <input className={inputClass} name="sku" defaultValue={stockItem?.sku ?? ""} placeholder="SKU or scanned label value" />
           </label>
           <label className={labelClass}>
+            Scan code
+            <input className={inputClass} name="barcodeValue" defaultValue={stockItem?.barcodeValue ?? ""} placeholder="KEYBOARD, STOCK:KEYBOARD, MOUSE" />
+          </label>
+          <label className={labelClass}>
             Category
             <select className={inputClass} name="category" defaultValue={stockItem?.category ?? "OTHER"}>
               {stockCategoryOptions.map((category) => (

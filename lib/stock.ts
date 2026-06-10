@@ -1,4 +1,5 @@
 import type { StockMovementType } from "@prisma/client";
+import { ClientInputError } from "@/lib/api";
 
 export type StockQuantityInput = {
   currentQuantity: number;
@@ -16,8 +17,8 @@ export type StockMovementResult = {
 export function calculateStockMovement(input: StockQuantityInput): StockMovementResult {
   const previousQuantity = input.currentQuantity;
   const quantity = Math.trunc(input.quantity);
-  if (!Number.isFinite(previousQuantity) || previousQuantity < 0) throw new Error("Current quantity must be zero or higher.");
-  if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Quantity must be greater than zero.");
+  if (!Number.isFinite(previousQuantity) || previousQuantity < 0) throw new ClientInputError("Current quantity must be zero or higher.");
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new ClientInputError("Quantity must be greater than zero.");
 
   const newQuantity =
     input.movementType === "ADJUST"
@@ -27,7 +28,7 @@ export function calculateStockMovement(input: StockQuantityInput): StockMovement
         : previousQuantity - quantity;
 
   if (!Number.isFinite(newQuantity) || newQuantity < 0) {
-    throw new Error("Stock quantity cannot go below zero.");
+    throw new ClientInputError("Stock quantity cannot go below zero.");
   }
 
   return { previousQuantity, newQuantity, quantity };

@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
-import { generateSafeFilename, normalizePhotoType, publicUploadPath, saveUploadedFile, shouldSetPrimaryPhoto, validateUploadFile } from "@/lib/uploads";
+import { makeActivityActor, requirePermission } from "@/lib/auth";
+import { generateSafeFilename, generateThumbnailForUpload, normalizePhotoSource, normalizePhotoType, publicUploadPath, saveUploadedFile, shouldSetPrimaryPhoto, validateUploadFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: Context) {
-  const { id } = await context.params;
-  const photos = await prisma.assetPhoto.findMany({ where: { assetId: id }, orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }] });
-  return NextResponse.json({ photos });
+  try {
+    await requirePermission("inventory.read");
+    const { id } = await context.params;
+    const photos = await prisma.assetPhoto.findMany({ where: { assetId: id }, orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }] });
+    return NextResponse.json({ photos });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
 
 export async function POST(request: NextRequest, context: Context) {
   try {
+    const actor = await requirePermission("inventory.write");
     const { id } = await context.params;
     const asset = await prisma.device.findUnique({ where: { id } });
     if (!asset) return jsonError("Asset not found.", 404);
@@ -28,6 +35,7 @@ export async function POST(request: NextRequest, context: Context) {
 
     const storedFilename = generateSafeFilename(file.type, "asset-photo");
     await saveUploadedFile(file, "assets", storedFilename);
+    const derivative = await generateThumbnailForUpload("assets", storedFilename);
 
     const existingPrimaryCount = await prisma.assetPhoto.count({ where: { assetId: id, isPrimary: true } });
     const isPrimary = shouldSetPrimaryPhoto(existingPrimaryCount, formData.get("isPrimary") === "on" || formData.get("isPrimary") === "true");
@@ -45,14 +53,26 @@ export async function POST(request: NextRequest, context: Context) {
         filePath: publicUploadPath("assets", storedFilename),
         mimeType: file.type,
         fileSize: file.size,
+        sizeBytes: file.size,
+        width: derivative.width,
+        height: derivative.height,
+        thumbnailFilename: derivative.thumbnailFilename,
+        thumbnailPath: derivative.thumbnailPath,
+        optimizedFilename: storedFilename,
+        optimizedPath: publicUploadPath("assets", storedFilename),
+        uploadedByUserId: actor.id,
+        uploadedByName: actor.name,
+        compressionApplied: formData.get("compressionApplied") === "true",
+        source: normalizePhotoSource(formData.get("source")),
         isPrimary,
         uploadedBy: String(formData.get("uploadedBy") || "").trim() || null,
       },
     });
 
     await prisma.activityLog.create({
-      data: {
-        action: "asset.photo_uploaded",
+        data: {
+          ...makeActivityActor(actor),
+          action: "asset.photo_uploaded",
         entity: "device",
         entityId: id,
         message: `Photo uploaded for ${asset.name}.`,

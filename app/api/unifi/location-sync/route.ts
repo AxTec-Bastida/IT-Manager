@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { handleApiError } from "@/lib/api";
+import { handleApiError, jsonError } from "@/lib/api";
+import { isLegacyUnifiSyncEnabled, legacyUnifiDisabledMessage } from "@/lib/unifi-disabled";
 import {
   buildLocationHistoryData,
   matchAssetToUniFiClient,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/unifi-location";
 
 export async function POST(request: NextRequest) {
+  if (!isLegacyUnifiSyncEnabled()) return jsonError(legacyUnifiDisabledMessage, 410);
   try {
     const body = await request.json();
     const clients = Array.isArray(body.clients) ? (body.clients as UniFiClientInput[]) : [];

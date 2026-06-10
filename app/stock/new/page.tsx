@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { StockItemForm } from "@/components/stock-item-form";
+import { ForbiddenPanel } from "@/components/forbidden-panel";
+import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewStockPage() {
+  if (!(await hasPagePermission("stock.write"))) return <ForbiddenPanel message="Adding stock items requires IT Staff or Admin access." />;
   const [settings, facturas] = await Promise.all([
     prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } }),
     prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),

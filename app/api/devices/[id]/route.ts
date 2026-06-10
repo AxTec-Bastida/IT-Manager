@@ -2,18 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deviceSchema } from "@/lib/validation";
 import { handleApiError, jsonError } from "@/lib/api";
+import { requirePermission } from "@/lib/auth";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: Context) {
-  const { id } = await context.params;
-  const device = await prisma.device.findUnique({ where: { id }, include: { ipRange: true } });
-  if (!device) return jsonError("Device not found.", 404);
-  return NextResponse.json({ device });
+  try {
+    await requirePermission("inventory.read");
+    const { id } = await context.params;
+    const device = await prisma.device.findUnique({ where: { id }, include: { ipRange: true } });
+    if (!device) return jsonError("Device not found.", 404);
+    return NextResponse.json({ device });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
+    await requirePermission("inventory.write");
     const { id } = await context.params;
     const payload = await request.json();
     const data = deviceSchema.parse(payload);
@@ -36,6 +43,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 export async function DELETE(_request: NextRequest, context: Context) {
   try {
+    await requirePermission("inventory.write");
     const { id } = await context.params;
     const device = await prisma.device.update({ where: { id }, data: { status: "RETIRED" } });
 

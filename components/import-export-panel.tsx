@@ -42,7 +42,7 @@ export function ImportExportPanel() {
           <p className="mt-1 text-sm text-slate-600">Preview CSV rows before saving, with IP validation and duplicate checks.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {["devices", "ranges", "conflicts", "scan-results", "stock-items", "stock-movements", "maintenance-records", "facturas"].map((exportType) => (
+          {["devices", "ranges", "conflicts", "scan-results", "stock-items", "stock-movements", "maintenance-records", "facturas", "rma-cases", "rma-items", "stock-issues", "asset-loans", "asset-loan-items", "temporary-borrowers"].map((exportType) => (
             <a key={exportType} href={`/api/export/${exportType}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <Download size={16} />
               {exportType}

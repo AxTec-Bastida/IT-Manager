@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Warehouse IT Inventory">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <path d="M96 190 256 96l160 94v172l-160 94L96 362V190Z" fill="#f8fafc"/>
+  <path d="m256 96 160 94-160 94L96 190l160-94Z" fill="#38bdf8"/>
+  <path d="m256 284 160-94v172l-160 94V284Z" fill="#0ea5e9"/>
+  <path d="M96 190v172l160 94V284L96 190Z" fill="#0284c7"/>
+  <path d="M173 195h166v122H173V195Z" fill="#0f172a"/>
+  <path d="M201 223h110v18H201v-18Zm0 36h78v18h-78v-18Z" fill="#f8fafc"/>
+  <path d="M330 330h54v54h-54v-54Zm-202 0h54v54h-54v-54Z" fill="#f8fafc"/>
+</svg>

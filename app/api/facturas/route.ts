@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError } from "@/lib/api";
+import { makeActivityActor, requirePermission } from "@/lib/auth";
 import { normalizeLinkedIds } from "@/lib/facturas";
 import { facturaSchema } from "@/lib/validation";
 import { generateSafeFilename, publicUploadPath, saveUploadedFile, validateUploadFile } from "@/lib/uploads";
@@ -8,27 +9,33 @@ import { generateSafeFilename, publicUploadPath, saveUploadedFile, validateUploa
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const query = request.nextUrl.searchParams.get("q")?.trim();
-  const facturas = await prisma.factura.findMany({
-    where: query
-      ? {
-          OR: [
-            { facturaNumber: { contains: query } },
-            { vendorName: { contains: query } },
-            { vendorRfc: { contains: query } },
-            { poNumber: { contains: query } },
-            { notes: { contains: query } },
-          ],
-        }
-      : {},
-    include: { _count: { select: { assets: true, stockItems: true, stockMovements: true } } },
-    orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
-  });
-  return NextResponse.json({ facturas });
+  try {
+    await requirePermission("inventory.read");
+    const query = request.nextUrl.searchParams.get("q")?.trim();
+    const facturas = await prisma.factura.findMany({
+      where: query
+        ? {
+            OR: [
+              { facturaNumber: { contains: query } },
+              { vendorName: { contains: query } },
+              { vendorRfc: { contains: query } },
+              { poNumber: { contains: query } },
+              { notes: { contains: query } },
+            ],
+          }
+        : {},
+      include: { _count: { select: { assets: true, stockItems: true, stockMovements: true } } },
+      orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
+    });
+    return NextResponse.json({ facturas });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const actor = await requirePermission("inventory.write");
     const formData = await request.formData();
     const data = facturaSchema.parse(Object.fromEntries(formData.entries()));
     const assetIds = normalizeLinkedIds(formData.getAll("assetIds"));
@@ -58,6 +65,7 @@ export async function POST(request: NextRequest) {
       if (stockMovementIds.length) await tx.stockMovement.updateMany({ where: { id: { in: stockMovementIds } }, data: { facturaId: created.id } });
       await tx.activityLog.create({
         data: {
+          ...makeActivityActor(actor),
           action: "factura.created",
           entity: "factura",
           entityId: created.id,

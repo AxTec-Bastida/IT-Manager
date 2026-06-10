@@ -4,8 +4,11 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
 import { RunDueJobsButton } from "@/components/run-due-jobs-button";
 import { RunJobButton } from "@/components/run-job-button";
+import { ToggleJobButton } from "@/components/toggle-job-button";
 import { ensureDefaultJobSchedules } from "@/lib/jobs";
 import { jobRunStatusLabels, scheduledJobLastStatusLabels, scheduledJobTypeLabels } from "@/lib/constants";
+import { ForbiddenPanel } from "@/components/forbidden-panel";
+import { hasPageRole } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +24,7 @@ function statusTone(status?: string | null) {
 }
 
 export default async function JobsPage() {
+  if (!(await hasPageRole("ADMIN"))) return <ForbiddenPanel message="Scheduled job management is admin-only." />;
   await ensureDefaultJobSchedules(prisma);
   const [jobs, runs] = await Promise.all([
     prisma.scheduledJob.findMany({ orderBy: [{ enabled: "desc" }, { type: "asc" }] }),
@@ -31,7 +35,7 @@ export default async function JobsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Scheduled Jobs"
-        description="Local scheduled checks for alerts, IPAM conflicts, stock, printer maintenance, warranties, missing assets, and fixed/static movement using already-stored app data."
+        description="Local scheduled checks for reminders, overdue loans, low stock, printer maintenance, warranties, alert refresh, and data integrity."
         action={<RunDueJobsButton />}
       />
 
@@ -39,7 +43,7 @@ export default async function JobsPage() {
         <div className="flex gap-3">
           <ShieldCheck className="mt-0.5 shrink-0" size={18} />
           <p>
-            These jobs do not add new UniFi integration. Movement and missing-asset checks only use location history and UniFi snapshots already stored in the local database.
+            These jobs do not send email, add UniFi integration, scan networks, or auto-fix imported data. They create/update alerts, write run summaries, and leave manual cleanup decisions to IT.
           </p>
         </div>
       </section>
@@ -63,7 +67,10 @@ export default async function JobsPage() {
                 </div>
                 {job.lastError ? <p className="mt-3 rounded-md bg-rose-50 p-2 text-sm text-rose-800">{job.lastError}</p> : null}
               </div>
-              <RunJobButton jobId={job.id} />
+              <div className="grid gap-2">
+                <RunJobButton jobId={job.id} />
+                <ToggleJobButton jobId={job.id} enabled={job.enabled} />
+              </div>
             </div>
           </article>
         ))}

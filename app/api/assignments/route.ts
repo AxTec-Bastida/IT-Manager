@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
 import { assignmentSchema } from "@/lib/validation";
 import { nextAssignmentNumber, validateAssignmentAssets } from "@/lib/assignments";
+import { requirePermission } from "@/lib/auth";
 
 export async function GET() {
   const assignments = await prisma.assignment.findMany({
@@ -14,20 +15,33 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("assignments.write");
     const data = assignmentSchema.parse(await request.json());
     const assets = await prisma.device.findMany({ where: { id: { in: data.assetIds } } });
     const validation = validateAssignmentAssets(assets);
     if (!validation.ok) return jsonError(validation.message, 422);
     if (assets.length !== data.assetIds.length) return jsonError("One or more selected assets could not be found.", 422);
 
-    const employee = await prisma.employee.findUnique({ where: { id: data.employeeId } });
-    if (!employee) return jsonError("Employee not found.", 404);
+    const employee = data.employeeId ? await prisma.employee.findUnique({ where: { id: data.employeeId } }) : null;
+    if (data.targetType === "EMPLOYEE" && !employee) return jsonError("Employee not found.", 404);
+    const responsibility = await resolveAssignmentResponsibility(data, employee);
 
     const assignment = await prisma.$transaction(async (tx) => {
+      const target = responsibility.targetPath
+        ? await tx.assignmentTarget.upsert({
+            where: { type_path: { type: data.targetType, path: responsibility.targetPath } },
+            update: { name: responsibility.targetName, isActive: true },
+            create: { type: data.targetType, name: responsibility.targetName, path: responsibility.targetPath },
+          })
+        : null;
       const created = await tx.assignment.create({
         data: {
           assignmentNumber: nextAssignmentNumber(),
-          employeeId: data.employeeId,
+          employeeId: employee?.id ?? null,
+          targetId: target?.id ?? null,
+          targetType: data.targetType,
+          targetName: responsibility.targetName,
+          targetPath: responsibility.targetPath,
           assignedBy: data.assignedBy,
           assignmentDate: data.assignmentDate,
           signatureData: data.signatureData,
@@ -35,7 +49,7 @@ export async function POST(request: NextRequest) {
           termsText: data.termsText,
           notes: data.notes,
           status: "ACTIVE",
-          emailTo: employee.email,
+          emailTo: employee?.email ?? null,
           items: {
             create: assets.map((asset) => ({
               assetId: asset.id,
@@ -50,8 +64,8 @@ export async function POST(request: NextRequest) {
         where: { id: { in: assets.map((asset) => asset.id) } },
         data: {
           status: "IN_USE_ASSIGNED",
-          employeeId: employee.id,
-          assignedTo: employee.fullName,
+          employeeId: employee?.id ?? null,
+          assignedTo: responsibility.targetPath,
         },
       });
 
@@ -60,8 +74,8 @@ export async function POST(request: NextRequest) {
           action: "assignment.created",
           entity: "assignment",
           entityId: created.id,
-          message: `${created.assignmentNumber} assigned ${assets.length} asset${assets.length === 1 ? "" : "s"} to ${employee.fullName}.`,
-          metadata: JSON.stringify({ assetIds: assets.map((asset) => asset.id), employeeId: employee.id }),
+          message: `${created.assignmentNumber} assigned ${assets.length} asset${assets.length === 1 ? "" : "s"} to ${responsibility.targetPath}.`,
+          metadata: JSON.stringify({ assetIds: assets.map((asset) => asset.id), employeeId: employee?.id ?? null, targetType: data.targetType, targetPath: responsibility.targetPath }),
         },
       });
 
@@ -72,4 +86,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return handleApiError(error);
   }
+}
+
+async function resolveAssignmentResponsibility(data: {
+  targetType: string;
+  targetName?: string | null;
+  targetPath?: string | null;
+}, employee: { fullName: string } | null) {
+  if (data.targetType === "EMPLOYEE") {
+    return { targetName: employee?.fullName ?? "Employee", targetPath: employee?.fullName ?? "Employee" };
+  }
+  const path = String(data.targetPath || data.targetName || "").trim().replace(/\s*>\s*/g, " > ");
+  const name = String(data.targetName || path.split(">").pop() || path).trim();
+  return { targetName: name, targetPath: path };
 }

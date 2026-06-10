@@ -1,21 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Edit, MapPin, Route, ScanLine, Wrench } from "lucide-react";
+import { ArchiveX, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, RotateCcw, Route, ScanLine, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
-import { RetireButton } from "@/components/retire-button";
 import { AssetPhotoPanel } from "@/components/asset-photo-panel";
-import { categoryLabels, maintenanceTypeLabels, severityTone, statusLabels, statusTone } from "@/lib/constants";
+import { CopyButton } from "@/components/copy-button";
+import { LabelPreviewCard } from "@/components/label-preview";
+import { assetLoanItemReturnStatusLabels, assetLoanItemReturnStatusTone, assetLoanStatusLabels, assetLoanStatusTone, maintenanceTypeLabels, rmaCaseStatusLabels, rmaCaseStatusTone, rmaItemResultLabels, rmaItemResultTone, severityTone, statusLabels, statusTone } from "@/lib/constants";
 import { detectInventoryConflicts } from "@/lib/conflicts";
+import { isAssetLikeAssignedValue } from "@/lib/mobile-legacy";
+import { labelItemForAsset, physicalLabelCodeForAsset } from "@/lib/label-aliases";
+import { getAssetCategoryLabel, getAssetDisplayName } from "@/lib/asset-display";
+import { installActionLabel, isInstallEligibleAsset } from "@/lib/equipment-install";
+import { isMoveUsefulAsset } from "@/lib/equipment-move";
+import { assignmentResponsibleLabel } from "@/lib/assignment-views";
+import { canPerformAction, getCurrentUser } from "@/lib/auth";
+import { buildAnchorDisplayPath } from "@/lib/map-anchors";
+import { decommissionReasonLabels } from "@/lib/decommission";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ returned?: string; installed?: string; moved?: string; decommissioned?: string }> };
 
-export default async function DeviceDetailPage({ params }: Props) {
+export default async function DeviceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const [device, allDevices, activity] = await Promise.all([
+  const query = searchParams ? await searchParams : {};
+  const [device, allDevices, activity, currentUser] = await Promise.all([
     prisma.device.findUnique({
       where: { id },
       include: {
@@ -23,30 +34,62 @@ export default async function DeviceDetailPage({ params }: Props) {
         employee: true,
         factura: true,
         expectedLocationZone: true,
+        currentMapAnchor: { include: { map: true } },
         photos: { orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }] },
         maintenanceRecords: { include: { stockItem: true }, orderBy: { performedAt: "desc" }, take: 10 },
         assignmentItems: { include: { assignment: { include: { employee: true } } }, orderBy: { createdAt: "desc" } },
+        rmaItems: { include: { rmaCase: true, replacementDevice: true }, orderBy: { createdAt: "desc" } },
+        assetLoanItems: { include: { loan: { include: { employee: true, temporaryBorrower: true } } }, orderBy: { createdAt: "desc" } },
+        aliases: { orderBy: [{ aliasType: "asc" }, { value: "asc" }] },
+        sourceRelationships: { include: { targetDevice: true }, orderBy: { createdAt: "desc" } },
+        targetRelationships: { include: { sourceDevice: true }, orderBy: { createdAt: "desc" } },
+        decommissionRecords: { orderBy: { performedAt: "desc" } },
       },
     }),
     prisma.device.findMany({ include: { ipRange: true } }),
     prisma.activityLog.findMany({ where: { entityId: id }, orderBy: { createdAt: "desc" }, take: 10 }),
+    getCurrentUser(),
   ]);
 
   if (!device) notFound();
 
-  const [deviceScanResults, locationHistory, latestUnifiSnapshot] = await Promise.all([
+  const [deviceScanResults, locationHistory] = await Promise.all([
     device.ipAddress ? prisma.scanResult.findMany({ where: { ipAddress: device.ipAddress }, orderBy: { seenAt: "desc" }, take: 10 }) : Promise.resolve([]),
     prisma.assetLocationHistory.findMany({ where: { assetId: device.id }, orderBy: { seenAt: "desc" }, take: 5 }),
-    prisma.unifiClientSnapshot.findFirst({ where: { assetId: device.id }, orderBy: { syncedAt: "desc" } }),
   ]);
   const conflicts = detectInventoryConflicts(allDevices).filter((conflict) => conflict.affectedDeviceIds?.includes(id));
   const lastKnownLocation = locationHistory[0];
   const isPrinter = ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(device.category);
+  const isMobileAppleLike = ["PHONE", "TABLET"].includes(device.category);
+  const showNetworkTracking = !isMobileAppleLike && Boolean(device.ipAddress || device.macAddress || device.usesStaticIp || device.movementAlertsEnabled);
   const latestMaintenance = device.maintenanceRecords[0];
+  const activeAssignmentItem = device.assignmentItems.find((item) => !item.returnedAt && ["ACTIVE", "PARTIALLY_RETURNED"].includes(item.assignment.status));
+  const activeRmaItem = device.rmaItems.find((item) => item.result === "PENDING" && ["SENT", "ACTIVE", "PARTIALLY_RETURNED"].includes(item.rmaCase.status));
+  const activeLoanItem = device.assetLoanItems.find((item) => item.returnStatus === "PENDING" && ["ACTIVE", "OVERDUE", "PARTIALLY_RETURNED"].includes(item.loan.status));
+  const legacyAssignedValue = device.assignedTo && isAssetLikeAssignedValue(device.assignedTo) ? device.assignedTo : null;
+  const physicalLabelCode = physicalLabelCodeForAsset(device);
+  const labelItem = labelItemForAsset(device, { usePhysicalLabel: Boolean(physicalLabelCode) });
+  const displayName = getAssetDisplayName(device);
+  const displayCategory = getAssetCategoryLabel(device);
+  const installEligible = isInstallEligibleAsset(device);
+  const moveUseful = isMoveUsefulAsset(device);
+  const canWriteInventory = canPerformAction(currentUser, "inventory.write");
+  const canWriteTasks = canPerformAction(currentUser, "tasks.write");
+  const canWriteAssignments = canPerformAction(currentUser, "assignments.write");
+  const canWriteLoans = canPerformAction(currentUser, "loans.write");
+  const canWriteRma = canPerformAction(currentUser, "rma.write");
+  const lastMoveActivity = activity.find((item) => item.action === "device.moved");
+  const currentEmployee = activeAssignmentItem?.assignment.employee ?? device.employee;
+  const activeResponsibility = activeAssignmentItem ? assignmentResponsibleLabel(activeAssignmentItem.assignment) : null;
+  const displayAssignedTo = activeResponsibility || currentEmployee?.fullName || (legacyAssignedValue ? null : device.assignedTo);
+  const isCurrentlyAssigned = Boolean(currentEmployee || displayAssignedTo || activeAssignmentItem || device.status === "IN_USE_ASSIGNED");
+  const pairedRelationships = [...device.sourceRelationships, ...device.targetRelationships].filter((relationship) => ["PAIRED_WITH", "IPOD_SLED_PAIR", "IPHONE_SLED_PAIR"].includes(relationship.relationshipType));
+  const currentAnchorPath = device.currentMapAnchor ? buildAnchorDisplayPath(device.currentMapAnchor) : null;
+  const latestDecommissionRecord = device.decommissionRecords[0];
 
   const fields = [
     ["Asset tag", device.assetTag || "-"],
-    ["Category", categoryLabels[device.category]],
+    ["Category", displayCategory],
     ["Condition", device.condition.replaceAll("_", " ")],
     ["IP address", device.ipAddress || "-"],
     ["MAC address", device.macAddress || "-"],
@@ -57,7 +100,7 @@ export default async function DeviceDetailPage({ params }: Props) {
     ["Brand", device.brand || "-"],
     ["Model", device.model || "-"],
     ["Serial number", device.serialNumber || "-"],
-    ["Assigned to", device.employee?.fullName || device.assignedTo || "-"],
+    ["Responsibility target", displayAssignedTo || "-"],
     ["Fixed/static movement", device.movementAlertsEnabled ? `Enabled - expected ${device.expectedLocationZone?.name || "zone not set"}` : "Disabled"],
     ["Factura", device.factura ? `${device.factura.facturaNumber} - ${device.factura.vendorName}` : "-"],
     ["Purchase date", device.purchaseDate ? device.purchaseDate.toLocaleDateString() : "-"],
@@ -68,16 +111,28 @@ export default async function DeviceDetailPage({ params }: Props) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-36 lg:pb-0">
       <PageHeader
-        title={device.name}
+        title={displayName}
         description={`${device.ipAddress || "No IP"}${device.vlan ? ` on VLAN ${device.vlan}` : ""}`}
         action={
           <div className="grid gap-2 sm:flex">
-            <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            {canWriteInventory ? <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
               <Edit size={16} />
               Edit
-            </Link>
+            </Link> : null}
+            {canWriteInventory && installEligible ? (
+              <Link href={`/devices/${device.id}/install`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+                <Network size={16} />
+                {installActionLabel(device)}
+              </Link>
+            ) : null}
+            {canWriteInventory && moveUseful ? (
+              <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800">
+                <Truck size={16} />
+                Move / Relocate
+              </Link>
+            ) : null}
             <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <ScanLine size={16} />
               Scan
@@ -86,34 +141,91 @@ export default async function DeviceDetailPage({ params }: Props) {
               <MapPin size={16} />
               Map
             </Link>
-            <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            {canWriteInventory ? <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <Wrench size={16} />
               Add maintenance
-            </Link>
-            <Link href={`/tasks/new?relatedDeviceId=${device.id}&category=INVENTORY&title=${encodeURIComponent(`Follow up ${device.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            </Link> : null}
+            {canWriteTasks ? <Link href={`/tasks/new?relatedDeviceId=${device.id}&category=INVENTORY&title=${encodeURIComponent(`Follow up ${device.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <ClipboardList size={16} />
               Create Task
-            </Link>
-            <RetireButton id={device.id} />
+            </Link> : null}
+            {activeRmaItem ? (
+              <Link href={`/rma/${activeRmaItem.rmaCaseId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-800">
+                <PackageCheck size={16} />
+                Open RMA
+              </Link>
+            ) : canWriteRma ? (
+              <Link href={`/rma/new?deviceId=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <PackageCheck size={16} />
+                Create RMA
+              </Link>
+            ) : null}
+            {activeLoanItem ? (
+              <Link href={`/loans/${activeLoanItem.loanId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-violet-700 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-800">
+                <ClipboardList size={16} />
+                Open Loan
+              </Link>
+            ) : canWriteLoans ? (
+              <Link href={`/loans/quick-checkout?assetId=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <ClipboardList size={16} />
+                Quick Loan
+              </Link>
+            ) : null}
+            {canWriteAssignments && isCurrentlyAssigned ? (
+              <Link href={`/devices/${device.id}/return`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                <RotateCcw size={16} />
+                Return / Unassign
+              </Link>
+            ) : null}
+            {canWriteInventory ? (
+              <Link href={`/devices/${device.id}/decommission`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50">
+                <ArchiveX size={16} />
+                Decommission
+              </Link>
+            ) : null}
           </div>
         }
       />
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
+      {query.returned ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Asset returned and unassigned. Assignment history was preserved.
+        </div>
+      ) : null}
+
+      {query.installed ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Installation details saved. Asset history, photos, facturas, assignments, RMA, and loans were preserved.
+        </div>
+      ) : null}
+
+      {query.moved ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Location updated. Assignment, loan, RMA, photos, facturas, and network values were preserved.
+        </div>
+      ) : null}
+
+      {query.decommissioned ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Asset decommissioned. History, photos, facturas, labels, aliases, assignments, loans, RMA, audits, and activity were preserved.
+        </div>
+      ) : null}
+
+      <section className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="self-start rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={statusTone[device.status]}>{statusLabels[device.status]}</Badge>
-            <Badge className="bg-slate-100 text-slate-700 ring-slate-200">{categoryLabels[device.category]}</Badge>
+            <Badge className="bg-slate-100 text-slate-700 ring-slate-200">{displayCategory}</Badge>
             {conflicts.length ? <Badge className="bg-rose-100 text-rose-800 ring-rose-200">Conflict flagged</Badge> : null}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {[
               ["Asset tag", device.assetTag || "-"],
               ["Location", device.location || "-"],
-              ["Assigned", device.employee?.fullName || device.assignedTo || "Unassigned"],
+              ["Assigned", displayAssignedTo || "Unassigned"],
               ["IP", device.ipAddress || "No IP"],
               ["Serial", device.serialNumber || "-"],
-              ["Last known", lastKnownLocation?.locationLabel || "Unknown"],
+              ["Last seen", lastKnownLocation?.locationLabel || device.lastSeenAt?.toLocaleString() || "No location updates yet"],
             ].map(([label, value]) => (
               <div key={label} className="rounded-md bg-slate-50 p-3">
                 <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
@@ -121,8 +233,8 @@ export default async function DeviceDetailPage({ params }: Props) {
               </div>
             ))}
           </div>
-          <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50">
-            <summary className="flex min-h-12 items-center justify-between px-3 text-sm font-semibold text-slate-800">
+          <details className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-3 text-sm font-semibold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">
               All asset details
               <span className="text-xs text-slate-500">Expand</span>
             </summary>
@@ -147,27 +259,230 @@ export default async function DeviceDetailPage({ params }: Props) {
               <p className="mt-1 text-sm text-amber-900">{device.repairNotes}</p>
             </div>
           ) : null}
+          {latestDecommissionRecord ? (
+            <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3">
+              <p className="text-xs font-medium uppercase text-rose-700">Decommission record</p>
+              <p className="mt-1 text-sm font-semibold text-rose-950">
+                {decommissionReasonLabels[latestDecommissionRecord.reason]} / final status {statusLabels[latestDecommissionRecord.finalStatus]}
+              </p>
+              <p className="mt-1 text-sm text-rose-900">
+                {latestDecommissionRecord.performedAt.toLocaleString()} by {latestDecommissionRecord.performedByName || "unknown"}
+              </p>
+              {latestDecommissionRecord.notes ? <p className="mt-2 text-sm text-rose-900">{latestDecommissionRecord.notes}</p> : null}
+            </div>
+          ) : null}
         </div>
 
-        <div className="space-y-4">
+        <div className="self-start space-y-4">
           <section className="rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="font-semibold text-slate-950">Last Known Location</h2>
+            <h2 className="font-semibold text-slate-950">Current Loan</h2>
+            {activeLoanItem ? (
+              <div className="mt-3 space-y-3 text-sm">
+                <div className="rounded-md bg-violet-50 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-slate-950">{activeLoanItem.loan.loanNumber}</p>
+                    <Badge className={assetLoanStatusTone[activeLoanItem.loan.status]}>{assetLoanStatusLabels[activeLoanItem.loan.status]}</Badge>
+                    <Badge className={assetLoanItemReturnStatusTone[activeLoanItem.returnStatus]}>{assetLoanItemReturnStatusLabels[activeLoanItem.returnStatus]}</Badge>
+                  </div>
+                  <p className="mt-2 text-slate-700">
+                    {activeLoanItem.loan.employee?.fullName || activeLoanItem.loan.temporaryBorrower?.name || "Unknown borrower"}
+                  </p>
+                  <p className="text-slate-600">Due {activeLoanItem.loan.expectedReturnAt.toLocaleDateString()}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Link href={`/loans/${activeLoanItem.loanId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
+                    <ClipboardList size={16} />
+                    Open Loan
+                  </Link>
+                  {canWriteLoans ? <Link href={`/loans/${activeLoanItem.loanId}/return`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    <RotateCcw size={16} />
+                    Return from Loan
+                  </Link> : null}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
+                <p className="font-medium text-slate-950">Not currently loaned out</p>
+                {canWriteLoans ? <Link href={`/loans/quick-checkout?assetId=${device.id}`} className="mt-3 inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-100">
+                  <ClipboardList size={16} />
+                  Quick Loan / Checkout
+                </Link> : null}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="font-semibold text-slate-950">Current RMA</h2>
+            {activeRmaItem ? (
+              <div className="mt-3 space-y-3 text-sm">
+                <div className="rounded-md bg-amber-50 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-slate-950">RMA {activeRmaItem.rmaCase.rmaNumber}</p>
+                    <Badge className={rmaCaseStatusTone[activeRmaItem.rmaCase.status]}>{rmaCaseStatusLabels[activeRmaItem.rmaCase.status]}</Badge>
+                    <Badge className={rmaItemResultTone[activeRmaItem.result]}>{rmaItemResultLabels[activeRmaItem.result]}</Badge>
+                  </div>
+                  <p className="mt-2 text-slate-700">{activeRmaItem.rmaCase.destination}{activeRmaItem.rmaCase.vendorName ? ` / ${activeRmaItem.rmaCase.vendorName}` : ""}</p>
+                  <p className="text-slate-600">Sent {activeRmaItem.sentAt?.toLocaleDateString() || activeRmaItem.rmaCase.sentAt?.toLocaleDateString() || "date not set"}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Link href={`/rma/${activeRmaItem.rmaCaseId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
+                    <PackageCheck size={16} />
+                    Open RMA
+                  </Link>
+                  {canWriteRma ? <Link href={`/rma/${activeRmaItem.rmaCaseId}/receive`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    <RotateCcw size={16} />
+                    Receive from RMA
+                  </Link> : null}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
+                <p className="font-medium text-slate-950">Not currently in active RMA</p>
+                {canWriteRma ? <Link href={`/rma/new?deviceId=${device.id}`} className="mt-3 inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-100">
+                  <PackageCheck size={16} />
+                  Create RMA for this asset
+                </Link> : null}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="font-semibold text-slate-950">Current Assignment</h2>
+            {isCurrentlyAssigned ? (
+              <div className="mt-3 space-y-3 text-sm">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Responsibility target</p>
+                  <p className="mt-1 font-semibold text-slate-950">{displayAssignedTo || "Assigned user not linked"}</p>
+                  {currentEmployee?.employeeId || currentEmployee?.department ? <p className="text-slate-600">{[currentEmployee.employeeId, currentEmployee.department].filter(Boolean).join(" - ")}</p> : null}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  <div className="rounded-md bg-slate-50 p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">Assigned date</p>
+                    <p className="mt-1 font-medium text-slate-950">{activeAssignmentItem?.assignment.assignmentDate.toLocaleString() || "Not recorded"}</p>
+                  </div>
+                  <div className="rounded-md bg-slate-50 p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">Status</p>
+                    <p className="mt-1 font-medium text-slate-950">{activeAssignmentItem?.returnStatus.replaceAll("_", " ") || statusLabels[device.status]}</p>
+                  </div>
+                </div>
+                {activeAssignmentItem ? (
+                  <Link href={`/assignments/${activeAssignmentItem.assignmentId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-slate-700 hover:text-slate-950">
+                    Open assignment {activeAssignmentItem.assignment.assignmentNumber}
+                  </Link>
+                ) : null}
+                {canWriteAssignments ? <Link href={`/devices/${device.id}/return`} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-base font-semibold text-white hover:bg-emerald-800">
+                  <RotateCcw size={18} />
+                  Return / Unassign
+                </Link> : null}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
+                <p className="font-medium text-slate-950">Not currently assigned</p>
+                {canWriteAssignments ? <Link href="/assignments/new" className="mt-3 inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-100">
+                  <UserRoundPlus size={16} />
+                  Assign Equipment
+                </Link> : null}
+              </div>
+            )}
+          </section>
+
+          {device.aliases.length || legacyAssignedValue ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="font-semibold text-slate-950">Legacy Identifiers</h2>
+              <div className="mt-3 grid gap-2">
+                {device.aliases.map((alias) => (
+                  <div key={alias.id} className="rounded-md bg-slate-50 p-3 text-sm">
+                    <p className="text-xs font-medium uppercase text-slate-500">{alias.aliasType.replaceAll("_", " ")}</p>
+                    <p className="mt-1 break-words font-semibold text-slate-950">{alias.value}</p>
+                    {alias.sourceSheet ? <p className="text-xs text-slate-500">{alias.sourceSheet}{alias.sourceRow ? ` row ${alias.sourceRow}` : ""}</p> : null}
+                  </div>
+                ))}
+                {legacyAssignedValue ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                    <p className="text-xs font-medium uppercase text-amber-700">Imported assigned value</p>
+                    <p className="mt-1 break-words font-semibold text-amber-950">{legacyAssignedValue}</p>
+                    <p className="text-xs text-amber-800">Looks like a legacy asset label, not a person.</p>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {pairedRelationships.length ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="font-semibold text-slate-950">Paired Assets</h2>
+              <div className="mt-3 grid gap-2">
+                {pairedRelationships.map((relationship) => {
+                  const paired = "targetDevice" in relationship ? relationship.targetDevice : relationship.sourceDevice;
+                  return (
+                    <div key={relationship.id} className="rounded-md bg-slate-50 p-3 text-sm">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-xs font-medium uppercase text-slate-500">{relationship.relationshipType.replaceAll("_", " ")}</p>
+                          <p className="mt-1 font-semibold text-slate-950">{paired.name}</p>
+                          <p className="text-slate-600">{paired.assetTag || "No tag"} / {paired.serialNumber || "No serial"}</p>
+                        </div>
+                        <Link href={`/devices/${paired.id}`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-100">Open</Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="font-semibold text-slate-950">Location / Placement</h2>
             <div className="mt-3 space-y-3 text-sm">
               <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs font-medium uppercase text-slate-500">Last seen</p>
-                <p className="mt-1 font-medium text-slate-950">{lastKnownLocation?.seenAt.toLocaleString() ?? device.lastSeenAt?.toLocaleString() ?? "Unknown"}</p>
+                <p className="text-xs font-medium uppercase text-slate-500">Current location / area</p>
+                <p className="mt-1 font-medium text-slate-950">{[device.areaDepartment, device.location].filter(Boolean).join(" / ") || "No inventory location set"}</p>
+                {device.expectedLocationZone ? <p className="text-slate-600">Expected zone: {device.expectedLocationZone.name}</p> : null}
               </div>
               <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs font-medium uppercase text-slate-500">Access point</p>
-                <p className="mt-1 font-medium text-slate-950">{lastKnownLocation?.apName ?? "No UniFi AP location yet"}</p>
-                <p className="text-slate-600">{lastKnownLocation?.locationLabel ?? "Configure AP coordinates on the map page."}</p>
+                <p className="text-xs font-medium uppercase text-slate-500">Map anchor</p>
+                {device.currentMapAnchor ? (
+                  <>
+                    <p className="mt-1 font-medium text-slate-950">{currentAnchorPath}</p>
+                    <p className="text-slate-600">{device.currentMapAnchor.map?.name ?? "No map assigned"} / {device.currentMapAnchor.x}%, {device.currentMapAnchor.y}%</p>
+                  </>
+                ) : (
+                  <p className="mt-1 font-medium text-slate-950">No map anchor linked</p>
+                )}
               </div>
               <div className="rounded-md bg-slate-50 p-3">
-                <p className="text-xs font-medium uppercase text-slate-500">Current UniFi status</p>
-                <p className="mt-1 font-medium text-slate-950">{latestUnifiSnapshot?.online ? "Online" : latestUnifiSnapshot ? "Offline" : "Unknown"}</p>
-                <p className="text-slate-600">{latestUnifiSnapshot?.syncedAt ? `Synced ${latestUnifiSnapshot.syncedAt.toLocaleString()}` : "No read-only UniFi sync snapshot yet."}</p>
+                <p className="text-xs font-medium uppercase text-slate-500">Last moved</p>
+                <p className="mt-1 font-medium text-slate-950">{lastMoveActivity?.createdAt.toLocaleString() ?? "No manual move recorded yet."}</p>
+                {lastMoveActivity ? <p className="text-slate-600">{lastMoveActivity.message}</p> : null}
               </div>
+              <div className="rounded-md bg-slate-50 p-3">
+                <p className="text-xs font-medium uppercase text-slate-500">Last seen / update</p>
+                <p className="mt-1 font-medium text-slate-950">{lastKnownLocation?.seenAt.toLocaleString() ?? device.lastSeenAt?.toLocaleString() ?? "No location updates yet."}</p>
+                {lastKnownLocation ? <p className="text-slate-600">{lastKnownLocation.locationLabel}</p> : null}
+              </div>
+              {lastKnownLocation ? (
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Last location note</p>
+                  <p className="mt-1 font-medium text-slate-950">{lastKnownLocation.notes || lastKnownLocation.apName}</p>
+                </div>
+              ) : null}
               <div className="grid gap-2">
+                {canWriteInventory && moveUseful ? (
+                  <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-sky-700 px-3 text-sm font-semibold text-white hover:bg-sky-800">
+                    <Truck size={16} />
+                    Move / Relocate
+                  </Link>
+                ) : null}
+                {canWriteInventory && installEligible ? (
+                  <Link href={`/devices/${device.id}/install`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-cyan-300 bg-cyan-50 px-3 text-sm font-semibold text-cyan-900 hover:bg-cyan-100">
+                    <Network size={16} />
+                    {installActionLabel(device)}
+                  </Link>
+                ) : null}
+                {canWriteInventory ? <Link href={`/devices/${device.id}?photoType=LOCATION_INSTALLED#photos`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <MapPin size={16} />
+                  Add location photo
+                </Link> : null}
                 <Link href={`/map?asset=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
                   <MapPin size={16} />
                   View on Map
@@ -179,6 +494,54 @@ export default async function DeviceDetailPage({ params }: Props) {
               </div>
             </div>
           </section>
+
+          {showNetworkTracking ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="font-semibold text-slate-950">Network / IPAM</h2>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">IP / MAC</p>
+                  <p className="mt-1 font-mono font-medium text-slate-950">{device.ipAddress || "No IP"}</p>
+                  <p className="break-all font-mono text-slate-600">{device.macAddress || "No MAC"}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Static tracking</p>
+                  <p className="mt-1 font-medium text-slate-950">{device.usesStaticIp ? "Static IP asset" : "Not marked static"}</p>
+                  <p className="text-slate-600">{device.movementAlertsEnabled ? "Movement alerts enabled" : "Movement alerts off"}</p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {installEligible ? (
+            <section className="rounded-lg border border-cyan-200 bg-cyan-50 p-4">
+              <h2 className="font-semibold text-slate-950">Installation / Network Setup</h2>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="rounded-md bg-white p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Install state</p>
+                  <p className="mt-1 font-medium text-slate-950">{statusLabels[device.status]} / {device.location || device.areaDepartment || "No location set"}</p>
+                </div>
+                <div className="rounded-md bg-white p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">IP / MAC / VLAN</p>
+                  <p className="mt-1 break-all font-mono font-medium text-slate-950">{device.ipAddress || "No IP"} / {device.macAddress || "No MAC"} / {device.vlan ?? "No VLAN"}</p>
+                </div>
+                <div className="rounded-md bg-white p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Static flags</p>
+                  <p className="mt-1 font-medium text-slate-950">{device.usesStaticIp ? "Static IP" : "No static IP"} / {device.isFixedAsset ? "Fixed asset" : "Not fixed"}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {canWriteInventory ? <Link href={`/devices/${device.id}/install`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-cyan-700 px-3 text-sm font-semibold text-white hover:bg-cyan-800">
+                  <Network size={16} />
+                  {installActionLabel(device)}
+                </Link> : null}
+                {canWriteInventory ? <Link href={`/devices/${device.id}?photoType=LOCATION_INSTALLED#photos`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-cyan-300 bg-white px-3 text-sm font-semibold text-cyan-800 hover:bg-cyan-100">
+                  <MapPin size={16} />
+                  Add location photo
+                </Link> : null}
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="font-semibold text-slate-950">Conflict status</h2>
@@ -231,7 +594,94 @@ export default async function DeviceDetailPage({ params }: Props) {
         </section>
       ) : null}
 
-      <AssetPhotoPanel assetId={device.id} photos={device.photos} />
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">Asset Label</h2>
+            <p className="text-sm text-slate-500">QR and barcode labels encode the asset tag only. Serial is separate and optional.</p>
+          </div>
+          {labelItem ? (
+            <div className="grid gap-2 sm:flex">
+              <Link href={`/labels?mode=alias-linked&deviceId=${device.id}&prefix=J&start=1&end=1&padding=2`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Tags size={16} />
+                Manage physical code
+              </Link>
+              <Link href={`/labels?mode=existing&deviceId=${device.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Tags size={16} />
+                Use asset tag
+              </Link>
+              <Link href={`/api/labels/zpl?mode=existing&deviceId=${device.id}${physicalLabelCode ? "&useAlias=true" : ""}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
+                <Download size={16} />
+                Download ZPL
+              </Link>
+              {physicalLabelCode ? <CopyButton value={physicalLabelCode} label="Copy physical code" /> : null}
+              {device.assetTag ? <CopyButton value={device.assetTag} label="Copy asset tag" /> : null}
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-4">
+          {labelItem ? (
+            <LabelPreviewCard
+              item={{ ...labelItem, assetName: displayName }}
+              options={{ codeType: "qr_barcode", includeSerialText: true, includeSerialCode: false, template: "standard" }}
+              compact
+            />
+          ) : (
+            <div className="rounded-md bg-slate-50 p-4 text-sm">
+              <p className="font-medium text-slate-950">No asset tag available for label generation.</p>
+              <p className="mt-1 text-slate-500">Add an asset tag before printing a lookup label for this asset.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">RMA history</h2>
+            <p className="text-sm text-slate-500">Past and active repair batches for this asset.</p>
+          </div>
+          {canWriteRma ? <Link href={`/rma/new?deviceId=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <PackageCheck size={16} />
+            Create RMA
+          </Link> : null}
+        </div>
+        <div className="mt-4 grid gap-3">
+          {device.rmaItems.map((item) => (
+            <div key={item.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/rma/${item.rmaCaseId}`} className="font-semibold text-slate-950 hover:underline">RMA {item.rmaCase.rmaNumber}</Link>
+                    <Badge className={rmaCaseStatusTone[item.rmaCase.status]}>{rmaCaseStatusLabels[item.rmaCase.status]}</Badge>
+                    <Badge className={rmaItemResultTone[item.result]}>{rmaItemResultLabels[item.result]}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{item.rmaCase.destination}{item.rmaCase.vendorName ? ` / ${item.rmaCase.vendorName}` : ""}</p>
+                  <p className="text-sm text-slate-500">Sent {item.sentAt?.toLocaleDateString() || item.rmaCase.sentAt?.toLocaleDateString() || "not recorded"}{item.returnedAt ? ` / returned ${item.returnedAt.toLocaleDateString()}` : ""}</p>
+                  {item.notes ? <p className="mt-2 text-sm text-slate-600">{item.notes}</p> : null}
+                </div>
+                <Link href={`/rma/${item.rmaCaseId}`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">Open</Link>
+              </div>
+            </div>
+          ))}
+          {device.rmaItems.length === 0 ? <p className="text-sm text-slate-500">No RMA history for this asset yet.</p> : null}
+        </div>
+      </section>
+
+      <AssetPhotoPanel
+        assetId={device.id}
+        photos={device.photos}
+        asset={{
+          category: device.category,
+          condition: device.condition,
+          status: device.status,
+          isFixedAsset: device.isFixedAsset,
+          usesStaticIp: device.usesStaticIp,
+          rmaItems: device.rmaItems,
+          assignmentItems: device.assignmentItems,
+          assetLoanItems: device.assetLoanItems,
+        }}
+      />
 
       {isPrinter ? (
         <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -240,10 +690,10 @@ export default async function DeviceDetailPage({ params }: Props) {
               <h2 className="font-semibold text-slate-950">Printer maintenance</h2>
               <p className="text-sm text-slate-500">Manual supply levels and scheduled printer care. Thermal and MFP alerts stay separate.</p>
             </div>
-            <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+            {canWriteInventory ? <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
               <Wrench size={16} />
               Add maintenance record
-            </Link>
+            </Link> : null}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {device.category === "MFP_PRINTER"
@@ -285,10 +735,10 @@ export default async function DeviceDetailPage({ params }: Props) {
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold text-slate-950">Maintenance history</h2>
-          <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          {canWriteInventory ? <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
             <Wrench size={16} />
             Add record
-          </Link>
+          </Link> : null}
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {device.maintenanceRecords.map((record) => (
@@ -323,7 +773,7 @@ export default async function DeviceDetailPage({ params }: Props) {
               </p>
             </div>
           ))}
-          {locationHistory.length === 0 ? <p className="text-sm text-slate-500">No AP-based location history yet.</p> : null}
+          {locationHistory.length === 0 ? <p className="text-sm text-slate-500">No location updates yet.</p> : null}
         </div>
       </section>
 
@@ -336,7 +786,7 @@ export default async function DeviceDetailPage({ params }: Props) {
                 <p className="font-medium text-slate-950">{item.assignment.assignmentNumber}</p>
                 <p className="text-slate-500">{item.assignment.assignmentDate.toLocaleString()}</p>
               </div>
-              <p className="text-slate-600">Assigned to {item.assignment.employee.fullName} • {item.returnStatus.replaceAll("_", " ")}</p>
+              <p className="text-slate-600">Responsible: {assignmentResponsibleLabel(item.assignment)} - {item.returnStatus.replaceAll("_", " ")}</p>
             </Link>
           ))}
           {device.assignmentItems.length === 0 ? <p className="text-sm text-slate-500">No assignment history yet.</p> : null}
@@ -357,10 +807,10 @@ export default async function DeviceDetailPage({ params }: Props) {
       </section>
 
       <nav className="fixed inset-x-3 bottom-24 z-30 grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur lg:hidden">
-        <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 text-sm font-semibold text-white">
+        {canWriteInventory ? <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 text-sm font-semibold text-white">
           <Edit size={16} />
           Edit
-        </Link>
+        </Link> : null}
         <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 text-sm font-semibold text-slate-700">
           <ScanLine size={16} />
           Scan
@@ -369,7 +819,29 @@ export default async function DeviceDetailPage({ params }: Props) {
           <MapPin size={16} />
           Map
         </Link>
+        {canWriteInventory && moveUseful ? (
+          <Link href={`/devices/${device.id}/move`} className="col-span-3 inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-sky-700 px-2 text-sm font-semibold text-white">
+            <Truck size={16} />
+            Move / Relocate
+          </Link>
+        ) : null}
+        {canWriteAssignments && isCurrentlyAssigned ? (
+          <Link href={`/devices/${device.id}/return`} className="col-span-3 inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-emerald-700 px-2 text-sm font-semibold text-white">
+            <RotateCcw size={16} />
+            Return / Unassign
+          </Link>
+        ) : null}
       </nav>
+
+      {canWriteInventory ? <details className="rounded-lg border border-rose-200 bg-white p-4">
+        <summary className="min-h-11 cursor-pointer text-sm font-semibold text-rose-700">More / danger actions</summary>
+        <div className="mt-3">
+          <Link href={`/devices/${device.id}/decommission`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800">
+            <ArchiveX size={16} />
+            Open controlled decommission
+          </Link>
+        </div>
+      </details> : null}
     </div>
   );
 }

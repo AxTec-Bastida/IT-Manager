@@ -29,6 +29,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+.phase*.pid
+/logs/
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -37,9 +40,36 @@ yarn-error.log*
 prisma/*.db
 prisma/*.db-journal
 
+# local backups and restore drills
+/backups/
+/warehouse-it-inventory-restore-test/
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+.next/
+.turbo/
+
+# Runtime data - DO NOT COMMIT
+/uploads/
+/backups/
+
+# Local logs / restore tests
+*.log
+npm-debug.log*
+warehouse-it-inventory-restore-test/
+
+# Local cleanup reports / imported samples
+/cleanup-*.json
+/Import-samples/

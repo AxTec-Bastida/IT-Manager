@@ -1,0 +1,2 @@
+-- SQLite stores Prisma enum values as text, so adding stock category enum values
+-- does not require a table rewrite.

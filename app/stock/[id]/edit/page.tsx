@@ -2,12 +2,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { StockItemForm } from "@/components/stock-item-form";
+import { ForbiddenPanel } from "@/components/forbidden-panel";
+import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditStockPage({ params }: Props) {
+  if (!(await hasPagePermission("stock.write"))) return <ForbiddenPanel message="Editing stock items requires IT Staff or Admin access." />;
   const { id } = await params;
   const [stockItem, facturas] = await Promise.all([
     prisma.stockItem.findUnique({ where: { id } }),

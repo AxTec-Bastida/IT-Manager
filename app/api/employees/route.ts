@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError } from "@/lib/api";
 import { employeeSchema } from "@/lib/validation";
+import { requirePermission } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim();
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("inventory.write");
     const data = employeeSchema.parse(await request.json());
     const employee = await prisma.employee.create({ data });
     await prisma.activityLog.create({

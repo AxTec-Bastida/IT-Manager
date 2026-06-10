@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
 import { employeeSchema } from "@/lib/validation";
+import { requirePermission } from "@/lib/auth";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -17,6 +18,7 @@ export async function GET(_request: NextRequest, context: Context) {
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
+    await requirePermission("inventory.write");
     const { id } = await context.params;
     const data = employeeSchema.parse(await request.json());
     const employee = await prisma.employee.update({ where: { id }, data });
@@ -36,6 +38,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 export async function DELETE(_request: NextRequest, context: Context) {
   try {
+    await requirePermission("inventory.write");
     const { id } = await context.params;
     const employee = await prisma.employee.update({ where: { id }, data: { status: "INACTIVE" } });
     return NextResponse.json({ employee });

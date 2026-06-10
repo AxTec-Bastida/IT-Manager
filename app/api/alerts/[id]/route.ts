@@ -3,11 +3,13 @@ import { AlertStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
 import { alertCanTransition } from "@/lib/alert-workflows";
+import { requirePermission } from "@/lib/auth";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
+    await requirePermission("inventory.write");
     const { id } = await context.params;
     const body = await request.json();
     const status = String(body.status ?? "") as AlertStatus;

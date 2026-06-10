@@ -11,7 +11,7 @@ export default async function NewApLocationPage() {
   ]);
   return (
     <div className="space-y-6">
-      <PageHeader title="Add AP map location" description="Place a UniFi access point on the warehouse map using x/y percentages." />
+      <PageHeader title="Add location anchor" description="Place a warehouse location anchor on the map using x/y percentages. Legacy AP sync is disabled by default." />
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <ApLocationForm maps={maps} zones={zones} />
       </div>

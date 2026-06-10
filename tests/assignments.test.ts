@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Device } from "@prisma/client";
-import { assignmentStatusForItems, canAssignAsset, validateAssignmentAssets } from "@/lib/assignments";
+import { assignmentStatusForItems, canAssignAsset, deviceStatusForReturnCondition, itemReturnStatusForCondition, validateAssignmentAssets } from "@/lib/assignments";
 
 function asset(status: Device["status"], overrides: Partial<Device> = {}): Device {
   return {
@@ -53,5 +53,24 @@ describe("assignment validation", () => {
     expect(assignmentStatusForItems([{ returnedAt: null }, { returnedAt: null }])).toBe("ACTIVE");
     expect(assignmentStatusForItems([{ returnedAt: new Date() }, { returnedAt: null }])).toBe("PARTIALLY_RETURNED");
     expect(assignmentStatusForItems([{ returnedAt: new Date() }, { returnedAt: new Date() }])).toBe("RETURNED");
+  });
+
+  it("maps good and fair returns back to available inventory", () => {
+    expect(deviceStatusForReturnCondition("GOOD")).toBe("AVAILABLE");
+    expect(deviceStatusForReturnCondition("FAIR")).toBe("AVAILABLE");
+  });
+
+  it("maps damaged return conditions to repair review", () => {
+    expect(deviceStatusForReturnCondition("DAMAGED")).toBe("IN_REPAIR_RMA");
+    expect(deviceStatusForReturnCondition("NOT_WORKING")).toBe("IN_REPAIR_RMA");
+    expect(deviceStatusForReturnCondition("MISSING_ACCESSORIES")).toBe("IN_REPAIR_RMA");
+  });
+
+  it("sets assignment item return status from return condition", () => {
+    expect(itemReturnStatusForCondition("GOOD")).toBe("RETURNED");
+    expect(itemReturnStatusForCondition("FAIR")).toBe("RETURNED");
+    expect(itemReturnStatusForCondition("DAMAGED")).toBe("DAMAGED");
+    expect(itemReturnStatusForCondition("NOT_WORKING")).toBe("DAMAGED");
+    expect(itemReturnStatusForCondition("MISSING_ACCESSORIES")).toBe("MISSING_ACCESSORIES");
   });
 });

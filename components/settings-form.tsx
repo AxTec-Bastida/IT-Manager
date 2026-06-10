@@ -132,7 +132,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
           </label>
           <label className={checkboxClass}>
             <input className="size-4 rounded border-slate-300" name="enableMissingAssetSeenOnlineAlerts" type="checkbox" defaultChecked={settings.enableMissingAssetSeenOnlineAlerts} />
-            Enable missing asset seen online alerts
+            Legacy missing-asset online alerts (disabled unless legacy AP sync is explicitly enabled)
           </label>
           <label className={checkboxClass}>
             <input className="size-4 rounded border-slate-300" name="alertDuplicateSuppressionEnabled" type="checkbox" defaultChecked={settings.alertDuplicateSuppressionEnabled} />
@@ -146,7 +146,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
         <div className="grid gap-4 lg:grid-cols-2">
           <label className={checkboxClass}>
             <input className="size-4 rounded border-slate-300" name="enableMovementAlerts" type="checkbox" defaultChecked={settings.enableMovementAlerts} />
-            Enable fixed/static movement alerts
+            Legacy AP-based movement alerts (disabled unless legacy AP sync is explicitly enabled)
           </label>
           <label className={labelClass}>
             Default allowed zone distance
@@ -154,7 +154,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
           </label>
           <label className={checkboxClass}>
             <input className="size-4 rounded border-slate-300" name="autoResolveMovementAlerts" type="checkbox" defaultChecked={settings.autoResolveMovementAlerts} />
-            Auto-resolve movement alerts when returned
+            Auto-resolve legacy movement alerts when returned
           </label>
         </div>
       </fieldset>

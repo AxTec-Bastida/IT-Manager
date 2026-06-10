@@ -5,16 +5,21 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
 import { WorkspaceStatusButton } from "@/components/workspace-status-button";
+import { TaskAssignButton } from "@/components/task-assign-button";
+import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { taskCategoryLabels, taskPriorityLabels, taskPriorityTone, taskStatusLabels, taskStatusTone } from "@/lib/constants";
+import { taskAssigneeLabel } from "@/lib/tasks";
+import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function TaskDetailPage({ params }: Props) {
+  if (!(await hasPagePermission("tasks.read"))) return <ForbiddenPanel message="Task details require IT Staff, Auditor, or Admin access." />;
   const { id } = await params;
   const [task, activity] = await Promise.all([
-    prisma.task.findUnique({ where: { id }, include: { relatedDevice: true, relatedEmployee: true, relatedStockItem: true, relatedFactura: true, relatedAlert: true } }),
+    prisma.task.findUnique({ where: { id }, include: { assignedToUser: true, relatedDevice: true, relatedEmployee: true, relatedStockItem: true, relatedFactura: true, relatedAlert: true } }),
     prisma.activityLog.findMany({ where: { entity: "task", entityId: id }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
   if (!task) notFound();
@@ -45,7 +50,7 @@ export default async function TaskDetailPage({ params }: Props) {
           {[
             ["Due date", task.dueDate ? task.dueDate.toLocaleDateString() : "-"],
             ["Reminder", task.reminderDate ? task.reminderDate.toLocaleDateString() : "-"],
-            ["Assigned to", task.assignedTo || "-"],
+            ["Assigned to", taskAssigneeLabel(task)],
             ["Completed", task.completedAt ? task.completedAt.toLocaleString() : "-"],
             ["Created", task.createdAt.toLocaleString()],
             ["Updated", task.updatedAt.toLocaleString()],
@@ -62,6 +67,7 @@ export default async function TaskDetailPage({ params }: Props) {
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="font-semibold text-slate-950">Actions</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          {!task.assignedToUserId ? <TaskAssignButton taskId={task.id} /> : null}
           <WorkspaceStatusButton endpoint={`/api/tasks/${task.id}`} status="IN_PROGRESS">In progress</WorkspaceStatusButton>
           <WorkspaceStatusButton endpoint={`/api/tasks/${task.id}`} status="WAITING">Waiting</WorkspaceStatusButton>
           <WorkspaceStatusButton endpoint={`/api/tasks/${task.id}`} status="DONE" variant="primary">Done</WorkspaceStatusButton>

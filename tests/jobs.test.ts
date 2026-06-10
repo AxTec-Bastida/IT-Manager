@@ -29,9 +29,9 @@ describe("scheduled jobs", () => {
     expect(isJobDue(job({ nextRunAt: null }), now)).toBe(true);
   });
 
-  it("does not run disabled or already-running jobs", () => {
+  it("does not run disabled jobs, but includes running jobs for skip logging", () => {
     const due = selectDueJobs([job(), job({ id: "disabled", enabled: false }), job({ id: "running", running: true })], now);
-    expect(due.map((item) => item.id)).toEqual(["job-1"]);
+    expect(due.map((item) => item.id)).toEqual(["job-1", "running"]);
   });
 
   it("calculates nextRunAt from interval minutes", () => {
@@ -62,7 +62,29 @@ describe("scheduled jobs", () => {
     expect(summary.runs.map((run) => run.status)).toEqual(["FAILED", "SUCCESS"]);
   });
 
-  it("includes movement check as existing-data-only", () => {
-    expect(defaultJobSchedules.some((item) => item.type === "MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY")).toBe(true);
+  it("counts skipped duplicate-running jobs without marking them successful", async () => {
+    const summary = await runDueJobList([job({ id: "running", running: true })], async (item) => ({
+      scheduleId: item.id,
+      name: item.name,
+      type: item.type,
+      status: "SKIPPED" as const,
+      errorMessage: "Job is already running.",
+    }));
+    expect(summary.jobsRun).toBe(0);
+    expect(summary.jobsSkipped).toBe(1);
+    expect(summary.runs[0].status).toBe("SKIPPED");
+  });
+
+  it("includes the scheduled reminder and integrity jobs", () => {
+    expect(defaultJobSchedules.map((item) => item.type)).toEqual([
+      "ALERT_REFRESH",
+      "RMA_REMINDER_REFRESH",
+      "ASSET_LOAN_OVERDUE_CHECK",
+      "STOCK_LOAN_OVERDUE_CHECK",
+      "STOCK_ALERT_CHECK",
+      "PRINTER_MAINTENANCE_CHECK",
+      "WARRANTY_ALERT_CHECK",
+      "DATA_INTEGRITY_CHECK",
+    ]);
   });
 });

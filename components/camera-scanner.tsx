@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Camera, Check, ImageUp, Loader2, ScanLine, X } from "lucide-react";
+import { cameraSecurityMessage, cameraUnsupportedMessage } from "@/lib/camera";
 import { valueForScanTarget, type ParsedScan } from "@/lib/scan-label";
 
 type CameraScannerProps = {
@@ -15,6 +16,7 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const handledRef = useRef(false);
+  const lastRawRef = useRef<{ value: string; at: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastValue, setLastValue] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,15 +26,16 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
 
     async function start() {
       try {
-        const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-        if (!window.isSecureContext && !isLocalhost) {
-          setError("Phone camera access requires HTTPS. Open this app through HTTPS on the warehouse network, or use the photo/manual fallback below.");
+        const securityMessage = cameraSecurityMessage({ isSecureContext: window.isSecureContext, hostname: window.location.hostname });
+        if (securityMessage) {
+          setError(securityMessage);
           setLoading(false);
           return;
         }
 
-        if (!navigator.mediaDevices?.getUserMedia) {
-          setError("Camera access is not available in this browser. Use HTTPS or localhost and allow camera permissions.");
+        const unsupportedMessage = cameraUnsupportedMessage(Boolean(navigator.mediaDevices?.getUserMedia));
+        if (unsupportedMessage) {
+          setError(unsupportedMessage);
           setLoading(false);
           return;
         }
@@ -51,14 +54,19 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
           },
           videoRef.current!,
           (result) => {
-          if (!active || !result || handledRef.current) return;
-          handledRef.current = true;
-          const raw = result.getText();
-          const parsed = parseScannedLabel(raw);
-          const value = target ? valueForScanTarget(parsed, target) : parsed.query;
-          setLastValue(value);
-          controlsRef.current?.stop();
-          onDetected(value, parsed);
+            if (!active || !result || handledRef.current) return;
+            const raw = result.getText();
+            const now = Date.now();
+            if (lastRawRef.current?.value === raw && now - lastRawRef.current.at < 4000) return;
+            lastRawRef.current = { value: raw, at: now };
+            handledRef.current = true;
+            const parsed = parseScannedLabel(raw);
+            const value = target ? valueForScanTarget(parsed, target) : parsed.query;
+            setLastValue(value);
+            onDetected(value, parsed);
+            window.setTimeout(() => {
+              handledRef.current = false;
+            }, 1800);
           },
         );
 
@@ -140,7 +148,7 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
         {error ? <div className="rounded-lg bg-rose-500/20 p-3 text-sm text-rose-100">{error}</div> : null}
         <div className="flex items-center gap-2 rounded-lg bg-white/10 p-3 text-sm">
           {lastValue ? <Check className="text-emerald-300" size={18} /> : <ScanLine className="text-slate-300" size={18} />}
-          <span className="min-w-0 truncate">{lastValue ? `Detected: ${lastValue}` : "Scanning..."}</span>
+          <span className="min-w-0 truncate">{lastValue ? `Detected: ${lastValue}. Ready for next scan.` : "Scanning..."}</span>
         </div>
         <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg bg-white text-sm font-semibold text-slate-950">
           <ImageUp size={18} />

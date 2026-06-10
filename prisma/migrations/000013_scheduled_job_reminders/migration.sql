@@ -1,0 +1,2 @@
+-- SQLite stores Prisma enum values as TEXT, so adding enum members for
+-- scheduled reminder jobs and alert types requires no table rewrite.

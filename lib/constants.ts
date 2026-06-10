@@ -15,12 +15,21 @@ import type {
   ScheduledJobLastStatus,
   ScheduledJobType,
   StockCategory,
+  StockIssueStatus,
+  StockIssueType,
+  StockItemPhotoType,
   StockItemType,
   StockMovementType,
+  StockReturnCondition,
   TaskCategory,
   TaskPriority,
   TaskStatus,
   ToolLinkCategory,
+  RmaCaseStatus,
+  RmaItemResult,
+  AssetLoanStatus,
+  AssetLoanItemReturnStatus,
+  AssetLoanReturnCondition,
 } from "@prisma/client";
 
 export const categoryLabels: Record<DeviceCategory, string> = {
@@ -131,7 +140,12 @@ export const stockCategoryLabels: Record<StockCategory, string> = {
   MOUSE: "Mouse",
   HEADSET: "Headset",
   CABLE: "Cable",
+  CHARGER: "Charger",
   ADAPTER: "Adapter",
+  ACCESSORY: "Accessory",
+  DISPLAY_BASE: "Display Base",
+  DOCK: "Dock",
+  PRINTER_SUPPLY: "Printer Supply",
   TONER: "Toner",
   INK: "Ink",
   THERMAL_LABEL: "Thermal Label",
@@ -150,10 +164,42 @@ export const stockMovementTypeLabels: Record<StockMovementType, string> = {
   ADJUST: "Adjust Count",
   USED_FOR_REPAIR: "Used for Repair",
   HANDED_OUT: "Handed Out",
+  LOANED_OUT: "Loaned Out",
   RETURNED_TO_STOCK: "Returned to Stock",
 };
 
 export const stockMovementTypeOptions = Object.keys(stockMovementTypeLabels) as StockMovementType[];
+
+export const stockIssueTypeLabels: Record<StockIssueType, string> = {
+  HANDOUT: "Handout",
+  LOAN: "Loan",
+};
+
+export const stockIssueTypeOptions = Object.keys(stockIssueTypeLabels) as StockIssueType[];
+
+export const stockIssueStatusLabels: Record<StockIssueStatus, string> = {
+  ACTIVE: "Active",
+  RETURNED: "Returned",
+  PARTIALLY_RETURNED: "Partially Returned",
+  CANCELLED: "Cancelled",
+};
+
+export const stockIssueStatusTone: Record<StockIssueStatus, string> = {
+  ACTIVE: "bg-amber-100 text-amber-900 ring-amber-200",
+  RETURNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  PARTIALLY_RETURNED: "bg-sky-100 text-sky-800 ring-sky-200",
+  CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+export const stockReturnConditionLabels: Record<StockReturnCondition, string> = {
+  GOOD: "Good",
+  FAIR: "Fair",
+  DAMAGED: "Damaged",
+  NOT_WORKING: "Not Working",
+  MISSING: "Missing",
+};
+
+export const stockReturnConditionOptions = Object.keys(stockReturnConditionLabels) as StockReturnCondition[];
 
 export const maintenanceTypeLabels: Record<MaintenanceType, string> = {
   CLEANING: "Cleaning",
@@ -195,6 +241,12 @@ export const alertTypeLabels: Record<AlertType, string> = {
   FACTURA_WARRANTY_EXPIRING: "Factura Warranty Expiring",
   MISSING_ASSET_SEEN_ONLINE: "Missing Asset Seen Online",
   FIXED_ASSET_MOVED: "Fixed Asset Moved",
+  RMA_FOLLOW_UP_DUE: "RMA Follow-up Due",
+  RMA_ACTIVE_REMINDER: "RMA Active Reminder",
+  RMA_OVERDUE: "RMA Overdue",
+  ASSET_LOAN_OVERDUE: "Asset Loan Overdue",
+  STOCK_LOAN_OVERDUE: "Stock Loan Overdue",
+  DATA_INTEGRITY_WARNING: "Data Integrity Warning",
 };
 
 export const alertStatusLabels: Record<AlertStatus, string> = {
@@ -217,17 +269,21 @@ export const alertSourceLabels: Record<AlertSource, string> = {
   FACTURA: "Factura",
   WARRANTY: "Warranty",
   MISSING_ASSET: "Missing Asset",
-  UNIFI: "Read-only UniFi",
-  MOVEMENT: "Movement",
+  UNIFI: "Legacy AP Sync (Disabled)",
+  MOVEMENT: "Location Movement",
   SYSTEM: "System",
 };
 
 export const scheduledJobTypeLabels: Record<ScheduledJobType, string> = {
   ALERT_REFRESH: "Alert Refresh",
+  RMA_REMINDER_REFRESH: "RMA Reminder Refresh",
+  ASSET_LOAN_OVERDUE_CHECK: "Asset Loan Overdue Check",
+  STOCK_LOAN_OVERDUE_CHECK: "Stock Loan Overdue Check",
   CONFLICT_DETECTION: "Conflict Detection",
   STOCK_ALERT_CHECK: "Stock Alert Check",
   WARRANTY_ALERT_CHECK: "Warranty Alert Check",
   PRINTER_MAINTENANCE_CHECK: "Printer Maintenance Check",
+  DATA_INTEGRITY_CHECK: "Data Integrity Check",
   MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY: "Movement Alert Check",
 };
 
@@ -241,20 +297,36 @@ export const jobRunStatusLabels: Record<JobRunStatus, string> = {
   SUCCESS: "Success",
   FAILED: "Failed",
   PARTIAL: "Partial",
+  SKIPPED: "Skipped",
 };
 
 export const assetPhotoTypeLabels: Record<AssetPhotoType, string> = {
   MAIN: "Main Photo",
+  OVERVIEW: "Overview",
+  ASSET_TAG: "Asset Tag",
   SERIAL_LABEL: "Serial Label",
   MAC_IP_LABEL: "MAC/IP Label",
   CONDITION: "Condition",
   DAMAGE: "Damage",
   ACCESSORIES: "Accessories",
+  LOCATION_INSTALLED: "Location / Installed",
+  FACTURA_EVIDENCE: "Factura Evidence",
+  RMA_CONDITION: "RMA Condition",
   RETURN_CONDITION: "Return Condition",
   OTHER: "Other",
 };
 
 export const assetPhotoTypeOptions = Object.keys(assetPhotoTypeLabels) as AssetPhotoType[];
+
+export const stockItemPhotoTypeLabels: Record<StockItemPhotoType, string> = {
+  OVERVIEW: "Overview",
+  PACKAGING: "Packaging",
+  SKU_LABEL: "SKU Label",
+  STORAGE_LOCATION: "Storage Location",
+  OTHER: "Other",
+};
+
+export const stockItemPhotoTypeOptions = Object.keys(stockItemPhotoTypeLabels) as StockItemPhotoType[];
 
 export const taskStatusLabels: Record<TaskStatus, string> = {
   OPEN: "Open",
@@ -292,17 +364,43 @@ export const taskPriorityTone: Record<TaskPriority, string> = {
 
 export const taskCategoryLabels: Record<TaskCategory, string> = {
   GENERAL: "General",
-  INVENTORY: "Inventory",
-  MAINTENANCE: "Maintenance",
-  STOCK: "Stock",
-  PURCHASE: "Purchase",
-  RMA: "RMA",
-  WARRANTY: "Warranty",
-  ALERT: "Alert",
-  OTHER: "Other",
+  INVENTORY: "Asset Follow-up",
+  MAINTENANCE: "Repair / RMA",
+  STOCK: "Stock / Consumables",
+  PURCHASE: "Purchase / PO",
+  RMA: "Repair / RMA",
+  WARRANTY: "Warranty / Factura",
+  ALERT: "General",
+  OTHER: "General",
+  ASSET_FOLLOW_UP: "Asset Follow-up",
+  INSTALL_COMMISSION: "Install / Commission",
+  MOVE_RELOCATE: "Move / Relocate",
+  REPAIR_RMA: "Repair / RMA",
+  STOCK_CONSUMABLES: "Stock / Consumables",
+  AUDIT_FINDING: "Audit Finding",
+  LABEL_QR_ISSUE: "Label / QR Issue",
+  PHOTO_COMPLIANCE: "Photo / Compliance",
+  NETWORK_IP_MAC: "Network / IP / MAC",
+  WARRANTY_FACTURA: "Warranty / Factura",
+  PURCHASE_PO: "Purchase / PO",
+  SECURITY_ACCESS: "Security / Access",
 };
 
-export const taskCategoryOptions = Object.keys(taskCategoryLabels) as TaskCategory[];
+export const taskCategoryOptions: TaskCategory[] = [
+  "GENERAL",
+  "ASSET_FOLLOW_UP",
+  "INSTALL_COMMISSION",
+  "MOVE_RELOCATE",
+  "REPAIR_RMA",
+  "STOCK_CONSUMABLES",
+  "AUDIT_FINDING",
+  "LABEL_QR_ISSUE",
+  "PHOTO_COMPLIANCE",
+  "NETWORK_IP_MAC",
+  "WARRANTY_FACTURA",
+  "PURCHASE_PO",
+  "SECURITY_ACCESS",
+];
 
 export const purchaseNoteStatusLabels: Record<PurchaseNoteStatus, string> = {
   DRAFT: "Draft",
@@ -349,3 +447,92 @@ export const toolLinkCategoryLabels: Record<ToolLinkCategory, string> = {
 };
 
 export const toolLinkCategoryOptions = Object.keys(toolLinkCategoryLabels) as ToolLinkCategory[];
+
+export const rmaCaseStatusLabels: Record<RmaCaseStatus, string> = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  ACTIVE: "Active",
+  PARTIALLY_RETURNED: "Partially Returned",
+  RETURNED: "Returned",
+  CLOSED: "Closed",
+  CANCELLED: "Cancelled",
+};
+
+export const rmaCaseStatusTone: Record<RmaCaseStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 ring-slate-200",
+  SENT: "bg-blue-100 text-blue-800 ring-blue-200",
+  ACTIVE: "bg-amber-100 text-amber-900 ring-amber-200",
+  PARTIALLY_RETURNED: "bg-violet-100 text-violet-800 ring-violet-200",
+  RETURNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  CLOSED: "bg-zinc-200 text-zinc-700 ring-zinc-300",
+  CANCELLED: "bg-stone-200 text-stone-700 ring-stone-300",
+};
+
+export const rmaItemResultLabels: Record<RmaItemResult, string> = {
+  PENDING: "Pending",
+  REPAIRED: "Repaired",
+  REPLACED: "Replaced",
+  REJECTED: "Rejected",
+  LOST: "Lost",
+  RETIRED: "Retired",
+  RETURNED_AS_IS: "Returned As-Is",
+};
+
+export const rmaItemResultTone: Record<RmaItemResult, string> = {
+  PENDING: "bg-amber-100 text-amber-900 ring-amber-200",
+  REPAIRED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  REPLACED: "bg-blue-100 text-blue-800 ring-blue-200",
+  REJECTED: "bg-orange-100 text-orange-900 ring-orange-200",
+  LOST: "bg-rose-100 text-rose-800 ring-rose-200",
+  RETIRED: "bg-zinc-200 text-zinc-700 ring-zinc-300",
+  RETURNED_AS_IS: "bg-sky-100 text-sky-800 ring-sky-200",
+};
+
+export const assetLoanStatusLabels: Record<AssetLoanStatus, string> = {
+  ACTIVE: "Active",
+  RETURNED: "Returned",
+  OVERDUE: "Overdue",
+  PARTIALLY_RETURNED: "Partially Returned",
+  CANCELLED: "Cancelled",
+  LOST: "Lost",
+  RETURNED_DAMAGED: "Returned Damaged",
+};
+
+export const assetLoanStatusTone: Record<AssetLoanStatus, string> = {
+  ACTIVE: "bg-blue-100 text-blue-800 ring-blue-200",
+  RETURNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  OVERDUE: "bg-rose-100 text-rose-800 ring-rose-200",
+  PARTIALLY_RETURNED: "bg-violet-100 text-violet-800 ring-violet-200",
+  CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200",
+  LOST: "bg-red-100 text-red-800 ring-red-200",
+  RETURNED_DAMAGED: "bg-orange-100 text-orange-900 ring-orange-200",
+};
+
+export const assetLoanItemReturnStatusLabels: Record<AssetLoanItemReturnStatus, string> = {
+  PENDING: "Pending",
+  RETURNED: "Returned",
+  RETURNED_DAMAGED: "Returned Damaged",
+  MISSING_ACCESSORIES: "Missing Accessories",
+  LOST: "Lost",
+  CANCELLED: "Cancelled",
+};
+
+export const assetLoanItemReturnStatusTone: Record<AssetLoanItemReturnStatus, string> = {
+  PENDING: "bg-amber-100 text-amber-900 ring-amber-200",
+  RETURNED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  RETURNED_DAMAGED: "bg-orange-100 text-orange-900 ring-orange-200",
+  MISSING_ACCESSORIES: "bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-200",
+  LOST: "bg-rose-100 text-rose-800 ring-rose-200",
+  CANCELLED: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+export const assetLoanReturnConditionLabels: Record<AssetLoanReturnCondition, string> = {
+  GOOD: "Good",
+  FAIR: "Fair",
+  DAMAGED: "Damaged",
+  NOT_WORKING: "Not Working",
+  MISSING_ACCESSORIES: "Missing Accessories",
+  LOST: "Lost",
+};
+
+export const assetLoanReturnConditionOptions = Object.keys(assetLoanReturnConditionLabels) as AssetLoanReturnCondition[];

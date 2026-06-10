@@ -12,18 +12,16 @@ export default async function MissingAssetsPage() {
     where: { status: "MISSING" },
     include: {
       locationHistory: { orderBy: { seenAt: "desc" }, take: 1 },
-      unifiSnapshots: { orderBy: { syncedAt: "desc" }, take: 1 },
     },
     orderBy: { updatedAt: "desc" },
   });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Missing assets" description="Assets marked missing with their last AP-based location and current read-only UniFi status." />
+      <PageHeader title="Missing assets" description="Assets marked missing with their inventory location and latest stored location update." />
       <div className="grid gap-3">
         {missingAssets.map((asset) => {
           const lastLocation = asset.locationHistory[0];
-          const snapshot = asset.unifiSnapshots[0];
           return (
             <article key={asset.id} className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -39,15 +37,15 @@ export default async function MissingAssetsPage() {
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-slate-500">Last seen</p>
-                  <p className="font-medium text-slate-950">{lastLocation?.seenAt.toLocaleString() ?? asset.lastSeenAt?.toLocaleString() ?? "Unknown"}</p>
+                  <p className="font-medium text-slate-950">{lastLocation?.seenAt.toLocaleString() ?? asset.lastSeenAt?.toLocaleString() ?? "No location updates yet"}</p>
                 </div>
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="text-slate-500">Last location</p>
-                  <p className="font-medium text-slate-950">{lastLocation?.locationLabel ?? "No mapped location"}</p>
+                  <p className="font-medium text-slate-950">{lastLocation?.locationLabel ?? asset.location ?? "No location updates yet"}</p>
                 </div>
                 <div className="rounded-md bg-slate-50 p-3">
-                  <p className="text-slate-500">UniFi</p>
-                  <p className="font-medium text-slate-950">{snapshot?.online ? "Online" : snapshot ? "Offline" : "Unknown"}</p>
+                  <p className="text-slate-500">Current status</p>
+                  <p className="font-medium text-slate-950">{statusLabels[asset.status]}</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-2 sm:flex">

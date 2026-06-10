@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { scanIpRange } from "@/lib/scanner";
 import { handleApiError, jsonError } from "@/lib/api";
 import { normalizeMacAddress } from "@/lib/ip";
+import { makeActivityActor, requirePermission } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const actor = await requirePermission("inventory.write");
     const body = await request.json();
     const range = body.rangeId ? await prisma.ipRange.findUnique({ where: { id: String(body.rangeId) } }) : null;
     const settings = await prisma.appSettings.upsert({
@@ -68,8 +70,9 @@ export async function POST(request: NextRequest) {
       });
 
     await prisma.activityLog.create({
-      data: {
-        action: "scan.completed",
+        data: {
+          ...makeActivityActor(actor),
+          action: "scan.completed",
         entity: "scan",
         entityId: run.id,
         message: `Scanned ${scan.results.length} IPs in ${run.rangeName}; ${reachableIps.length} responded.`,

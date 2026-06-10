@@ -1,5 +1,7 @@
 import {
   AssignmentStatus,
+  AssignmentTargetType,
+  AppRole,
   DeviceCategory,
   DeviceCondition,
   DeviceStatus,
@@ -7,12 +9,15 @@ import {
   MaintenanceType,
   PurchaseNoteStatus,
   StockCategory,
+  StockIssueType,
   StockItemType,
   StockMovementType,
+  StockReturnCondition,
   TaskCategory,
   TaskPriority,
   TaskStatus,
   ToolLinkCategory,
+  AssetLoanReturnCondition,
 } from "@prisma/client";
 import { z } from "zod";
 import { validateIPv4, validateIpRange } from "./ip";
@@ -137,6 +142,12 @@ export const settingsSchema = z.object({
   enableMissingAssetSeenOnlineAlerts: z.coerce.boolean(),
   alertDuplicateSuppressionEnabled: z.coerce.boolean(),
   defaultCurrency: z.string().trim().min(1).max(8),
+  autoSendAssignmentReceipts: z.coerce.boolean().default(false),
+  autoSendAssetLoanReceipts: z.coerce.boolean().default(false),
+  autoSendStockIssueReceipts: z.coerce.boolean().default(false),
+  autoSendRmaEmails: z.coerce.boolean().default(false),
+  autoSendReturnConfirmations: z.coerce.boolean().default(false),
+  autoSendOverdueReminderEmails: z.coerce.boolean().default(false),
 });
 
 export const employeeSchema = z.object({
@@ -154,7 +165,11 @@ export const employeeSchema = z.object({
 });
 
 export const assignmentSchema = z.object({
-  employeeId: z.string().trim().min(1, "Employee is required."),
+  employeeId: optionalText,
+  targetId: optionalText,
+  targetType: z.nativeEnum(AssignmentTargetType).default("EMPLOYEE"),
+  targetName: optionalText,
+  targetPath: optionalText,
   assignedBy: optionalText,
   assignmentDate: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
   signatureData: z.string().trim().min(1, "Signature is required."),
@@ -163,11 +178,19 @@ export const assignmentSchema = z.object({
   notes: optionalText,
   status: z.nativeEnum(AssignmentStatus).default("ACTIVE"),
   assetIds: z.array(z.string().min(1)).min(1, "Select at least one asset."),
+}).superRefine((value, context) => {
+  if (value.targetType === "EMPLOYEE" && !value.employeeId) {
+    context.addIssue({ code: "custom", message: "Select an employee for a person assignment.", path: ["employeeId"] });
+  }
+  if (value.targetType !== "EMPLOYEE" && !value.targetName && !value.targetPath && !value.targetId) {
+    context.addIssue({ code: "custom", message: "Enter the team, department, area, or station responsible for this assignment.", path: ["targetName"] });
+  }
 });
 
 export const stockItemSchema = z.object({
   name: z.string().trim().min(1, "Stock item name is required."),
   sku: optionalText,
+  barcodeValue: optionalText,
   category: z.nativeEnum(StockCategory),
   itemType: z.nativeEnum(StockItemType),
   compatibleAssetCategory: z.nativeEnum(DeviceCategory).optional().nullable().transform((value) => value || null),
@@ -196,6 +219,90 @@ export const stockMovementSchema = z.object({
   facturaId: optionalText,
 });
 
+export const temporaryBorrowerSchema = z.object({
+  tempId: optionalText,
+  name: z.string().trim().min(1, "Borrower name is required."),
+  department: optionalText,
+  area: optionalText,
+  supervisorName: optionalText,
+  phone: optionalText,
+  email: optionalText.refine((value) => !value || z.email().safeParse(value).success, "Enter a valid email address."),
+  reason: optionalText,
+  notes: optionalText,
+  active: z.coerce.boolean().default(true),
+});
+
+export const stockIssueSchema = z
+  .object({
+    stockItemId: z.string().trim().min(1, "Stock item is required."),
+    quantity: z.coerce.number().int().min(1, "Quantity must be at least 1."),
+    issueType: z.nativeEnum(StockIssueType),
+    employeeId: optionalText,
+    temporaryBorrowerId: optionalText,
+    issuedBy: optionalText,
+    issuedAt: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
+    expectedReturnAt: optionalDate,
+    conditionOut: optionalText,
+    notes: optionalText,
+  })
+  .superRefine((value, context) => {
+    if (!value.employeeId && !value.temporaryBorrowerId) {
+      context.addIssue({ code: "custom", message: "Select an employee or temporary borrower.", path: ["employeeId"] });
+    }
+    if (value.employeeId && value.temporaryBorrowerId) {
+      context.addIssue({ code: "custom", message: "Choose only one borrower type.", path: ["temporaryBorrowerId"] });
+    }
+  });
+
+export const stockIssueReturnSchema = z.object({
+  returnedQuantity: z.coerce.number().int().min(1, "Returned quantity must be at least 1."),
+  conditionIn: z.nativeEnum(StockReturnCondition),
+  returnedAt: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
+  returnNotes: optionalText,
+});
+
+export const assetLoanSchema = z
+  .object({
+    loanNumber: optionalText,
+    employeeId: optionalText,
+    temporaryBorrowerId: optionalText,
+    loanedBy: optionalText,
+    loanStartAt: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
+    expectedReturnAt: z.string().trim().min(1, "Expected return date is required.").transform((value) => new Date(value)),
+    signatureData: optionalText,
+    termsAccepted: z.coerce.boolean().default(false),
+    termsText: optionalText,
+    checkoutNotes: optionalText,
+    allowAssigned: z.coerce.boolean().default(false),
+    assetIds: z.array(z.string().min(1)).min(1, "Select at least one asset."),
+    conditionOut: z.nativeEnum(DeviceCondition).optional().nullable().transform((value) => value || "GOOD"),
+    accessoriesOut: optionalText,
+  })
+  .superRefine((value, context) => {
+    if (!value.employeeId && !value.temporaryBorrowerId) {
+      context.addIssue({ code: "custom", message: "Select an employee or temporary borrower.", path: ["employeeId"] });
+    }
+    if (value.employeeId && value.temporaryBorrowerId) {
+      context.addIssue({ code: "custom", message: "Choose only one borrower type.", path: ["temporaryBorrowerId"] });
+    }
+    if (value.expectedReturnAt < value.loanStartAt) {
+      context.addIssue({ code: "custom", message: "Expected return cannot be before the loan start date.", path: ["expectedReturnAt"] });
+    }
+  });
+
+export const assetLoanReturnSchema = z.object({
+  items: z.array(
+    z.object({
+      selected: z.coerce.boolean().default(false),
+      itemId: z.string().trim().min(1),
+      conditionIn: z.nativeEnum(AssetLoanReturnCondition),
+      accessoriesReturned: optionalText,
+      returnNotes: optionalText,
+      returnedAt: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
+    }),
+  ),
+});
+
 export const maintenanceRecordSchema = z.object({
   assetId: z.string().trim().min(1, "Asset is required."),
   maintenanceType: z.nativeEnum(MaintenanceType),
@@ -220,6 +327,9 @@ export const taskSchema = z.object({
   dueDate: optionalDate,
   reminderDate: optionalDate,
   assignedTo: optionalText,
+  assignedToUserId: optionalText,
+  assignedToName: optionalText,
+  assignedToRole: z.nativeEnum(AppRole).optional().nullable().transform((value) => value || null),
   category: z.nativeEnum(TaskCategory).default("GENERAL"),
   relatedDeviceId: optionalText,
   relatedEmployeeId: optionalText,

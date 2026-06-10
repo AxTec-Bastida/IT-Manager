@@ -1,5 +1,7 @@
 import type { PrismaClient, ScheduledJobType } from "@prisma/client";
 import { buildAllLocalAlertCandidates, alertCandidateKey, alertRecordKey, type AlertRefreshSummary } from "./alert-workflows";
+import { isLegacyUnifiSyncEnabled } from "./unifi-disabled";
+import { refreshRmaReminders } from "./rma";
 
 type AlertRefreshScope = ScheduledJobType | "MANUAL";
 
@@ -16,6 +18,9 @@ function scopedSettings(settings: {
   enableMovementAlerts: boolean;
   enableMissingAssetSeenOnlineAlerts: boolean;
 }, scope: AlertRefreshScope) {
+  if (!isLegacyUnifiSyncEnabled()) {
+    settings = { ...settings, enableMovementAlerts: false, enableMissingAssetSeenOnlineAlerts: false };
+  }
   if (scope === "CONFLICT_DETECTION") {
     return { ...settings, enableLowStockAlerts: false, enablePrinterMaintenanceAlerts: false, enableWarrantyAlerts: false, enableMovementAlerts: false, enableMissingAssetSeenOnlineAlerts: false };
   }
@@ -44,6 +49,7 @@ function activityActionForAlertType(type: string) {
 export async function runAlertRefresh(prisma: PrismaClient, scope: AlertRefreshScope = "MANUAL", now = new Date()) {
   const summary = emptySummary();
   const settings = await prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+  const legacyUnifiEnabled = isLegacyUnifiSyncEnabled();
   const [devices, stockItems, printerAssets, facturas, latestHistoriesRaw, snapshots, openAlerts] = await Promise.all([
     prisma.device.findMany({ include: { ipRange: true } }),
     prisma.stockItem.findMany({ where: { active: true } }),
@@ -54,7 +60,7 @@ export async function runAlertRefresh(prisma: PrismaClient, scope: AlertRefreshS
       orderBy: { seenAt: "desc" },
       take: 1000,
     }),
-    prisma.unifiClientSnapshot.findMany({ where: { online: true }, orderBy: { syncedAt: "desc" }, take: 1000 }),
+    legacyUnifiEnabled ? prisma.unifiClientSnapshot.findMany({ where: { online: true }, orderBy: { syncedAt: "desc" }, take: 1000 }) : Promise.resolve([]),
     prisma.alert.findMany({ where: { status: { in: ["OPEN", "ACKNOWLEDGED"] } } }),
   ]);
 
@@ -123,7 +129,7 @@ export async function runAlertRefresh(prisma: PrismaClient, scope: AlertRefreshS
     }
   }
 
-  if (settings.autoResolveMovementAlerts && (scope === "MANUAL" || scope === "ALERT_REFRESH" || scope === "MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY")) {
+  if (legacyUnifiEnabled && settings.autoResolveMovementAlerts && (scope === "MANUAL" || scope === "ALERT_REFRESH" || scope === "MOVEMENT_ALERT_CHECK_EXISTING_DATA_ONLY")) {
     const movementAlerts = openAlerts.filter((alert) => alert.type === "FIXED_ASSET_MOVED");
     for (const alert of movementAlerts) {
       if (candidateKeys.has(alertRecordKey(alert))) continue;
@@ -136,6 +142,12 @@ export async function runAlertRefresh(prisma: PrismaClient, scope: AlertRefreshS
       });
       summary.alertsResolved += 1;
     }
+  }
+
+  if (scope === "MANUAL" || scope === "ALERT_REFRESH") {
+    const rmaSummary = await refreshRmaReminders(prisma, now);
+    summary.alertsCreated += rmaSummary.alertsCreated;
+    summary.alertsUpdated += rmaSummary.alertsUpdated;
   }
 
   await prisma.activityLog.create({

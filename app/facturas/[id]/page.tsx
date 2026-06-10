@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { ClipboardList, Edit, FileText, ReceiptText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
+import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function FacturaDetailPage({ params }: Props) {
+  const [canWriteInventory, canWriteTasks] = await Promise.all([hasPagePermission("inventory.write"), hasPagePermission("tasks.write")]);
   const { id } = await params;
   const factura = await prisma.factura.findUnique({
     where: { id },
@@ -28,18 +30,18 @@ export default async function FacturaDetailPage({ params }: Props) {
         description={`${factura.vendorName}${factura.poNumber ? ` • PO ${factura.poNumber}` : ""}`}
         action={
           <div className="grid gap-2 sm:flex">
-            <Link href={`/tasks/new?relatedFacturaId=${factura.id}&category=PURCHASE&title=${encodeURIComponent(`Follow up ${factura.facturaNumber}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            {canWriteTasks ? <Link href={`/tasks/new?relatedFacturaId=${factura.id}&category=PURCHASE&title=${encodeURIComponent(`Follow up ${factura.facturaNumber}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <ClipboardList size={16} />
               Create Task
-            </Link>
+            </Link> : null}
             <Link href={`/po-tracker/new?relatedFacturaId=${factura.id}&poNumber=${encodeURIComponent(factura.poNumber || "")}&title=${encodeURIComponent(`PO note for ${factura.facturaNumber}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               <ReceiptText size={16} />
               PO Note
             </Link>
-            <Link href={`/facturas/${factura.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+            {canWriteInventory ? <Link href={`/facturas/${factura.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
               <Edit size={16} />
               Edit
-            </Link>
+            </Link> : null}
           </div>
         }
       />
