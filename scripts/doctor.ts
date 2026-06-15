@@ -1,9 +1,13 @@
 import { collectReadinessChecks, formatDoctorChecks } from "@/lib/readiness";
 import { prisma } from "@/lib/prisma";
+import { inspectMigrationMetadata } from "@/lib/prisma-baseline";
 
 async function main() {
   const userCount = await prisma.appUser.count().catch(() => null);
-  const result = await collectReadinessChecks({ userCount });
+  const migrationMetadata = await inspectMigrationMetadata(prisma)
+    .then((metadata) => ({ migrationTableExists: metadata.migrationTableExists, appliedMigrationCount: metadata.appliedMigrationNames.length }))
+    .catch((error) => ({ migrationTableExists: false, appliedMigrationCount: 0, error: error instanceof Error ? error.message : "Unknown error" }));
+  const result = await collectReadinessChecks({ userCount, migrationMetadata });
   console.log("Warehouse IT Inventory readiness check");
   console.log(`Overall: ${result.status}`);
   console.log(`Project: ${result.projectRoot}`);

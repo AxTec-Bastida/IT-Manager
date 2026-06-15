@@ -20,6 +20,8 @@
     "photos:backfill-thumbnails:dry-run": "tsx scripts/photos-backfill-thumbnails.ts --dry-run",
     "photos:backfill-thumbnails:apply": "tsx scripts/photos-backfill-thumbnails.ts --apply",
     "jobs:run-due": "tsx scripts/run-due-jobs.ts",
+    "db:baseline:dry-run": "tsx scripts/prisma-baseline-existing-db.ts --dry-run",
+    "db:baseline:apply": "tsx scripts/prisma-baseline-existing-db.ts --apply",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",

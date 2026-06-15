@@ -13,7 +13,37 @@ Current Phase 53 beta runtime decision:
 - Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
 - Docker Compose: supported by the repo, but not selected for this beta machine because Docker CLI/Desktop is not installed or available.
 - Do not enable the Docker jobs profile while the Windows Task Scheduler job is active.
-- The current real SQLite database is not Prisma-migration-baselined. Do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan is approved.
+- Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+
+## Migration Safety
+
+Prisma `P3005` means Prisma sees a non-empty database without migration metadata. Do not run `prisma migrate reset` on real data.
+
+For a copied or existing real database that needs baselining:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run backup
+copy prisma\dev.db prisma\dev.before-baseline.YYYYMMDD-HHMMSS.db
+npm run db:baseline:dry-run
+$env:CONFIRM_DB_BASELINE="true"
+npm run db:baseline:apply -- --confirm
+Remove-Item Env:\CONFIRM_DB_BASELINE
+npx prisma migrate status
+npx prisma migrate deploy
+```
+
+For normal production updates after the Phase 54 baseline:
+
+1. Back up.
+2. Pull code.
+3. Run `npm install`.
+4. Run `npx prisma migrate deploy`.
+5. Run `npx prisma generate`.
+6. Run `npm run doctor`.
+7. Run `npm run build`.
+8. Restart the app.
+9. Check `/api/health`.
 
 ## Daily Use
 

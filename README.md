@@ -178,7 +178,27 @@ The current controlled beta runtime is Windows-native:
 - Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
 - Docker Compose is supported by the repo but is not the selected runtime on this machine because Docker CLI/Desktop is not installed or available.
 - Use exactly one scheduler. Do not enable the Docker Compose `jobs` profile while the Windows Task Scheduler job is active.
-- The current real SQLite database is not Prisma-migration-baselined. Do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan is approved.
+- Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+
+### Prisma Migration Baseline Safety
+
+Prisma `P3005` means the database is non-empty but Prisma migration metadata does not know which migrations are already represented in the schema. Never fix this with `prisma migrate reset` on real data; reset is destructive.
+
+The safe baseline workflow is:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run backup
+copy prisma\dev.db prisma\dev.before-baseline.YYYYMMDD-HHMMSS.db
+npm run db:baseline:dry-run
+$env:CONFIRM_DB_BASELINE="true"
+npm run db:baseline:apply -- --confirm
+Remove-Item Env:\CONFIRM_DB_BASELINE
+npx prisma migrate status
+npx prisma migrate deploy
+```
+
+Only run apply when the dry run says every migration footprint is present. The helper marks existing migrations as applied; it does not delete data, reset schema, seed data, or apply new migrations.
 
 Run a backup before changing settings, creating beta users, running migrations, bulk intake, imports, decommission testing, or any major workflow test:
 
@@ -432,6 +452,8 @@ Container startup runs:
 
 It does not run destructive reset commands and does not seed data automatically.
 
+If Docker is pointed at a new empty `data/prisma/dev.db`, migrations can run normally. If Docker is pointed at an existing copied SQLite database, baseline that database first or `prisma migrate deploy` can fail with `P3005`. Do not run `prisma migrate reset` against a copied real database.
+
 ### Update
 
 ```powershell
@@ -638,14 +660,28 @@ For internal production use, build once and run the optimized Next.js server:
 
 ```bash
 npm install
-npm run prisma:generate
+npx prisma migrate deploy
+npx prisma generate
+npm run doctor
 npm run build
 npm start
 ```
 
 By default, the app runs on port `3000`. `next start` listens on `0.0.0.0`, so LAN users can open the configured beta URL if Windows Firewall and the network allow it. The Phase 53 beta URL is `http://192.168.163.29:3000`; if that IP changes, update `.env`, `APP_BASE_URL`, and the beta SOP. For reliable phone camera/PWA behavior, plan an HTTPS/trusted-origin setup later with Caddy, Nginx, or an internal certificate.
 
-Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. The current real SQLite database was built through earlier phased development and is not Prisma-migration-baselined, so do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan verifies schema drift and records migration metadata safely. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
+Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. The Phase 54 baseline records the existing real SQLite schema in `_prisma_migrations`, so future production updates should run `npx prisma migrate deploy` after backup and before `npx prisma generate`. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
+
+Production update rule:
+
+1. Run `npm run backup`.
+2. Pull the latest code.
+3. Run `npm install`.
+4. Run `npx prisma migrate deploy`.
+5. Run `npx prisma generate`.
+6. Run `npm run doctor`.
+7. Run `npm run build`.
+8. Restart the app.
+9. Check `/api/health`.
 
 ## Main Pages
 

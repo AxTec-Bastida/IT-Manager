@@ -25,6 +25,12 @@ export type WritableDirectoryResult = {
   error?: string;
 };
 
+export type MigrationMetadataReadiness = {
+  migrationTableExists: boolean;
+  appliedMigrationCount: number;
+  error?: string;
+};
+
 const sensitiveNamePattern = /(PASS|PASSWORD|SECRET|TOKEN|KEY|SMTP_PASS|DATABASE_URL)/i;
 
 export function maskEnvValue(name: string, value?: string | null) {
@@ -102,7 +108,7 @@ export async function checkWritableDirectory(folderPath: string, options: { crea
   }
 }
 
-export async function collectReadinessChecks(options: { projectRoot?: string; env?: NodeJS.ProcessEnv; userCount?: number | null } = {}) {
+export async function collectReadinessChecks(options: { projectRoot?: string; env?: NodeJS.ProcessEnv; userCount?: number | null; migrationMetadata?: MigrationMetadataReadiness | null } = {}) {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
   const envPath = path.join(projectRoot, ".env");
   const env = options.env ?? { ...(await readDotEnv(envPath)), ...process.env };
@@ -177,6 +183,23 @@ export async function collectReadinessChecks(options: { projectRoot?: string; en
     message: (await safeStat(prismaClientPath))?.isDirectory() ? "Prisma client appears generated." : "Prisma client folder was not found.",
     suggestion: (await safeStat(prismaClientPath))?.isDirectory() ? undefined : "Run npx prisma generate.",
   });
+
+  if (options.migrationMetadata !== undefined) {
+    const metadata = options.migrationMetadata;
+    checks.push({
+      name: "Prisma migration baseline",
+      status: metadata?.migrationTableExists && metadata.appliedMigrationCount > 0 ? "PASS" : "WARN",
+      message: metadata?.error
+        ? `Migration metadata could not be checked: ${metadata.error}`
+        : metadata?.migrationTableExists
+          ? `${metadata.appliedMigrationCount} migration record${metadata.appliedMigrationCount === 1 ? "" : "s"} found.`
+          : "Prisma migration metadata table is missing on the existing database.",
+      suggestion:
+        metadata?.migrationTableExists && metadata.appliedMigrationCount > 0
+          ? undefined
+          : "Run npm run db:baseline:dry-run, back up the DB, then baseline with explicit confirmation before relying on migrate deploy.",
+    });
+  }
 
   for (const [name, relativePath] of [
     ["Asset uploads", path.join("uploads", "assets")],
