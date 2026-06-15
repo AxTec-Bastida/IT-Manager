@@ -1,0 +1,72 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: warehouse-it-inventory:local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-file:./dev.db}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env or .env.docker before starting Docker Compose}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      IT_NOTIFICATION_CC: ${IT_NOTIFICATION_CC:-}
+      IT_ASSIGNMENT_CC: ${IT_ASSIGNMENT_CC:-}
+      IT_LOAN_CC: ${IT_LOAN_CC:-}
+      IT_RMA_CC: ${IT_RMA_CC:-}
+      IT_STOCK_CC: ${IT_STOCK_CC:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/prisma:/app/prisma
+      - ./data/uploads:/app/uploads
+      - ./data/backups:/app/backups
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+  jobs:
+    profiles: ["jobs"]
+    image: warehouse-it-inventory:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-file:./dev.db}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env or .env.docker before starting Docker Compose}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      RUN_MIGRATIONS: "false"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      IT_NOTIFICATION_CC: ${IT_NOTIFICATION_CC:-}
+      IT_ASSIGNMENT_CC: ${IT_ASSIGNMENT_CC:-}
+      IT_LOAN_CC: ${IT_LOAN_CC:-}
+      IT_RMA_CC: ${IT_RMA_CC:-}
+      IT_STOCK_CC: ${IT_STOCK_CC:-}
+    volumes:
+      - ./data/prisma:/app/prisma
+      - ./data/uploads:/app/uploads
+      - ./data/backups:/app/backups
+    command: ["sh", "-c", "while true; do npm run jobs:run-due; sleep 900; done"]

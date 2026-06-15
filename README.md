@@ -320,6 +320,188 @@ If camera access is blocked because the LAN origin is not trusted, document HTTP
 
 See [`docs/BETA-SOP.md`](docs/BETA-SOP.md) for the daily-use SOP, admin approval rules, bug report format, and beta release checklist.
 
+## Docker / Docker Compose Deployment
+
+Docker support is intended for a stable internal PC/server with persistent bind mounts for SQLite, uploads, and backups. Do not bake live data into the image and do not commit Docker runtime data.
+
+### Persistent Data Layout
+
+Host folders:
+
+```text
+data/
+  prisma/
+    dev.db
+    schema.prisma
+    migrations/
+  uploads/
+    assets/
+    assets/thumbs/
+    stock/
+    stock/thumbs/
+    facturas/
+    maps/
+  backups/
+```
+
+Compose mounts:
+
+```text
+./data/prisma  -> /app/prisma
+./data/uploads -> /app/uploads
+./data/backups -> /app/backups
+```
+
+`/data/` is ignored by Git. Keep external backups of the whole `data/` folder when the app becomes important to daily work.
+
+### Environment
+
+Copy the example and fill in real values:
+
+```powershell
+copy docker-compose.example.env .env.docker
+```
+
+If you want Docker Compose to read the values automatically for interpolation, copy the values into `.env` or run Compose from a shell where those variables are set. Do not commit real `.env`, `.env.docker`, SMTP credentials, database files, uploads, or backups.
+
+Required:
+
+```env
+DATABASE_URL=file:./dev.db
+SESSION_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+APP_BASE_URL=http://SERVER-IP:3000
+```
+
+Inside the container, Prisma resolves `file:./dev.db` relative to `/app/prisma/schema.prisma`; the host file is `./data/prisma/dev.db`.
+
+Optional SMTP:
+
+```env
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+MAIL_FROM=
+SMTP_SECURE=false
+```
+
+### First Run
+
+1. Install Docker Desktop on Windows.
+2. Use the WSL2 backend if available.
+3. Set `SESSION_SECRET` and `APP_BASE_URL`.
+4. Create the persistent folders:
+
+```powershell
+mkdir data\prisma,data\uploads,data\backups
+```
+
+5. Build and start:
+
+```powershell
+docker compose up -d --build
+docker compose logs -f app
+```
+
+6. Open `http://SERVER-IP:3000/login`.
+7. Create the first Admin at `/setup-admin` if this is a new database.
+8. Check health:
+
+```powershell
+curl http://localhost:3000/api/health
+```
+
+Container startup runs:
+
+- `npx prisma generate --schema=/app/prisma/schema.prisma`
+- `npx prisma migrate deploy --schema=/app/prisma/schema.prisma`
+- `npm run start`
+
+It does not run destructive reset commands and does not seed data automatically.
+
+### Update
+
+```powershell
+git pull
+docker compose exec app npm run backup
+docker compose down
+docker compose up -d --build
+docker compose logs -f app
+```
+
+Then check `/api/health`.
+
+### Backup
+
+Run:
+
+```powershell
+docker compose exec app npm run backup
+```
+
+Verify the backup appears under `data/backups`. Also back up the whole `data/` folder externally so database records and uploaded files stay together.
+
+### Restore
+
+1. Stop containers:
+
+```powershell
+docker compose down
+```
+
+2. Restore matching database and uploads into `data/`:
+
+```text
+data/prisma/dev.db
+data/uploads/assets
+data/uploads/stock
+data/uploads/facturas
+data/uploads/maps
+data/backups
+```
+
+3. Start:
+
+```powershell
+docker compose up -d
+```
+
+4. Check `/api/health`, asset photos, stock photos, map images, facturas, reports, and jobs.
+
+Restoring only the database without uploads can break photo/factura/map links. Restoring uploads without the matching database can leave orphaned files.
+
+### Scheduled Jobs
+
+Use exactly one scheduler method:
+
+- Windows Task Scheduler on the host, or
+- Docker Compose `jobs` service, not both.
+
+Default Compose only starts the app. To use the optional Docker jobs loop:
+
+```powershell
+docker compose --profile jobs up -d --build
+```
+
+The jobs service runs:
+
+```text
+while true; do npm run jobs:run-due; sleep 900; done
+```
+
+SQLite supports this small internal deployment, but avoid multiple overlapping job runners. The app also has job-level duplicate-running protection.
+
+### Windows / Docker Desktop Notes
+
+- Docker Desktop is required on Windows.
+- WSL2 backend is recommended.
+- Bind mounts come from the project folder, so keep `data/` on a stable disk.
+- Windows Firewall may need inbound TCP `3000` allowed for the private/trusted network.
+- Test from another PC: `http://SERVER-IP:3000/login`.
+- Test from phone on the same Wi-Fi.
+- Phone camera over HTTP/LAN may still be limited; HTTPS/trusted origin remains a future setup step if required.
+
 Recommended local production path:
 
 ```text
