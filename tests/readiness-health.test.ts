@@ -160,6 +160,8 @@ describe("team beta ops artifacts", () => {
     expect(registerTask).toContain("Warehouse IT Inventory Jobs");
     expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(registerTask).toContain("jobs:run-due");
+    expect(registerTask).toContain("RunElevated");
+    expect(registerTask).toContain("Limited");
     expect(startProduction).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(startProduction).toContain("npm.cmd run doctor");
     expect(startProduction).toContain("npm.cmd run start");

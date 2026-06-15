@@ -6,9 +6,18 @@ This SOP is for the controlled Axel + one IT teammate beta. Use the app from:
 C:\Dev\warehouse-it-inventory
 ```
 
+Current Phase 53 beta runtime decision:
+
+- Runtime mode: Windows-native `npm run start` on port `3000`.
+- Beta URL / `APP_BASE_URL`: `http://192.168.163.29:3000`.
+- Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
+- Docker Compose: supported by the repo, but not selected for this beta machine because Docker CLI/Desktop is not installed or available.
+- Do not enable the Docker jobs profile while the Windows Task Scheduler job is active.
+- The current real SQLite database is not Prisma-migration-baselined. Do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan is approved.
+
 ## Daily Use
 
-1. Log in at the agreed server URL, for example `http://SERVER-IP:3000/login`.
+1. Log in at `http://192.168.163.29:3000/login` while the server is on the same network. If that IP changes, update `.env` and this SOP.
 2. Use `/scan` first when an asset label, serial label, QR, barcode, or Data Matrix is available.
 3. Search manually if camera access is blocked or the label will not scan.
 4. Open the asset detail page before changing anything.
@@ -79,7 +88,7 @@ Include:
 
 ## Phone Smoke Checklist
 
-1. Open `http://SERVER-IP:3000/login`.
+1. Open `http://192.168.163.29:3000/login`.
 2. Log in as IT Staff.
 3. Add to Home Screen if available.
 4. Open the installed app.

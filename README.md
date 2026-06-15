@@ -168,6 +168,18 @@ Use this checklist for the controlled Axel + one IT teammate beta. Keep the acti
 C:\Dev\warehouse-it-inventory
 ```
 
+### Phase 53 Runtime Decision
+
+The current controlled beta runtime is Windows-native:
+
+- Start command: `npm run start` from `C:\Dev\warehouse-it-inventory`.
+- Production port: `3000`.
+- Current beta URL / `APP_BASE_URL`: `http://192.168.163.29:3000`.
+- Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
+- Docker Compose is supported by the repo but is not the selected runtime on this machine because Docker CLI/Desktop is not installed or available.
+- Use exactly one scheduler. Do not enable the Docker Compose `jobs` profile while the Windows Task Scheduler job is active.
+- The current real SQLite database is not Prisma-migration-baselined. Do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan is approved.
+
 Run a backup before changing settings, creating beta users, running migrations, bulk intake, imports, decommission testing, or any major workflow test:
 
 ```powershell
@@ -239,7 +251,7 @@ Optional helper script:
 powershell -ExecutionPolicy Bypass -File .\scripts\register-jobs-task.ps1
 ```
 
-The helper registers `Warehouse IT Inventory Jobs`, runs from `C:\Dev\warehouse-it-inventory`, writes to `logs\jobs-run-due.log`, and may need an elevated PowerShell window depending on Windows policy. It does not store or print secrets.
+The helper registers `Warehouse IT Inventory Jobs`, runs from `C:\Dev\warehouse-it-inventory`, writes to `logs\jobs-run-due.log`, and defaults to a non-elevated limited run level. If Windows policy requires elevation, run it from an elevated PowerShell window with `-RunElevated`. It does not store or print secrets.
 
 ### Startup Helper
 
@@ -631,9 +643,9 @@ npm run build
 npm start
 ```
 
-By default, the app runs on `http://localhost:3000`. For phone camera scanning, do not send phones directly to `http://server-ip:3000`. Put HTTPS in front of the app with Caddy or Nginx and have the proxy forward to `localhost:3000`.
+By default, the app runs on port `3000`. `next start` listens on `0.0.0.0`, so LAN users can open the configured beta URL if Windows Firewall and the network allow it. The Phase 53 beta URL is `http://192.168.163.29:3000`; if that IP changes, update `.env`, `APP_BASE_URL`, and the beta SOP. For reliable phone camera/PWA behavior, plan an HTTPS/trusted-origin setup later with Caddy, Nginx, or an internal certificate.
 
-Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
+Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. The current real SQLite database was built through earlier phased development and is not Prisma-migration-baselined, so do not run `npx prisma migrate deploy` against it during beta until a separate backup-and-baseline plan verifies schema drift and records migration metadata safely. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
 
 ## Main Pages
 
