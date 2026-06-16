@@ -14,6 +14,7 @@ Current Phase 53 beta runtime decision:
 - Docker Compose: supported by the repo, but not selected for this beta machine because Docker CLI/Desktop is not installed or available.
 - Do not enable the Docker jobs profile while the Windows Task Scheduler job is active.
 - Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+- SMTP is optional and currently pending unless `.env` has real company SMTP values. Without SMTP, records still save and email attempts are logged as skipped.
 
 Current Phase 55 phone beta status:
 
@@ -66,6 +67,36 @@ For normal production updates after the Phase 54 baseline:
 8. Use Issue Stock for quantity-based items such as keyboards, mice, cables, chargers, batteries, and printer supplies.
 9. Use Intake for new serialized assets or new stock receiving.
 10. Use Audits for small physical checks, starting with safe QA assets before real workflows.
+
+## SMTP / Email Validation
+
+Manual email receipts are available for assignments, asset loans, stock issues, and RMA records after SMTP is configured. Email is attempted after the record is saved; a failed email must not undo the saved workflow.
+
+Configure SMTP only in the local `.env` file and never commit credentials:
+
+```powershell
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+MAIL_FROM=
+APP_BASE_URL=http://192.168.0.67:3000
+```
+
+Use `SMTP_FROM` for the sender address. `MAIL_FROM` is accepted as a fallback for older local setup notes. If the company SMTP relay does not require authentication, leave both `SMTP_USER` and `SMTP_PASS` blank; otherwise set both. Do not set only one.
+
+Validation steps:
+
+1. Run `npm run doctor` and confirm SMTP only warns when intentionally not configured.
+2. Open `/settings` as Admin.
+3. Confirm the SMTP status shows only sanitized fields: configured, host present, from present, port, secure mode, auth present, and `APP_BASE_URL`.
+4. Send a test email only to a QA recipient first.
+5. Confirm links in the email use `http://192.168.0.67:3000`, not localhost.
+6. If sending fails, check SMTP host, port, secure mode, credentials, and company firewall/network rules. Common ports are `587` STARTTLS, `465` SSL, and `25` internal relay.
+
+Do not send real employee receipts until the QA test email and one safe workflow receipt have been reviewed.
 
 ## Keep Workflows Separate
 
@@ -152,6 +183,7 @@ Before beta:
 - Backup created under `C:\Dev\warehouse-it-inventory\backups`.
 - `npm run doctor` has no critical warnings.
 - `/api/health` is OK or degraded only for SMTP.
+- If SMTP is enabled, `/settings` test email works with a QA recipient and no secrets are exposed.
 - `npm run jobs:run-due` succeeds.
 - Admin user exists.
 - IT Staff teammate user exists.

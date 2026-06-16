@@ -4,7 +4,7 @@ import { SettingsForm } from "@/components/settings-form";
 import { ImportExportPanel } from "@/components/import-export-panel";
 import { ActionLink } from "@/components/ui-patterns";
 import { TestEmailButton } from "@/components/test-email-button";
-import { getMailConfig } from "@/lib/mail";
+import { getMailConfig, getSanitizedMailStatus } from "@/lib/mail";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { hasPageRole } from "@/lib/page-permissions";
 
@@ -14,6 +14,7 @@ export default async function SettingsPage() {
   if (!(await hasPageRole("ADMIN"))) return <ForbiddenPanel message="Global settings are admin-only." />;
   const settings = await prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
   const mailConfig = getMailConfig();
+  const mailStatus = getSanitizedMailStatus();
 
   return (
     <div className="space-y-6">
@@ -23,10 +24,17 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-slate-500">SMTP credentials stay in environment variables and are never shown here.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Info label="SMTP configured" value={mailConfig.configured ? "Yes" : "No"} />
-          <Info label="MAIL_FROM" value={mailConfig.from || "Not configured"} />
+          <Info label="Host present" value={mailStatus.hostPresent ? "Yes" : "No"} />
+          <Info label="From present" value={mailStatus.fromPresent ? "Yes" : "No"} />
+          <Info label="Port" value={`${mailStatus.port}${mailStatus.portPresent ? "" : " (default)"}`} />
+          <Info label="Secure mode" value={mailStatus.secure ? "Yes" : "No"} />
+          <Info label="Auth present" value={mailStatus.authPresent ? "Yes" : mailStatus.authPartial ? "Partial" : "No"} />
+          <Info label="Sender" value={mailConfig.from || "Not configured"} />
           <Info label="APP_BASE_URL" value={mailConfig.appBaseUrl || "Not configured"} />
         </div>
         {mailConfig.missing.length ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">Missing: {mailConfig.missing.join(", ")}. Workflow records still save normally; email attempts will be logged as skipped.</p> : null}
+        {mailStatus.authPartial ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">SMTP auth is partially configured. Set both SMTP_USER and SMTP_PASS, or leave both blank for an internal relay.</p> : null}
+        {mailStatus.appBaseUrlLocalhost ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">APP_BASE_URL is localhost, so email links will only work on this server. Use the LAN beta URL for phone/team testing.</p> : null}
         <div className="mt-4">
           <TestEmailButton />
         </div>

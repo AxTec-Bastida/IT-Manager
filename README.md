@@ -93,7 +93,7 @@ IT_STOCK_CC=
 
 Do not commit real `.env` files or SMTP credentials.
 
-`MAIL_FROM` is the primary sender setting. `SMTP_FROM` is accepted as a fallback alias for beta setup notes, but keep one sender value consistent.
+`SMTP_FROM` is the preferred sender setting. `MAIL_FROM` remains supported as a fallback for existing local setups, but keep one sender value consistent.
 
 Generate Prisma Client:
 
@@ -308,12 +308,12 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
-MAIL_FROM=
 SMTP_FROM=
+MAIL_FROM=
 APP_BASE_URL=
 ```
 
-Use `/settings` to verify email status and the existing test email flow. Do not send real emails until credentials and recipients are intentional.
+Use `/settings` to verify the sanitized SMTP status: configured yes/no, host present, from present, effective port, secure mode, auth present, and `APP_BASE_URL`. The SMTP password is never shown. Do not send real emails until credentials and recipients are intentional.
 
 ### Beta Users
 
@@ -1441,9 +1441,9 @@ IT_RMA_CC=
 IT_STOCK_CC=
 ```
 
-Specific CC values fall back to `IT_NOTIFICATION_CC` when blank. `APP_BASE_URL` is used for links back to records. The SMTP password is never shown in the browser or stored in `EmailLog`.
+`SMTP_FROM` is preferred for the sender address; `MAIL_FROM` is still accepted as a fallback. Specific CC values fall back to `IT_NOTIFICATION_CC` when blank. `APP_BASE_URL` is used for links back to records. The SMTP password is never shown in the browser, health payload, doctor output, or `EmailLog`.
 
-Open `/settings` to see whether SMTP is configured and send a test email. If SMTP is missing, the test creates a clear skipped result instead of crashing the app.
+Open `/settings` as an Admin to see sanitized SMTP status and send a test email. If SMTP is missing, the test creates a clear skipped result instead of crashing the app. Use a QA recipient first; do not send to real employees until recipients and templates are verified.
 
 Manual email buttons are available on:
 
@@ -1466,10 +1466,11 @@ Auto-send is intentionally not enabled in this phase. Scheduled jobs continue to
 
 Troubleshooting:
 
-- `Email not configured`: set at least `SMTP_HOST` and `MAIL_FROM`.
+- `Email not configured`: set at least `SMTP_HOST` and `SMTP_FROM` or `MAIL_FROM`.
 - Authentication failed: check `SMTP_USER`, `SMTP_PASS`, port, and `SMTP_SECURE`.
+- Company SMTP blocked: check firewall/network rules and whether outbound SMTP is allowed. Common ports are `587` with STARTTLS, `465` with SSL, and `25` for an internal relay.
 - Employee has no email: enter a manual recipient in the send panel or update the employee record.
-- Links point to localhost: set `APP_BASE_URL` to the real internal app URL.
+- Links point to localhost: set `APP_BASE_URL` to the real internal app URL such as `http://192.168.0.67:3000`.
 - Never commit `.env` or SMTP credentials.
 
 ## Backup And Restore

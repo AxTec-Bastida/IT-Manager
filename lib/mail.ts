@@ -21,6 +21,20 @@ export type MailConfig = {
   missing: string[];
 };
 
+export type SanitizedMailStatus = {
+  configured: boolean;
+  hostPresent: boolean;
+  fromPresent: boolean;
+  portPresent: boolean;
+  port: number;
+  secure: boolean;
+  authPresent: boolean;
+  authPartial: boolean;
+  appBaseUrlPresent: boolean;
+  appBaseUrlLocalhost: boolean;
+  missing: string[];
+};
+
 export type MailSendInput = {
   to?: string | null;
   cc?: string | null;
@@ -48,11 +62,11 @@ export type EmailLogRelations = {
 
 export function getMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig {
   const host = clean(env.SMTP_HOST);
-  const from = clean(env.MAIL_FROM) || clean(env.SMTP_FROM);
+  const from = clean(env.SMTP_FROM) || clean(env.MAIL_FROM);
   const port = Number(clean(env.SMTP_PORT) || 587);
   const missing = [];
   if (!host) missing.push("SMTP_HOST");
-  if (!from) missing.push("MAIL_FROM");
+  if (!from) missing.push("SMTP_FROM or MAIL_FROM");
   return {
     configured: missing.length === 0,
     host,
@@ -71,6 +85,36 @@ export function getMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig 
       stock: clean(env.IT_STOCK_CC),
     },
     missing,
+  };
+}
+
+export function getSanitizedMailStatus(env: NodeJS.ProcessEnv = process.env): SanitizedMailStatus {
+  const config = getMailConfig(env);
+  const userPresent = Boolean(clean(env.SMTP_USER));
+  const passPresent = Boolean(clean(env.SMTP_PASS));
+  const appBaseUrl = clean(env.APP_BASE_URL);
+  let appBaseUrlLocalhost = false;
+  if (appBaseUrl) {
+    try {
+      const host = new URL(appBaseUrl).hostname.toLowerCase();
+      appBaseUrlLocalhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    } catch {
+      appBaseUrlLocalhost = false;
+    }
+  }
+
+  return {
+    configured: config.configured,
+    hostPresent: Boolean(config.host),
+    fromPresent: Boolean(config.from),
+    portPresent: Boolean(clean(env.SMTP_PORT)),
+    port: config.port,
+    secure: config.secure,
+    authPresent: userPresent && passPresent,
+    authPartial: (userPresent || passPresent) && !(userPresent && passPresent),
+    appBaseUrlPresent: Boolean(appBaseUrl),
+    appBaseUrlLocalhost,
+    missing: config.missing,
   };
 }
 
@@ -96,7 +140,7 @@ export async function sendMailSafely(input: MailSendInput, config = getMailConfi
     });
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Email send failed." };
+    return { success: false, error: sanitizeMailError(error) };
   }
 }
 
@@ -171,4 +215,12 @@ function clean(value?: string) {
 
 function parseBoolean(value?: string) {
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function sanitizeMailError(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+  if (code === "EAUTH") return "SMTP authentication failed. Check SMTP_USER, SMTP_PASS, port, and secure mode.";
+  if (code === "ECONNECTION" || code === "ETIMEDOUT" || code === "ESOCKET") return "SMTP connection failed. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, firewall, and network access.";
+  if (code === "EENVELOPE") return "Email envelope was rejected. Check recipient and sender addresses.";
+  return "Email send failed. Check SMTP settings and server logs.";
 }

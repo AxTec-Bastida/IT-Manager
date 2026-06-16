@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import type { PrismaClient } from "@prisma/client";
 import { buildAssetLoanCheckoutEmail, buildAssignmentReceiptEmail, buildRmaSentEmail } from "@/lib/email-templates";
-import { getMailConfig, logEmailAttempt, sendMailSafely } from "@/lib/mail";
+import { getMailConfig, getSanitizedMailStatus, logEmailAttempt, sendMailSafely } from "@/lib/mail";
 
 describe("email notifications", () => {
   it("validates SMTP configuration without exposing secrets", () => {
     const missing = getMailConfig({});
     expect(missing.configured).toBe(false);
-    expect(missing.missing).toEqual(["SMTP_HOST", "MAIL_FROM"]);
+    expect(missing.missing).toEqual(["SMTP_HOST", "SMTP_FROM or MAIL_FROM"]);
 
     const configured = getMailConfig({
       SMTP_HOST: "smtp.example.com",
@@ -15,14 +17,47 @@ describe("email notifications", () => {
       SMTP_SECURE: "true",
       SMTP_USER: "user",
       SMTP_PASS: "secret",
-      MAIL_FROM: "it@example.com",
+      SMTP_FROM: "it@example.com",
       APP_BASE_URL: "https://inventory.example.com",
     });
     expect(configured.configured).toBe(true);
     expect(configured.secure).toBe(true);
     expect(configured.port).toBe(465);
     expect(configured.pass).toBe("secret");
-    expect(getMailConfig({ SMTP_HOST: "smtp.example.com", SMTP_FROM: "fallback@example.com" }).from).toBe("fallback@example.com");
+    expect(getMailConfig({ SMTP_HOST: "smtp.example.com", SMTP_FROM: "preferred@example.com", MAIL_FROM: "fallback@example.com" }).from).toBe("preferred@example.com");
+    expect(getMailConfig({ SMTP_HOST: "smtp.example.com", MAIL_FROM: "fallback@example.com" }).from).toBe("fallback@example.com");
+  });
+
+  it("returns a sanitized SMTP status without SMTP credentials", () => {
+    const status = getSanitizedMailStatus({
+      SMTP_HOST: "smtp.example.com",
+      SMTP_PORT: "587",
+      SMTP_SECURE: "false",
+      SMTP_USER: "smtp-user",
+      SMTP_PASS: "super-secret",
+      SMTP_FROM: "it@example.com",
+      APP_BASE_URL: "http://192.168.0.67:3000",
+    });
+
+    expect(status).toMatchObject({
+      configured: true,
+      hostPresent: true,
+      fromPresent: true,
+      portPresent: true,
+      port: 587,
+      secure: false,
+      authPresent: true,
+      authPartial: false,
+      appBaseUrlPresent: true,
+      appBaseUrlLocalhost: false,
+    });
+    expect(JSON.stringify(status)).not.toContain("super-secret");
+    expect(JSON.stringify(status)).not.toContain("smtp-user");
+    expect(JSON.stringify(status)).not.toContain("it@example.com");
+  });
+
+  it("flags partial SMTP auth safely", () => {
+    expect(getSanitizedMailStatus({ SMTP_HOST: "smtp.example.com", SMTP_FROM: "it@example.com", SMTP_USER: "user" })).toMatchObject({ authPresent: false, authPartial: true });
   });
 
   it("returns a skipped result when SMTP is not configured", async () => {
@@ -123,5 +158,20 @@ describe("email notifications", () => {
     );
     expect(log.id).toBe("email-log-1");
     expect(calls[0]).toMatchObject({ data: { recipient: "missing recipient", status: "SKIPPED", errorMessage: "Recipient email is missing." } });
+  });
+
+  it("keeps email send routes behind server-side permissions", async () => {
+    const projectRoot = process.cwd();
+    const testEmailRoute = await fs.readFile(path.join(projectRoot, "app", "api", "email", "test", "route.ts"), "utf8");
+    const assignmentRoute = await fs.readFile(path.join(projectRoot, "app", "api", "assignments", "[id]", "email", "route.ts"), "utf8");
+    const loanRoute = await fs.readFile(path.join(projectRoot, "app", "api", "loans", "[id]", "email", "route.ts"), "utf8");
+    const stockRoute = await fs.readFile(path.join(projectRoot, "app", "api", "stock", "issues", "[id]", "email", "route.ts"), "utf8");
+    const rmaRoute = await fs.readFile(path.join(projectRoot, "app", "api", "rma", "[id]", "email", "route.ts"), "utf8");
+
+    expect(testEmailRoute).toContain('requireRole("ADMIN")');
+    expect(assignmentRoute).toContain('requirePermission("assignments.write")');
+    expect(loanRoute).toContain('requirePermission("loans.write")');
+    expect(stockRoute).toContain('requirePermission("stock.write")');
+    expect(rmaRoute).toContain('requirePermission("rma.write")');
   });
 });

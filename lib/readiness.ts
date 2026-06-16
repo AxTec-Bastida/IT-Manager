@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getMailConfig } from "@/lib/mail";
+import { getMailConfig, getSanitizedMailStatus } from "@/lib/mail";
 import { getAuthSecretStatus } from "@/lib/auth";
 
 const execFileAsync = promisify(execFile);
@@ -217,11 +217,18 @@ export async function collectReadinessChecks(options: { projectRoot?: string; en
   }
 
   const mailConfig = getMailConfig(env);
+  const mailStatus = getSanitizedMailStatus(env);
   checks.push({
     name: "SMTP email",
-    status: mailConfig.configured ? "PASS" : "WARN",
-    message: mailConfig.configured ? `SMTP configured from ${maskEnvValue("MAIL_FROM", mailConfig.from)}.` : `Email is not configured. Missing ${mailConfig.missing.join(", ") || "SMTP settings"}.`,
-    suggestion: mailConfig.configured ? undefined : "Manual workflows still save records; configure SMTP only when receipts/reminders should send.",
+    status: mailConfig.configured && !mailStatus.authPartial ? "PASS" : "WARN",
+    message: mailConfig.configured
+      ? `SMTP configured. host=${mailStatus.hostPresent ? "present" : "missing"}, from=${mailStatus.fromPresent ? "present" : "missing"}, port=${mailStatus.port}, secure=${mailStatus.secure ? "yes" : "no"}, auth=${mailStatus.authPresent ? "present" : mailStatus.authPartial ? "partial" : "not set"}.`
+      : `Email is not configured. Missing ${mailConfig.missing.join(", ") || "SMTP settings"}.`,
+    suggestion: mailConfig.configured
+      ? mailStatus.authPartial
+        ? "Set both SMTP_USER and SMTP_PASS, or leave both blank for an internal relay."
+        : undefined
+      : "Manual workflows still save records; configure SMTP only when receipts/reminders should send.",
   });
 
   const appBaseUrl = describeAppBaseUrl(env.APP_BASE_URL);

@@ -2,7 +2,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
 import { getBackupHistory } from "@/lib/backups";
-import { getMailConfig } from "@/lib/mail";
+import { getSanitizedMailStatus, type SanitizedMailStatus } from "@/lib/mail";
 import { getAuthSecretStatus } from "@/lib/auth";
 
 export type HealthStatus = "ok" | "degraded" | "error";
@@ -18,6 +18,7 @@ export type HealthPayload = {
   uploadsAssetsWritable: boolean;
   uploadsFacturasWritable: boolean;
   emailConfigured: boolean;
+  email: SanitizedMailStatus;
   authSecretConfigured: boolean;
   currentTime: string;
   environment: string;
@@ -61,8 +62,11 @@ export async function buildHealthPayload(
   }
 
   const latestSuccessfulBackup = backups.find((backup) => backup.status === "SUCCESS") ?? null;
-  const emailConfigured = getMailConfig(env).configured;
+  const email = getSanitizedMailStatus(env);
+  const emailConfigured = email.configured;
   if (!emailConfigured) warnings.push("SMTP email is not configured.");
+  if (email.appBaseUrlLocalhost) warnings.push("APP_BASE_URL is localhost; email links will only work on the server itself.");
+  if (email.authPartial) warnings.push("SMTP auth is partially configured; set both SMTP_USER and SMTP_PASS or leave both blank for an internal relay.");
   const authSecret = getAuthSecretStatus(env);
   if (!authSecret.configured) warnings.push(authSecret.productionLike ? "Auth session secret is not configured." : "Auth session secret is not configured; development fallback is active.");
 
@@ -85,6 +89,7 @@ export async function buildHealthPayload(
     uploadsAssetsWritable: assetsWritable.writable,
     uploadsFacturasWritable: facturasWritable.writable,
     emailConfigured,
+    email,
     authSecretConfigured: authSecret.configured,
     currentTime: (options.now ?? new Date()).toISOString(),
     environment: env.NODE_ENV || "development",

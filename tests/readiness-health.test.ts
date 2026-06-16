@@ -113,6 +113,13 @@ describe("health payload", () => {
     expect(payload.uploadsFacturasWritable).toBe(true);
     expect(payload.backupsFolderWritable).toBe(true);
     expect(payload.emailConfigured).toBe(true);
+    expect(payload.email).toMatchObject({
+      configured: true,
+      hostPresent: true,
+      fromPresent: true,
+      authPresent: false,
+      appBaseUrlLocalhost: false,
+    });
     expect(payload.authSecretConfigured).toBe(true);
     expect(payload.scheduledJobsCount).toBe(8);
     expect(JSON.stringify(payload)).not.toContain("super-secret");
@@ -147,6 +154,9 @@ describe("team beta ops artifacts", () => {
     expect(envExample).toContain("SMTP_FROM=");
     expect(envExample).toContain("MAIL_FROM=");
     expect(envExample).toContain("APP_BASE_URL=");
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    expect(readme).toContain("`SMTP_FROM` is the preferred sender setting");
+    expect(readme).toContain("The SMTP password is never shown");
   });
 
   it("includes beta SOP and Windows helper scripts for the C:\\Dev runtime path", async () => {
@@ -159,6 +169,8 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("npm run backup");
     expect(sop).toContain("Current Phase 55 phone beta status");
     expect(sop).toContain("scan-from-photo");
+    expect(sop).toContain("SMTP / Email Validation");
+    expect(sop).toContain("SMTP_FROM");
     expect(registerTask).toContain("Warehouse IT Inventory Jobs");
     expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(registerTask).toContain("jobs:run-due");
