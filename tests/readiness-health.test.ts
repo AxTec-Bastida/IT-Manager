@@ -157,6 +157,8 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("Team Beta SOP");
     expect(sop).toContain("QA-SMOKE-001");
     expect(sop).toContain("npm run backup");
+    expect(sop).toContain("Current Phase 55 phone beta status");
+    expect(sop).toContain("scan-from-photo");
     expect(registerTask).toContain("Warehouse IT Inventory Jobs");
     expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(registerTask).toContain("jobs:run-due");

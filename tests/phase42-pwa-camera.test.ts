@@ -18,7 +18,9 @@ describe("phase 42 PWA metadata", () => {
     expect(data.short_name).toBe("Warehouse IT");
     expect(data.display).toBe("standalone");
     expect(data.start_url).toBe("/dashboard");
-    expect(data.icons?.[0]?.src).toBe("/icons/warehouse-it-icon.svg");
+    expect(data.icons?.some((icon) => icon.src === "/icons/warehouse-it-icon-192.png" && icon.sizes === "192x192")).toBe(true);
+    expect(data.icons?.some((icon) => icon.src === "/icons/warehouse-it-icon-512.png" && icon.sizes === "512x512")).toBe(true);
+    expect(data.icons?.some((icon) => icon.src === "/icons/warehouse-it-icon.svg")).toBe(true);
   });
 
   it("declares app manifest and mobile viewport metadata in the root layout", async () => {
@@ -26,6 +28,7 @@ describe("phase 42 PWA metadata", () => {
     const proxySource = await readFile(path.join(process.cwd(), "proxy.ts"), "utf8");
     expect(source).toContain('manifest: "/manifest.webmanifest"');
     expect(source).toContain("appleWebApp");
+    expect(source).toContain("warehouse-it-icon-192.png");
     expect(source).toContain("viewportFit");
     expect(source).toContain('themeColor: "#0f172a"');
     expect(proxySource).toContain('"/manifest.webmanifest"');

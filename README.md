@@ -174,11 +174,17 @@ The current controlled beta runtime is Windows-native:
 
 - Start command: `npm run start` from `C:\Dev\warehouse-it-inventory`.
 - Production port: `3000`.
-- Current beta URL / `APP_BASE_URL`: `http://192.168.163.29:3000`.
+- Current beta URL / `APP_BASE_URL`: `http://192.168.0.67:3000`.
 - Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
 - Docker Compose is supported by the repo but is not the selected runtime on this machine because Docker CLI/Desktop is not installed or available.
 - Use exactly one scheduler. Do not enable the Docker Compose `jobs` profile while the Windows Task Scheduler job is active.
 - Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+
+### Phase 55 Phone / PWA / Camera Beta Notes
+
+Server-side LAN checks passed for the beta URL on `/api/health`, `/login`, `/scan`, `/devices`, `/reports`, `/photos/compliance`, and `/map`. The PWA manifest is available and includes PNG icons plus the SVG icon for broader Android/iOS install compatibility.
+
+Real phone testing still needs to be completed on the actual teammate device/browser. Record the device/browser, PWA install result, camera permission result, manual scan fallback result, and photo upload result in the beta notes. If phone camera access is blocked over `http://192.168.0.67:3000`, continue beta with manual scan, scan-from-photo, and gallery upload. Treat HTTPS/trusted-origin setup as a future hardening task rather than adding it ad hoc during beta.
 
 ### Prisma Migration Baseline Safety
 
@@ -667,7 +673,7 @@ npm run build
 npm start
 ```
 
-By default, the app runs on port `3000`. `next start` listens on `0.0.0.0`, so LAN users can open the configured beta URL if Windows Firewall and the network allow it. The Phase 53 beta URL is `http://192.168.163.29:3000`; if that IP changes, update `.env`, `APP_BASE_URL`, and the beta SOP. For reliable phone camera/PWA behavior, plan an HTTPS/trusted-origin setup later with Caddy, Nginx, or an internal certificate.
+By default, the app runs on port `3000`. `next start` listens on `0.0.0.0`, so LAN users can open the configured beta URL if Windows Firewall and the network allow it. The current beta URL is `http://192.168.0.67:3000`; if that IP changes, update `.env`, `APP_BASE_URL`, and the beta SOP. For reliable phone camera/PWA behavior, plan an HTTPS/trusted-origin setup later with Caddy, Nginx, or an internal certificate.
 
 Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. The Phase 54 baseline records the existing real SQLite schema in `_prisma_migrations`, so future production updates should run `npx prisma migrate deploy` after backup and before `npx prisma generate`. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
 

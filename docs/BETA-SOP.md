@@ -9,11 +9,20 @@ C:\Dev\warehouse-it-inventory
 Current Phase 53 beta runtime decision:
 
 - Runtime mode: Windows-native `npm run start` on port `3000`.
-- Beta URL / `APP_BASE_URL`: `http://192.168.163.29:3000`.
+- Beta URL / `APP_BASE_URL`: `http://192.168.0.67:3000`.
 - Scheduler: Windows Task Scheduler task `Warehouse IT Inventory Jobs` every 15 minutes.
 - Docker Compose: supported by the repo, but not selected for this beta machine because Docker CLI/Desktop is not installed or available.
 - Do not enable the Docker jobs profile while the Windows Task Scheduler job is active.
 - Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+
+Current Phase 55 phone beta status:
+
+- Server-side LAN checks passed for `/api/health`, `/login`, `/scan`, `/devices`, `/reports`, `/photos/compliance`, and `/map`.
+- PWA manifest is available and includes PNG icons plus the SVG icon.
+- Camera scan UI includes live camera, scan-from-photo, and manual input fallbacks.
+- Asset photo UI includes camera capture, gallery fallback, preview, retake/choose again, progress, thumbnail display, and full-image open links.
+- Real teammate phone/PWA install/camera permission still must be confirmed on the physical device and browser used for beta.
+- If phone camera is blocked on `http://192.168.0.67:3000`, use manual scan or scan-from-photo/gallery upload and plan HTTPS/trusted-origin setup as a future hardening task.
 
 ## Migration Safety
 
@@ -47,7 +56,7 @@ For normal production updates after the Phase 54 baseline:
 
 ## Daily Use
 
-1. Log in at `http://192.168.163.29:3000/login` while the server is on the same network. If that IP changes, update `.env` and this SOP.
+1. Log in at `http://192.168.0.67:3000/login` while the server is on the same network. If that IP changes, update `.env` and this SOP.
 2. Use `/scan` first when an asset label, serial label, QR, barcode, or Data Matrix is available.
 3. Search manually if camera access is blocked or the label will not scan.
 4. Open the asset detail page before changing anything.
@@ -118,19 +127,21 @@ Include:
 
 ## Phone Smoke Checklist
 
-1. Open `http://192.168.163.29:3000/login`.
+1. Open `http://192.168.0.67:3000/login`.
 2. Log in as IT Staff.
-3. Add to Home Screen if available.
-4. Open the installed app.
-5. Open `/scan`.
-6. Allow camera if the browser permits.
-7. Scan a safe label.
-8. If camera is blocked, manually search `QA-SMOKE-001`.
-9. Open the QA asset.
-10. Upload one safe photo using camera or gallery.
-11. Confirm thumbnail appears.
-12. Confirm no horizontal overflow.
-13. Log out.
+3. Record the device/browser, for example iPhone Safari, Android Chrome, or Zebra/warehouse device browser.
+4. Add to Home Screen / Install App if available.
+5. Open the installed app.
+6. Confirm bottom nav and More drawer open/close.
+7. Open `/scan`.
+8. Allow camera if the browser permits.
+9. Scan a safe label.
+10. If camera is blocked, manually search `QA-SMOKE-001` or use scan-from-photo.
+11. Open the QA asset.
+12. Upload one safe photo using camera or gallery.
+13. Confirm thumbnail appears and the full image opens.
+14. Check `/devices`, `/intake`, `/stock`, `/tasks`, `/reports`, `/photos/compliance`, and `/map` for horizontal overflow.
+15. Log out.
 
 ## Beta Release Checklist
 

@@ -32,10 +32,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/icons/warehouse-it-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/warehouse-it-icon-512.png", sizes: "512x512", type: "image/png" },
       { url: "/icons/warehouse-it-icon.svg", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/icons/warehouse-it-icon.svg", type: "image/svg+xml" },
+      { url: "/icons/warehouse-it-icon-192.png", sizes: "192x192", type: "image/png" },
     ],
   },
 };
