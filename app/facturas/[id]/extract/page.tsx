@@ -27,7 +27,7 @@ export default async function FacturaExtractPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={`Extract ${factura.facturaNumber}`}
-        description="Assisted local PDF text extraction. Review, edit, and confirm before creating line items."
+        description="Assisted local PDF text and XML extraction. Review, edit, and confirm before creating line items."
         action={
           <div className="grid gap-2 sm:flex">
             <Link href={`/facturas/${factura.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
@@ -44,16 +44,17 @@ export default async function FacturaExtractPage({ params }: Props) {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard label="Vendor" value={factura.vendorName} />
-        <InfoCard label="Attachment" value={factura.originalFilename || factura.storedFilename || "No file"} />
+        <InfoCard label="PDF/photo" value={factura.originalFilename || factura.storedFilename || "No file"} />
+        <InfoCard label="XML" value={factura.xmlOriginalName || factura.xmlFilename || "No XML"} />
         <InfoCard label="Existing line items" value={String(factura.lineItems.length)} />
         <InfoCard label="Last attempt" value={factura.extractionAttempts[0] ? `${factura.extractionAttempts[0].status} / ${factura.extractionAttempts[0].candidateCount} candidates` : "None"} />
       </section>
 
-      {!factura.filePath ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">This factura has no attached PDF. Add line items manually or upload a supported factura file first.</section>
+      {!factura.filePath && !factura.xmlPath ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">This factura has no PDF or XML attachment. Add line items manually or upload a supported factura file first.</section>
       ) : null}
 
-      <FacturaExtractionReview facturaId={factura.id} hasExistingLineItems={factura.lineItems.length > 0} />
+      <FacturaExtractionReview facturaId={factura.id} hasExistingLineItems={factura.lineItems.length > 0} hasPdfAttachment={Boolean(factura.filePath)} hasXmlAttachment={Boolean(factura.xmlPath)} />
     </div>
   );
 }

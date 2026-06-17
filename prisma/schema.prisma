@@ -793,6 +793,21 @@ model Factura {
   filePath         String?
   mimeType         String?
   fileSize         Int?
+  xmlPath          String?
+  xmlFilename      String?
+  xmlOriginalName  String?
+  xmlMimeType      String?
+  xmlSizeBytes     Int?
+  xmlUploadedAt    DateTime?
+  xmlUuid          String?
+  xmlSerie         String?
+  xmlFolio         String?
+  xmlIssuedAt      DateTime?
+  xmlCurrency      String?
+  xmlSubtotal      Float?
+  xmlTotal         Float?
+  xmlEmisorName    String?
+  xmlEmisorRfc     String?
   assets           Device[]
   stockItems       StockItem[]
   stockMovements   StockMovement[]

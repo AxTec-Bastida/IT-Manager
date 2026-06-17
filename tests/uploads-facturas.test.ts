@@ -87,7 +87,7 @@ describe("upload validation", () => {
       prisma: {
         factura: {
           findFirst: vi.fn(async ({ where }) =>
-            where.storedFilename === filename
+            where.storedFilename === filename || where.OR?.some((item: { storedFilename?: string }) => item.storedFilename === filename)
               ? { storedFilename: filename, mimeType: "application/pdf", originalFilename: "invoice.pdf" }
               : null,
           ),
@@ -101,6 +101,26 @@ describe("upload validation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(response.headers.get("content-disposition")).toContain("invoice.pdf");
+  });
+
+  it("serves valid factura XML uploads with XML content type", async () => {
+    vi.resetModules();
+    const filename = "phase65-test-factura.xml";
+    await writeUploadFixture("uploads/facturas", filename, "<cfdi:Comprobante />");
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        factura: {
+          findFirst: vi.fn(async () => ({ xmlFilename: filename, xmlMimeType: "application/xml", xmlOriginalName: "invoice.xml" })),
+        },
+      },
+    }));
+    const route = await import("../app/uploads/facturas/[filename]/route");
+
+    const response = await route.GET(new Request("http://test/uploads/facturas/phase65-test-factura.xml"), { params: Promise.resolve({ filename }) });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/xml");
+    expect(response.headers.get("content-disposition")).toContain("invoice.xml");
   });
 
   it("serves valid asset thumbnails and stock photos safely", async () => {

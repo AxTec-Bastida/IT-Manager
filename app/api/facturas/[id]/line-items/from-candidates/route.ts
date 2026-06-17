@@ -11,6 +11,7 @@ type Context = { params: Promise<{ id: string }> };
 const payloadSchema = z.object({
   attemptId: z.string().trim().optional().nullable(),
   allowDuplicates: z.coerce.boolean().default(false),
+  sourceType: z.enum(["PDF_TEXT", "XML"]).default("PDF_TEXT"),
   candidates: z.array(facturaLineItemSchema.extend({
     sourceConfidence: z.coerce.number().min(0).max(1).optional().nullable(),
     rawTextSnippet: z.string().trim().max(280).optional().nullable(),
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest, context: Context) {
         const totalCost = calculateLineItemTotal(candidate.quantity, candidate.unitCost);
         const notes = [
           candidate.notes,
-          candidate.sourceConfidence != null ? `Created from extraction candidate. Confidence: ${Math.round(candidate.sourceConfidence * 100)}%.` : "Created from extraction candidate.",
+          candidate.sourceConfidence != null ? `Created from ${input.sourceType} extraction candidate. Confidence: ${Math.round(candidate.sourceConfidence * 100)}%.` : `Created from ${input.sourceType} extraction candidate.`,
           candidate.rawTextSnippet ? `Source snippet: ${candidate.rawTextSnippet.slice(0, 220)}` : "",
         ].filter(Boolean).join("\n");
         const lineItem = await tx.facturaLineItem.create({
@@ -63,8 +64,8 @@ export async function POST(request: NextRequest, context: Context) {
             action: "factura.line_item_created_from_extraction",
             entity: "factura",
             entityId: factura.id,
-            message: `Line item ${lineItem.description} was created from reviewed extraction for factura ${factura.facturaNumber}.`,
-            metadata: JSON.stringify({ facturaLineItemId: lineItem.id, attemptId: input.attemptId ?? null, quantity: lineItem.quantity, unitCost: lineItem.unitCost, currency: lineItem.currency }),
+            message: `Line item ${lineItem.description} was created from reviewed ${input.sourceType} extraction for factura ${factura.facturaNumber}.`,
+            metadata: JSON.stringify({ facturaLineItemId: lineItem.id, attemptId: input.attemptId ?? null, sourceType: input.sourceType, quantity: lineItem.quantity, unitCost: lineItem.unitCost, currency: lineItem.currency }),
           },
         });
       }

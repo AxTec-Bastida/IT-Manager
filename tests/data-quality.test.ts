@@ -379,13 +379,47 @@ describe("data quality review helpers", () => {
           lineItems: [],
           extractionAttempts: [{ id: "attempt-1", status: "NO_TEXT", candidateCount: 0, createdLineItemCount: 0, warningsJson: "[]", createdAt: new Date("2026-06-17") }],
         },
+        {
+          id: "factura-xml",
+          facturaNumber: "QA-XML-1",
+          vendorName: "QA Vendor",
+          purchaseDate: null,
+          receivedDate: null,
+          notes: null,
+          xmlPath: "/uploads/facturas/qa.xml",
+          xmlOriginalName: "qa.xml",
+          xmlUuid: "uuid-1",
+          xmlTotal: 1160,
+          assets: [],
+          stockItems: [],
+          lineItems: [],
+          extractionAttempts: [{ id: "attempt-xml", status: "XML_SUCCESS", candidateCount: 1, createdLineItemCount: 0, warningsJson: "[]", createdAt: new Date("2026-06-17") }],
+        },
+        {
+          id: "factura-xml-mismatch",
+          facturaNumber: "QA-XML-2",
+          vendorName: "QA Vendor",
+          purchaseDate: null,
+          receivedDate: null,
+          notes: null,
+          xmlPath: "/uploads/facturas/qa2.xml",
+          xmlOriginalName: "qa2.xml",
+          xmlTotal: 1160,
+          assets: [],
+          stockItems: [],
+          lineItems: [{ id: "line-xml", description: "QA XML Asset", quantity: 1, unitCost: 1000, currency: "MXN", assetLinks: [] }],
+          extractionAttempts: [],
+        },
       ],
       [],
     );
 
-    expect(summary.facturasWithAttachmentNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-1", "QA-PDF-2"]);
-    expect(summary.extractionAttemptedNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-2"]);
+    expect(summary.facturasWithAttachmentNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-1", "QA-PDF-2", "QA-XML-1"]);
+    expect(summary.facturasWithXmlNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-XML-1"]);
+    expect(summary.extractionAttemptedNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-2", "QA-XML-1"]);
+    expect(summary.xmlExtractionAttemptedNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-XML-1"]);
     expect(summary.noTextExtractionAttempts.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-2"]);
+    expect(summary.xmlTotalMismatches.map((factura) => factura.facturaNumber)).toEqual(["QA-XML-2"]);
   });
 
   it("parses skipped duplicate workbook row audit messages", () => {

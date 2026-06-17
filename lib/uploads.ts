@@ -28,6 +28,11 @@ export const facturaMimeExtensions: Record<string, string> = {
   "image/webp": "webp",
 };
 
+export const facturaXmlMimeExtensions: Record<string, string> = {
+  "application/xml": "xml",
+  "text/xml": "xml",
+};
+
 export const stockPhotoMimeExtensions = assetPhotoMimeExtensions;
 
 export const mapMimeExtensions: Record<string, string> = {
@@ -37,7 +42,7 @@ export const mapMimeExtensions: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
-export type UploadKind = "asset-photo" | "stock-photo" | "factura" | "map";
+export type UploadKind = "asset-photo" | "stock-photo" | "factura" | "factura-xml" | "map";
 export type UploadFolderKind = "assets" | "stock" | "facturas" | "maps";
 
 export type UploadValidationInput = {
@@ -47,8 +52,8 @@ export type UploadValidationInput = {
 };
 
 export function validateUploadFile({ mimeType, fileSize, kind }: UploadValidationInput) {
-  const allowed = kind === "factura" ? facturaMimeExtensions : kind === "stock-photo" ? stockPhotoMimeExtensions : kind === "map" ? mapMimeExtensions : assetPhotoMimeExtensions;
-  const maxBytes = kind === "factura" ? MAX_FACTURA_FILE_BYTES : kind === "map" ? MAX_MAP_FILE_BYTES : MAX_ASSET_PHOTO_BYTES;
+  const allowed = kind === "factura" ? facturaMimeExtensions : kind === "factura-xml" ? facturaXmlMimeExtensions : kind === "stock-photo" ? stockPhotoMimeExtensions : kind === "map" ? mapMimeExtensions : assetPhotoMimeExtensions;
+  const maxBytes = kind === "factura" || kind === "factura-xml" ? MAX_FACTURA_FILE_BYTES : kind === "map" ? MAX_MAP_FILE_BYTES : MAX_ASSET_PHOTO_BYTES;
   if (!allowed[mimeType]) {
     return { ok: false as const, message: `Unsupported file type: ${mimeType || "unknown"}.` };
   }
@@ -59,6 +64,23 @@ export function validateUploadFile({ mimeType, fileSize, kind }: UploadValidatio
     return { ok: false as const, message: `Upload is too large. Max size is ${Math.floor(maxBytes / 1024 / 1024)} MB.` };
   }
   return { ok: true as const, extension: allowed[mimeType] };
+}
+
+export function validateFacturaXmlUpload({ mimeType, fileSize, fileName }: { mimeType: string; fileSize: number; fileName?: string | null }) {
+  const normalizedMimeType = mimeType || "";
+  if (normalizedMimeType && !facturaXmlMimeExtensions[normalizedMimeType]) {
+    return { ok: false as const, message: `Unsupported XML file type: ${mimeType || "unknown"}.` };
+  }
+  if (!normalizedMimeType && path.extname(fileName || "").toLowerCase() !== ".xml") {
+    return { ok: false as const, message: "Factura XML upload must use a .xml file." };
+  }
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return { ok: false as const, message: "Upload file is empty." };
+  }
+  if (fileSize > MAX_FACTURA_FILE_BYTES) {
+    return { ok: false as const, message: `Upload is too large. Max size is ${Math.floor(MAX_FACTURA_FILE_BYTES / 1024 / 1024)} MB.` };
+  }
+  return { ok: true as const, extension: "xml" };
 }
 
 export function validateMapFileBytes(mimeType: string, bytes: Buffer) {
@@ -137,7 +159,7 @@ export function uploadStoragePath(kind: UploadFolderKind, storedFilename: string
 }
 
 export function uploadContentType(mimeType: string | null | undefined, storedFilename: string, kind: UploadFolderKind) {
-  const allowed = kind === "facturas" ? facturaMimeExtensions : kind === "stock" ? stockPhotoMimeExtensions : kind === "maps" ? mapMimeExtensions : assetPhotoMimeExtensions;
+  const allowed = kind === "facturas" ? { ...facturaMimeExtensions, ...facturaXmlMimeExtensions } : kind === "stock" ? stockPhotoMimeExtensions : kind === "maps" ? mapMimeExtensions : assetPhotoMimeExtensions;
   if (mimeType && allowed[mimeType]) return mimeType;
   const extension = path.extname(storedFilename).toLowerCase();
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
@@ -145,6 +167,7 @@ export function uploadContentType(mimeType: string | null | undefined, storedFil
   if (extension === ".webp") return "image/webp";
   if (kind === "maps" && extension === ".svg") return "image/svg+xml";
   if (kind === "facturas" && extension === ".pdf") return "application/pdf";
+  if (kind === "facturas" && extension === ".xml") return "application/xml";
   return null;
 }
 

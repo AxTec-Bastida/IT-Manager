@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError, jsonError } from "@/lib/api";
+import { makeActivityActor, requirePermission } from "@/lib/auth";
 import { normalizeLinkedIds } from "@/lib/facturas";
 import { facturaSchema } from "@/lib/validation";
-import { generateSafeFilename, publicUploadPath, saveUploadedFile, validateUploadFile } from "@/lib/uploads";
+import { generateSafeFilename, publicUploadPath, saveUploadedFile, validateFacturaXmlUpload, validateUploadFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function GET(_request: NextRequest, context: Context) {
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
+    const actor = await requirePermission("inventory.write");
     const { id } = await context.params;
     const existing = await prisma.factura.findUnique({ where: { id } });
     if (!existing) return jsonError("Factura not found.", 404);
@@ -35,7 +37,9 @@ export async function PATCH(request: NextRequest, context: Context) {
     const stockItemIds = normalizeLinkedIds(formData.getAll("stockItemIds"));
     const stockMovementIds = normalizeLinkedIds(formData.getAll("stockMovementIds"));
     const file = formData.get("file");
+    const xmlFile = formData.get("xmlFile");
     let fileData = {};
+    let xmlData = {};
 
     if (file instanceof File && file.size > 0) {
       const validation = validateUploadFile({ kind: "factura", mimeType: file.type, fileSize: file.size });
@@ -51,8 +55,24 @@ export async function PATCH(request: NextRequest, context: Context) {
       };
     }
 
+    if (xmlFile instanceof File && xmlFile.size > 0) {
+      const validation = validateFacturaXmlUpload({ mimeType: xmlFile.type, fileSize: xmlFile.size, fileName: xmlFile.name });
+      if (!validation.ok) return NextResponse.json({ error: validation.message }, { status: 400 });
+      const mimeType = xmlFile.type || "application/xml";
+      const xmlFilename = generateSafeFilename(mimeType, "factura-xml");
+      await saveUploadedFile(xmlFile, "facturas", xmlFilename);
+      xmlData = {
+        xmlOriginalName: xmlFile.name || null,
+        xmlFilename,
+        xmlPath: publicUploadPath("facturas", xmlFilename),
+        xmlMimeType: mimeType,
+        xmlSizeBytes: xmlFile.size,
+        xmlUploadedAt: new Date(),
+      };
+    }
+
     const factura = await prisma.$transaction(async (tx) => {
-      const updated = await tx.factura.update({ where: { id }, data: { ...data, ...fileData } });
+      const updated = await tx.factura.update({ where: { id }, data: { ...data, ...fileData, ...xmlData } });
       await tx.device.updateMany({ where: { facturaId: id }, data: { facturaId: null } });
       await tx.stockItem.updateMany({ where: { facturaId: id }, data: { facturaId: null } });
       await tx.stockMovement.updateMany({ where: { facturaId: id }, data: { facturaId: null } });
@@ -61,11 +81,12 @@ export async function PATCH(request: NextRequest, context: Context) {
       if (stockMovementIds.length) await tx.stockMovement.updateMany({ where: { id: { in: stockMovementIds } }, data: { facturaId: id } });
       await tx.activityLog.create({
         data: {
+          ...makeActivityActor(actor),
           action: "factura.updated",
           entity: "factura",
           entityId: id,
           message: `Factura ${updated.facturaNumber} was updated.`,
-          metadata: JSON.stringify({ assetIds, stockItemIds, stockMovementIds }),
+          metadata: JSON.stringify({ assetIds, stockItemIds, stockMovementIds, xmlUploaded: Boolean((xmlData as { xmlFilename?: string }).xmlFilename) }),
         },
       });
       return updated;

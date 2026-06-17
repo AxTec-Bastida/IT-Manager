@@ -94,6 +94,16 @@ export function FacturaForm({ factura, assets, stockItems }: Props) {
             Attach factura PDF/photo
             <input className={inputClass} name="file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" capture="environment" />
           </label>
+          <label className={`${labelClass} lg:col-span-2`}>
+            Attach factura XML
+            <input className={inputClass} name="xmlFile" type="file" accept="application/xml,text/xml,.xml" />
+            <span className="text-xs font-normal text-slate-500">Optional CFDI XML for exact metadata and line-item extraction. Existing PDFs stay unchanged.</span>
+          </label>
+          {factura?.xmlOriginalName || factura?.xmlFilename ? (
+            <div className="rounded-md bg-slate-50 p-3 text-sm text-slate-700 lg:col-span-2">
+              Current XML: <span className="font-semibold">{factura.xmlOriginalName || factura.xmlFilename}</span>
+            </div>
+          ) : null}
         </div>
       </fieldset>
 

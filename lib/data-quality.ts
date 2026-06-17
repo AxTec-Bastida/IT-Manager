@@ -71,6 +71,13 @@ type ReviewFactura = {
   notes: string | null;
   originalFilename?: string | null;
   filePath?: string | null;
+  xmlPath?: string | null;
+  xmlOriginalName?: string | null;
+  xmlUuid?: string | null;
+  xmlSerie?: string | null;
+  xmlFolio?: string | null;
+  xmlCurrency?: string | null;
+  xmlTotal?: number | null;
   assets?: unknown[];
   stockItems?: unknown[];
   lineItems?: Array<{ id: string; description: string; quantity: number; unitCost: number; currency: string; assetLinks: Array<{ id: string; deviceId: string; device?: ReviewDevice }> }>;
@@ -290,10 +297,19 @@ export function summarizeAssetValueQuality(devices: ReviewDevice[], now = new Da
 export function summarizeFacturaLineItemQuality(facturas: ReviewFactura[], devices: ReviewDevice[]) {
   const lineItems = facturas.flatMap((factura) => (factura.lineItems ?? []).map((lineItem) => ({ ...lineItem, factura })));
   const facturasWithNoLineItems = facturas.filter((factura) => (factura.lineItems?.length ?? 0) === 0);
-  const facturasWithAttachmentNoLineItems = facturasWithNoLineItems.filter((factura) => Boolean(factura.filePath || factura.originalFilename));
+  const facturasWithAttachmentNoLineItems = facturasWithNoLineItems.filter((factura) => Boolean(factura.filePath || factura.originalFilename || factura.xmlPath || factura.xmlOriginalName));
+  const facturasWithXmlNoLineItems = facturasWithNoLineItems.filter((factura) => Boolean(factura.xmlPath || factura.xmlOriginalName));
   const extractionAttemptedNoLineItems = facturasWithNoLineItems.filter((factura) => (factura.extractionAttempts?.length ?? 0) > 0);
+  const xmlExtractionAttemptedNoLineItems = facturasWithNoLineItems.filter((factura) => (factura.extractionAttempts ?? []).some((attempt) => attempt.status.startsWith("XML_")));
   const noTextExtractionAttempts = facturas.filter((factura) => (factura.extractionAttempts ?? []).some((attempt) => ["NO_TEXT", "FAILED"].includes(attempt.status)));
   const lowConfidenceExtractionAttempts = facturas.filter((factura) => (factura.extractionAttempts ?? []).some((attempt) => attempt.status === "SUCCESS" && attempt.candidateCount > 0 && attempt.createdLineItemCount === 0));
+  const xmlTotalMismatches = facturas
+    .filter((factura) => factura.xmlTotal != null && (factura.lineItems?.length ?? 0) > 0)
+    .map((factura) => {
+      const lineItemTotal = (factura.lineItems ?? []).reduce((sum, lineItem) => sum + lineItem.quantity * lineItem.unitCost, 0);
+      return { ...factura, lineItemTotal: Math.round(lineItemTotal * 100) / 100, xmlTotal: factura.xmlTotal ?? 0 };
+    })
+    .filter((factura) => Math.abs(factura.lineItemTotal - factura.xmlTotal) > 0.05);
   const lineItemsWithUnlinkedQuantity = lineItems
     .map((lineItem) => ({ ...lineItem, linkedCount: lineItem.assetLinks.length, unlinkedQuantity: Math.max(0, lineItem.quantity - lineItem.assetLinks.length) }))
     .filter((lineItem) => lineItem.unlinkedQuantity > 0);
@@ -308,9 +324,12 @@ export function summarizeFacturaLineItemQuality(facturas: ReviewFactura[], devic
     totalLineItems: lineItems.length,
     facturasWithNoLineItems,
     facturasWithAttachmentNoLineItems,
+    facturasWithXmlNoLineItems,
     extractionAttemptedNoLineItems,
+    xmlExtractionAttemptedNoLineItems,
     noTextExtractionAttempts,
     lowConfidenceExtractionAttempts,
+    xmlTotalMismatches,
     lineItemsWithUnlinkedQuantity,
     lineItemsOverLinked,
     linkedAssetsMissingValue,
@@ -923,6 +942,9 @@ export async function getDataQualityExportRows(type: string) {
         reviewType: "factura-with-no-line-items",
         facturaNumber: factura.facturaNumber,
         vendorName: factura.vendorName,
+        xmlPresent: Boolean(factura.xmlPath || factura.xmlOriginalName),
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
         lineItemDescription: "",
         assetTag: "",
         reason: "Factura has no structured line items.",
@@ -932,33 +954,83 @@ export async function getDataQualityExportRows(type: string) {
         reviewType: "attachment-with-no-line-items",
         facturaNumber: factura.facturaNumber,
         vendorName: factura.vendorName,
+        xmlPresent: Boolean(factura.xmlPath || factura.xmlOriginalName),
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
         lineItemDescription: "",
         assetTag: "",
         reason: "Factura has an attachment but no structured line items. Try assisted extraction or enter line items manually.",
+        url: `/facturas/${factura.id}/extract`,
+      })),
+      ...review.facturaLineItems.facturasWithXmlNoLineItems.map((factura) => ({
+        reviewType: "xml-with-no-line-items",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        xmlPresent: true,
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "Factura has XML but no structured line items. Use XML extraction or enter line items manually.",
         url: `/facturas/${factura.id}/extract`,
       })),
       ...review.facturaLineItems.extractionAttemptedNoLineItems.map((factura) => ({
         reviewType: "extraction-attempted-no-line-items",
         facturaNumber: factura.facturaNumber,
         vendorName: factura.vendorName,
+        xmlPresent: Boolean(factura.xmlPath || factura.xmlOriginalName),
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
         lineItemDescription: "",
         assetTag: "",
         reason: "Extraction was attempted but no line items have been created.",
+        url: `/facturas/${factura.id}/extract`,
+      })),
+      ...review.facturaLineItems.xmlExtractionAttemptedNoLineItems.map((factura) => ({
+        reviewType: "xml-extraction-attempted-no-line-items",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        xmlPresent: true,
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "XML extraction was attempted but no line items have been created.",
         url: `/facturas/${factura.id}/extract`,
       })),
       ...review.facturaLineItems.noTextExtractionAttempts.map((factura) => ({
         reviewType: "no-text-or-failed-extraction",
         facturaNumber: factura.facturaNumber,
         vendorName: factura.vendorName,
+        xmlPresent: Boolean(factura.xmlPath || factura.xmlOriginalName),
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
         lineItemDescription: "",
         assetTag: "",
         reason: "Latest extraction history includes no selectable text or extraction failure. Manual entry may be required.",
         url: `/facturas/${factura.id}/extract`,
       })),
+      ...review.facturaLineItems.xmlTotalMismatches.map((factura) => ({
+        reviewType: "xml-total-mismatch",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        xmlPresent: true,
+        xmlUuid: factura.xmlUuid ?? "",
+        xmlFolio: [factura.xmlSerie, factura.xmlFolio].filter(Boolean).join("-"),
+        xmlTotal: factura.xmlTotal,
+        lineItemTotal: factura.lineItemTotal,
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "XML total does not match the sum of structured line items.",
+        url: `/facturas/${factura.id}`,
+      })),
       ...review.facturaLineItems.lineItemsWithUnlinkedQuantity.map((lineItem) => ({
         reviewType: "line-item-unlinked-quantity",
         facturaNumber: lineItem.factura.facturaNumber,
         vendorName: lineItem.factura.vendorName,
+        xmlPresent: Boolean(lineItem.factura.xmlPath || lineItem.factura.xmlOriginalName),
+        xmlUuid: lineItem.factura.xmlUuid ?? "",
+        xmlFolio: [lineItem.factura.xmlSerie, lineItem.factura.xmlFolio].filter(Boolean).join("-"),
         lineItemDescription: lineItem.description,
         quantity: lineItem.quantity,
         linkedCount: lineItem.linkedCount,

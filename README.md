@@ -1806,8 +1806,9 @@ Factura fields include:
 - Warranty start/end
 - Notes
 - Attached file metadata
+- Optional CFDI XML metadata
 
-Factura files are stored on disk, not in SQLite:
+Factura files and optional CFDI XML files are stored on disk, not in SQLite:
 
 ```text
 uploads/facturas
@@ -1819,12 +1820,13 @@ Supported factura file types:
 - JPG/JPEG
 - PNG
 - WEBP
+- XML (`.xml`, `text/xml`, or `application/xml`)
 
 Workflow:
 
 1. Open `/facturas/new`.
 2. Enter the factura number, vendor, dates, amount, and warranty info.
-3. Attach a PDF or photo of the factura.
+3. Attach a PDF/photo of the factura and, when available, attach the matching CFDI XML.
 4. Select assets and stock items to link.
 5. Save.
 
@@ -1833,15 +1835,19 @@ Asset detail pages show linked factura information. Stock detail pages show link
 Factura line item workflow:
 
 1. Open `/facturas/[id]`.
-2. Choose `Add Line Item`.
-3. Enter description, optional SKU/model/category, quantity, unit cost, currency, and notes.
-4. Open `Link` on the line item and link up to the purchased quantity of matching assets.
-5. Choose `Apply Value` only after reviewing the linked assets. Existing asset values are skipped by default unless overwrite is explicitly selected.
-6. Review `/data-quality` for factura line items with unlinked quantity or linked assets missing values.
+2. Choose `Add Line Item` for manual entry, or choose `Extract` to review assisted candidates.
+3. PDF text extraction uses local `pdftotext` for selectable-text PDFs only.
+4. XML extraction parses local CFDI XML and can prefill exact Concepto candidates, including description, quantity, unit cost, importe, SKU/noIdentificacion, UUID, folio, vendor/RFC, date, currency, subtotal, and total.
+5. Review and edit candidates, then explicitly choose `Create selected line items`.
+6. Open `Link` on the line item and link up to the purchased quantity of matching assets.
+7. Choose `Apply Value` only after reviewing the linked assets. Existing asset values are skipped by default unless overwrite is explicitly selected.
+8. Review `/data-quality` for factura XML with no line items, line items with unlinked quantity, XML total mismatches, or linked assets missing values.
 
 Line item safety rules:
 
-- Line items do not run OCR and do not parse factura PDFs automatically.
+- Line items do not run OCR, do not fetch remote XML entities, and do not parse scanned/image-only invoices.
+- PDF/XML extraction never creates line items automatically; every candidate requires explicit review and confirmation.
+- XML upload rejects unsafe/non-XML files and XML extraction rejects external entity or stylesheet declarations.
 - A line item cannot link more assets than its quantity.
 - Existing asset values are preserved unless overwrite is explicitly selected.
 - Applying a line item changes only the asset value profile and writes activity logs; it does not change asset tag, serial, status, assignments, loans, RMA, photos, stock, or factura file data.
@@ -1853,7 +1859,7 @@ CSV exports include:
 - Stock item factura number, vendor, and purchase date.
 - Stock movement factura number and vendor.
 - Full `facturas` export.
-- Data Quality `factura-line-item-review` export.
+- Data Quality `factura-line-item-review` export, including XML-present, UUID/folio, extraction-review, and XML total mismatch fields when available.
 
 ## Backup Warning
 

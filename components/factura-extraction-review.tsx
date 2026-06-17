@@ -22,14 +22,32 @@ type Candidate = {
   notes?: string | null;
 };
 
+type XmlMetadata = {
+  uuid?: string | null;
+  serie?: string | null;
+  folio?: string | null;
+  fecha?: string | null;
+  moneda?: string | null;
+  subtotal?: number | null;
+  total?: number | null;
+  emisorName?: string | null;
+  emisorRfc?: string | null;
+  receptorName?: string | null;
+  receptorRfc?: string | null;
+};
+
 type Props = {
   facturaId: string;
   hasExistingLineItems: boolean;
+  hasPdfAttachment?: boolean;
+  hasXmlAttachment?: boolean;
 };
 
-export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Props) {
+export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPdfAttachment = false, hasXmlAttachment = false }: Props) {
   const router = useRouter();
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState<"PDF_TEXT" | "XML">("PDF_TEXT");
+  const [xmlMetadata, setXmlMetadata] = useState<XmlMetadata | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,11 +55,13 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Pro
   const [saving, setSaving] = useState(false);
   const [allowDuplicates, setAllowDuplicates] = useState(false);
 
-  async function extract() {
+  async function extract(nextSourceType: "PDF_TEXT" | "XML") {
     setExtracting(true);
     setMessage(null);
     setWarnings([]);
-    const response = await fetch(`/api/facturas/${facturaId}/extract-line-items`, { method: "POST" });
+    setXmlMetadata(null);
+    setSourceType(nextSourceType);
+    const response = await fetch(`/api/facturas/${facturaId}/${nextSourceType === "XML" ? "extract-xml-line-items" : "extract-line-items"}`, { method: "POST" });
     const data = await response.json().catch(() => ({}));
     setExtracting(false);
     if (!response.ok) {
@@ -51,8 +71,9 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Pro
     }
     setAttemptId(data.attemptId ?? null);
     setWarnings(data.warnings ?? []);
+    setXmlMetadata(data.metadata ?? null);
     setCandidates((data.candidates ?? []).map((candidate: Candidate) => ({ ...candidate, selected: true, category: null, quantity: candidate.quantity ?? 1, unitCost: candidate.unitCost ?? 0, notes: "" })));
-    setMessage((data.candidates ?? []).length ? "Review and edit candidates before creating line items." : "No selectable line item candidates were found. Enter line items manually.");
+    setMessage((data.candidates ?? []).length ? `Review and edit ${nextSourceType === "XML" ? "XML" : "PDF text"} candidates before creating line items.` : "No selectable line item candidates were found. Enter line items manually.");
   }
 
   async function createSelected() {
@@ -65,6 +86,7 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Pro
       body: JSON.stringify({
         attemptId,
         allowDuplicates,
+        sourceType,
         candidates: selected.map((candidate) => ({
           description: candidate.description,
           sku: candidate.sku || null,
@@ -104,14 +126,22 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Pro
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="font-semibold text-slate-950">Extract Candidates</h2>
-            <p className="mt-1 text-sm text-slate-600">Selectable PDF text is parsed locally. Review every candidate before creating line items.</p>
+            <p className="mt-1 text-sm text-slate-600">PDF text and factura XML are parsed locally. Review every candidate before creating line items.</p>
           </div>
-          <button onClick={extract} disabled={extracting} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
-            <FileSearch size={16} />
-            {extracting ? "Extracting..." : "Extract line items"}
-          </button>
+          <div className="grid gap-2 sm:min-w-56">
+            <button onClick={() => extract("PDF_TEXT")} disabled={extracting || !hasPdfAttachment} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+              <FileSearch size={16} />
+              {extracting && sourceType === "PDF_TEXT" ? "Extracting..." : "Extract PDF text"}
+            </button>
+            <button onClick={() => extract("XML")} disabled={extracting || !hasXmlAttachment} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60">
+              <FileSearch size={16} />
+              {extracting && sourceType === "XML" ? "Extracting..." : "Extract XML"}
+            </button>
+          </div>
         </div>
+        {!hasPdfAttachment && !hasXmlAttachment ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">Upload a PDF/photo or XML attachment before using assisted extraction.</p> : null}
         {hasExistingLineItems ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">This factura already has line items. Review carefully before adding duplicates.</p> : null}
+        {xmlMetadata ? <XmlMetadataCard metadata={xmlMetadata} /> : null}
         {warnings.length ? <div className="mt-3 grid gap-2">{warnings.map((warning) => <p key={warning} className="rounded-md bg-slate-50 p-2 text-sm text-slate-700">{warning}</p>)}</div> : null}
         {message ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">{message}</p> : null}
       </section>
@@ -196,6 +226,31 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems }: Pro
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function XmlMetadataCard({ metadata }: { metadata: XmlMetadata }) {
+  const rows = [
+    ["UUID", metadata.uuid || "-"],
+    ["Serie / folio", [metadata.serie, metadata.folio].filter(Boolean).join(" / ") || "-"],
+    ["Fecha", metadata.fecha ? String(metadata.fecha).slice(0, 10) : "-"],
+    ["Emisor", [metadata.emisorName, metadata.emisorRfc].filter(Boolean).join(" / ") || "-"],
+    ["Receptor", [metadata.receptorName, metadata.receptorRfc].filter(Boolean).join(" / ") || "-"],
+    ["Subtotal", metadata.subtotal != null ? `${metadata.moneda || "MXN"} ${Number(metadata.subtotal).toFixed(2)}` : "-"],
+    ["Total", metadata.total != null ? `${metadata.moneda || "MXN"} ${Number(metadata.total).toFixed(2)}` : "-"],
+  ];
+  return (
+    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+      <p className="text-sm font-semibold text-emerald-950">XML metadata preview</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-md bg-white/80 p-2">
+            <p className="text-xs font-semibold uppercase text-emerald-700">{label}</p>
+            <p className="mt-1 break-words text-sm font-medium text-emerald-950">{value}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

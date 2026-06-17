@@ -53,6 +53,10 @@ export default async function FacturaDetailPage({ params }: Props) {
               <FileSearch size={16} />
               Extract
             </Link> : null}
+            {canWriteInventory && factura.xmlPath ? <Link href={`/facturas/${factura.id}/extract`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100">
+              <FileSearch size={16} />
+              Extract XML
+            </Link> : null}
           </div>
         }
       />
@@ -95,6 +99,42 @@ export default async function FacturaDetailPage({ params }: Props) {
             <p className="mt-3 text-sm text-slate-500">No file attached.</p>
           )}
           {factura.originalFilename ? <p className="mt-2 break-all text-xs text-slate-500">{factura.originalFilename}</p> : null}
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="font-semibold text-slate-950">Factura XML</h2>
+          {factura.xmlPath ? (
+            <div className="mt-3 grid gap-3">
+              <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-950">
+                <p className="font-semibold">{factura.xmlOriginalName || factura.xmlFilename}</p>
+                <p className="mt-1 text-emerald-800">{factura.xmlSizeBytes ? `${factura.xmlSizeBytes} bytes` : "Size unavailable"}{factura.xmlUploadedAt ? ` • Uploaded ${factura.xmlUploadedAt.toLocaleDateString()}` : ""}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <XmlField label="UUID" value={factura.xmlUuid} />
+                <XmlField label="Serie / folio" value={[factura.xmlSerie, factura.xmlFolio].filter(Boolean).join(" / ")} />
+                <XmlField label="Emisor" value={[factura.xmlEmisorName, factura.xmlEmisorRfc].filter(Boolean).join(" / ")} />
+                <XmlField label="XML total" value={factura.xmlTotal != null ? `${factura.xmlCurrency || factura.currency} ${factura.xmlTotal.toFixed(2)}` : ""} />
+              </div>
+              {canWriteInventory ? <Link href={`/facturas/${factura.id}/extract`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+                <FileSearch size={17} />
+                Parse XML / extract line items
+              </Link> : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-500">No XML attached. Upload one from Edit to use exact CFDI extraction.</p>
+          )}
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="font-semibold text-slate-950">Metadata comparison</h2>
+          <div className="mt-3 grid gap-2">
+            <XmlField label="Record number" value={factura.facturaNumber} />
+            <XmlField label="Record vendor" value={factura.vendorName} />
+            <XmlField label="Record date" value={factura.purchaseDate?.toLocaleDateString() ?? ""} />
+            <XmlField label="Record total" value={factura.totalAmount != null ? `${factura.currency} ${factura.totalAmount.toFixed(2)}` : ""} />
+          </div>
+          <p className="mt-3 text-sm text-slate-500">XML metadata is displayed for review only. It does not overwrite factura fields automatically.</p>
         </div>
       </section>
 
@@ -218,6 +258,15 @@ export default async function FacturaDetailPage({ params }: Props) {
           {factura.purchaseNotes.length === 0 ? <p className="text-sm text-slate-500">No PO tracker notes linked to this factura yet.</p> : null}
         </div>
       </section>
+    </div>
+  );
+}
+
+function XmlField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="rounded-md bg-slate-50 p-3">
+      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-medium text-slate-950">{value || "-"}</p>
     </div>
   );
 }
