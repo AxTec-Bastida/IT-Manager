@@ -10,13 +10,14 @@ afterEach(() => {
 
 describe("reports lite helpers", () => {
   it("defines the expected operational report types", () => {
-    expect(reportTypes).toEqual(["inventory", "assignments", "loans", "stock", "network", "photos", "audits", "rma", "warranty", "tasks"]);
+    expect(reportTypes).toEqual(["inventory", "assignments", "loans", "stock", "network", "photos", "audits", "rma", "warranty", "maintenance", "asset-values", "tasks"]);
     expect(isReportType("inventory")).toBe(true);
     expect(isReportType("not-a-report")).toBe(false);
   });
 
   it("uses report-specific permissions for protected areas", () => {
     expect(reportPermission("inventory")).toBe("inventory.read");
+    expect(reportPermission("maintenance")).toBe("inventory.read");
     expect(reportPermission("audits")).toBe("audits.read");
     expect(reportPermission("tasks")).toBe("tasks.read");
   });
@@ -24,6 +25,7 @@ describe("reports lite helpers", () => {
   it("keeps stock wording focused on the stockroom workflow", () => {
     expect(reportDefinitions.stock.title).toBe("Stockroom Report");
     expect(reportDefinitions.stock.description).toContain("Low stock");
+    expect(reportDefinitions["asset-values"].description).toContain("Internal purchase values");
   });
 
   it("builds deterministic summary and section CSV rows without secret-style fields", () => {

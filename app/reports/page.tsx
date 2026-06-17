@@ -22,7 +22,7 @@ export default async function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Lightweight operational summaries for inventory, assignments, loans, stockroom, audits, RMA, warranties, and IT work. Use exports for CSV review without loading giant tables."
+        description="Lightweight operational summaries for inventory, assignments, loans, stockroom, audits, RMA, warranties, maintenance, asset values, and IT work. Use exports for CSV review without loading giant tables."
         action={
           <PageActions>
             <ActionLink href="/devices">Inventory</ActionLink>

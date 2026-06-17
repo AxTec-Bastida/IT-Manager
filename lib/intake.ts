@@ -1,12 +1,15 @@
 import { DeviceCategory, DeviceCondition, DeviceStatus, StockCategory, StockItemType, type AppRole, type Prisma, type StockMovementType } from "@prisma/client";
 import { z } from "zod";
 import { ClientInputError } from "@/lib/api";
+import { calculateDepreciation, defaultUsefulLifeMonths } from "@/lib/depreciation";
 import { stockItemSchema } from "@/lib/validation";
 
 export const BULK_INTAKE_MAX_COUNT = 500;
 
 const optionalText = z.string().trim().optional().nullable().transform((value) => value || null);
 const optionalDate = z.string().optional().nullable().transform((value) => (value ? new Date(value) : null));
+const optionalNumber = z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().nullable());
+const optionalInt = z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().int().nullable());
 
 export const intakeSingleAssetSchema = z.object({
   assetTag: z.string().trim().min(1, "Asset tag is required."),
@@ -23,6 +26,10 @@ export const intakeSingleAssetSchema = z.object({
   purchaseDate: optionalDate,
   warrantyExpiresAt: optionalDate,
   facturaId: optionalText,
+  purchaseValue: optionalNumber.refine((value) => value == null || value > 0, "Purchase value must be greater than zero."),
+  valueCurrency: optionalText.transform((value) => value || "MXN"),
+  usefulLifeMonths: optionalInt.refine((value) => value == null || value >= 1, "Useful life must be at least 1 month."),
+  residualPercent: optionalNumber.refine((value) => value == null || (value >= 0 && value <= 100), "Residual percent must be between 0 and 100."),
   notes: optionalText,
 });
 
@@ -41,6 +48,11 @@ export const intakeBulkAssetSchema = z.object({
   brand: optionalText,
   model: optionalText,
   assignedTo: optionalText,
+  purchaseDate: optionalDate,
+  purchaseValue: optionalNumber.refine((value) => value == null || value > 0, "Purchase value must be greater than zero."),
+  valueCurrency: optionalText.transform((value) => value || "MXN"),
+  usefulLifeMonths: optionalInt.refine((value) => value == null || value >= 1, "Useful life must be at least 1 month."),
+  residualPercent: optionalNumber.refine((value) => value == null || (value >= 0 && value <= 100), "Residual percent must be between 0 and 100."),
   notes: optionalText,
   serialsText: z.string().optional().nullable().transform((value) => value || ""),
 }).superRefine((value, context) => {
@@ -87,6 +99,12 @@ export type GeneratedBulkAsset = {
   name: string;
   serialNumber: string | null;
   number: number;
+  valuePreview?: {
+    purchaseValue: number;
+    currency: string;
+    currentEstimatedValue: number | null;
+    usefulLifeMonths: number;
+  } | null;
 };
 
 export function formatIntakeTag(prefix: string, number: number, padding: number, separator = "-") {
@@ -106,6 +124,20 @@ export function parseSerialList(value: string) {
 
 export function generateBulkAssetPreview(input: IntakeBulkAssetInput): GeneratedBulkAsset[] {
   const serials = parseSerialList(input.serialsText);
+  const valuePreview = input.purchaseValue
+    ? {
+        purchaseValue: input.purchaseValue,
+        currency: input.valueCurrency,
+        currentEstimatedValue: calculateDepreciation({
+          purchaseValue: input.purchaseValue,
+          purchaseDate: input.purchaseDate,
+          usefulLifeMonths: input.usefulLifeMonths,
+          residualPercent: input.residualPercent,
+          category: input.category,
+        }).currentEstimatedValue,
+        usefulLifeMonths: input.usefulLifeMonths ?? defaultUsefulLifeMonths(input.category),
+      }
+    : null;
   return Array.from({ length: input.end - input.start + 1 }, (_, index) => {
     const number = input.start + index;
     const assetTag = formatIntakeTag(input.prefix, number, input.padding, input.separator);
@@ -113,7 +145,7 @@ export function generateBulkAssetPreview(input: IntakeBulkAssetInput): Generated
       .replaceAll("{tag}", assetTag)
       .replaceAll("{num}", String(number))
       .replaceAll("{padded}", input.padding > 0 ? String(number).padStart(input.padding, "0") : String(number));
-    return { assetTag, name, serialNumber: serials[index] || null, number };
+    return { assetTag, name, serialNumber: serials[index] || null, number, valuePreview };
   });
 }
 
@@ -158,6 +190,29 @@ export async function createSingleIntakeAsset(prisma: IntakePrisma, input: Intak
       notes: appendIntakeNote(input.notes, "Created through single asset intake."),
     },
   });
+  if (input.purchaseValue) {
+    const calculation = calculateDepreciation({
+      purchaseValue: input.purchaseValue,
+      purchaseDate: input.purchaseDate,
+      usefulLifeMonths: input.usefulLifeMonths,
+      residualPercent: input.residualPercent,
+      category: input.category,
+    });
+    await prisma.assetValueProfile.create({
+      data: {
+        deviceId: device.id,
+        purchaseValue: input.purchaseValue,
+        currency: input.valueCurrency,
+        purchaseDate: input.purchaseDate,
+        usefulLifeMonths: input.usefulLifeMonths ?? defaultUsefulLifeMonths(input.category),
+        residualPercent: input.residualPercent ?? 30,
+        residualValue: calculation.residualValue,
+        currentEstimatedValue: calculation.currentEstimatedValue,
+        lastCalculatedAt: calculation.lastCalculatedAt,
+        notes: "Created through asset intake.",
+      },
+    });
+  }
   const activityData: Prisma.ActivityLogUncheckedCreateInput = {
     ...actor,
     action: "intake.asset_created",
@@ -193,9 +248,35 @@ export async function createBulkIntakeAssets(prisma: IntakePrisma, input: Intake
         brand: input.brand,
         model: input.model,
         assignedTo: input.assignedTo,
+        purchaseDate: input.purchaseDate,
         notes: appendIntakeNote(input.notes, "Created through bulk asset intake. Photos pending review."),
       })),
     });
+    if (input.purchaseValue) {
+      const createdDevices = await tx.device.findMany({ where: { assetTag: { in: generated.map((asset) => asset.assetTag) } }, select: { id: true, assetTag: true, category: true, purchaseDate: true } });
+      const profiles = createdDevices.map((device) => {
+        const calculation = calculateDepreciation({
+          purchaseValue: input.purchaseValue,
+          purchaseDate: input.purchaseDate ?? device.purchaseDate,
+          usefulLifeMonths: input.usefulLifeMonths,
+          residualPercent: input.residualPercent,
+          category: device.category,
+        });
+        return {
+          deviceId: device.id,
+          purchaseValue: input.purchaseValue!,
+          currency: input.valueCurrency,
+          purchaseDate: input.purchaseDate,
+          usefulLifeMonths: input.usefulLifeMonths ?? defaultUsefulLifeMonths(device.category),
+          residualPercent: input.residualPercent ?? 30,
+          residualValue: calculation.residualValue,
+          currentEstimatedValue: calculation.currentEstimatedValue,
+          lastCalculatedAt: calculation.lastCalculatedAt,
+          notes: "Created through bulk asset intake.",
+        };
+      });
+      if (profiles.length) await tx.assetValueProfile.createMany({ data: profiles });
+    }
     const activityData: Prisma.ActivityLogUncheckedCreateInput = {
       ...actor,
       action: "intake.bulk_assets_created",

@@ -2,10 +2,11 @@ import type { PermissionAction } from "@/lib/auth";
 import { assignmentResponsibleLabel, getActiveAssignmentItems } from "@/lib/assignment-views";
 import { auditProgress, auditScopeLabel } from "@/lib/audits";
 import { categoryLabels, stockCategoryLabels, taskCategoryLabels } from "@/lib/constants";
-import { findDuplicateIps, findDuplicateMacs, summarizePhotoCompliance } from "@/lib/data-quality";
+import { findDuplicateIps, findDuplicateMacs, summarizeAssetValueQuality, summarizePhotoCompliance } from "@/lib/data-quality";
+import { buildMaintenanceSummary, maintenanceResultLabels, summarizeMaintenanceReview } from "@/lib/maintenance";
 import { prisma } from "@/lib/prisma";
 
-export const reportTypes = ["inventory", "assignments", "loans", "stock", "network", "photos", "audits", "rma", "warranty", "tasks"] as const;
+export const reportTypes = ["inventory", "assignments", "loans", "stock", "network", "photos", "audits", "rma", "warranty", "maintenance", "asset-values", "tasks"] as const;
 export type ReportType = (typeof reportTypes)[number];
 
 export type ReportMetric = {
@@ -51,6 +52,8 @@ export const reportDefinitions: Record<ReportType, { title: string; shortTitle: 
   audits: { title: "Audit Report", shortTitle: "Audits", description: "Physical audit sessions and finding counts.", primaryHref: "/audits", permission: "audits.read" },
   rma: { title: "RMA Report", shortTitle: "RMA", description: "Active repair cases, stale follow-ups, vendor/status counts, and recently received items.", primaryHref: "/rma", permission: "inventory.read" },
   warranty: { title: "Warranty / Facturas Report", shortTitle: "Warranty / Facturas", description: "Warranty expirations, missing factura links, and warranty date gaps.", primaryHref: "/facturas", permission: "inventory.read" },
+  maintenance: { title: "Maintenance Report", shortTitle: "Maintenance", description: "Printer and scale maintenance due dates, failed checks, and recent service history.", primaryHref: "/maintenance", permission: "inventory.read" },
+  "asset-values": { title: "Asset Value Report", shortTitle: "Asset Values", description: "Internal purchase values, depreciation estimates, and value-data review gaps.", primaryHref: "/data-quality", permission: "inventory.read" },
   tasks: { title: "Tasks / IT Work Report", shortTitle: "Tasks / IT Work", description: "Open work, overdue work, unassigned tasks, and category/assignee load.", primaryHref: "/tasks", permission: "tasks.read" },
 };
 
@@ -77,6 +80,8 @@ export async function getReportData(type: ReportType): Promise<ReportData> {
   if (type === "audits") return getAuditsReport();
   if (type === "rma") return getRmaReport();
   if (type === "warranty") return getWarrantyReport();
+  if (type === "maintenance") return getMaintenanceReport();
+  if (type === "asset-values") return getAssetValuesReport();
   return getTasksReport();
 }
 
@@ -381,6 +386,100 @@ async function getWarrantyReport() {
       { label: "Assets with factura but no warranty date", value: facturaNoWarranty.length },
       { label: "Unlinked facturas", value: unlinkedFacturas, href: "/data-quality" },
     ] },
+  ]);
+}
+
+async function getMaintenanceReport() {
+  const [assets, recent] = await Promise.all([
+    prisma.device.findMany({
+      where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE"] } },
+      include: { maintenanceRecords: { orderBy: { performedAt: "desc" }, take: 10 } },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    }),
+    prisma.maintenanceRecord.findMany({ include: { asset: true }, orderBy: { performedAt: "desc" }, take: 25 }),
+  ]);
+  const review = summarizeMaintenanceReview(assets);
+  return baseReport("maintenance", [
+    { label: "Printers", value: review.printers.length, href: "/maintenance/printers" },
+    { label: "Scales", value: review.scales.length, href: "/maintenance/scales" },
+    { label: "Overdue", value: review.overdue.length, href: "/maintenance" },
+    { label: "No schedule", value: review.noSchedule.length, href: "/maintenance" },
+    { label: "Failed / follow-up", value: review.failedNeedsFollowUp.length, href: "/maintenance" },
+  ], [
+    { title: "Due soon / overdue", emptyText: "No printer or scale maintenance due soon.", rows: review.overdue.concat(review.dueSoon).slice(0, 25).map((asset) => {
+      const summary = buildMaintenanceSummary(asset);
+      return { label: asset.assetTag || asset.name, value: summary.nextDueAt ? dateText(summary.nextDueAt) : "No schedule", helper: asset.name, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance due: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` };
+    }) },
+    { title: "Missing schedule", emptyText: "No printer or scale schedule gaps.", rows: review.noSchedule.slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.category.replaceAll("_", " "), helper: "No next due date", href: `/devices/${asset.id}/maintenance/new` })) },
+    { title: "Missing maintenance baseline", rows: review.printersMissingHistory.concat(review.scalesMissingHistory).slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.category.replaceAll("_", " "), helper: "No maintenance/check history", href: `/devices/${asset.id}/maintenance/new` })) },
+    { title: "Failed / needs follow-up", emptyText: "No failed maintenance records.", rows: review.failedNeedsFollowUp.slice(0, 25).map(({ asset, record }) => ({ label: asset.assetTag || asset.name, value: maintenanceResultLabels[record.result], helper: record.notes || asset.name, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance follow-up: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` })) },
+    { title: "Recently completed", rows: recent.map((record) => ({ label: record.asset.assetTag || record.asset.name, value: record.maintenanceType.replaceAll("_", " "), helper: `${maintenanceResultLabels[record.result]} / ${dateText(record.performedAt)}`, href: `/devices/${record.assetId}/maintenance` })) },
+  ]);
+}
+
+async function getAssetValuesReport() {
+  const devices = await prisma.device.findMany({
+    select: {
+      id: true,
+      name: true,
+      assetTag: true,
+      serialNumber: true,
+      category: true,
+      status: true,
+      condition: true,
+      model: true,
+      location: true,
+      areaDepartment: true,
+      ipAddress: true,
+      macAddress: true,
+      usesStaticIp: true,
+      isFixedAsset: true,
+      movementAlertsEnabled: true,
+      purchaseDate: true,
+      warrantyExpiresAt: true,
+      facturaId: true,
+      valueProfile: {
+        select: {
+          purchaseValue: true,
+          currency: true,
+          purchaseDate: true,
+          usefulLifeMonths: true,
+          residualPercent: true,
+          residualValue: true,
+          currentEstimatedValue: true,
+          lastCalculatedAt: true,
+        },
+      },
+    },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    take: 2000,
+  });
+  const review = summarizeAssetValueQuality(devices);
+  const totalPurchaseValue = devices.reduce((sum, device) => sum + (device.valueProfile?.purchaseValue ?? 0), 0);
+  const totalEstimatedValue = devices.reduce((sum, device) => sum + (device.valueProfile?.currentEstimatedValue ?? 0), 0);
+  return baseReport("asset-values", [
+    { label: "Assets with values", value: review.withProfile.length, href: "/api/export/asset-values" },
+    { label: "Missing purchase value", value: review.missingPurchaseValue.length, href: "/data-quality" },
+    { label: "Missing purchase date", value: review.missingPurchaseDate.length, href: "/data-quality" },
+    { label: "Current estimate total", value: Math.round(totalEstimatedValue) },
+  ], [
+    {
+      title: "Value totals",
+      rows: [
+        { label: "Purchase value total", value: Math.round(totalPurchaseValue), helper: "Internal IT estimate total only" },
+        { label: "Current estimated value total", value: Math.round(totalEstimatedValue), helper: "Straight-line estimate where available" },
+      ],
+    },
+    {
+      title: "Review needed",
+      emptyText: "No asset value review items.",
+      rows: review.reviewRows.slice(0, 25).map((asset) => ({
+        label: asset.assetTag || asset.name,
+        value: asset.reason,
+        helper: asset.name,
+        href: `/devices/${asset.id}/value`,
+      })),
+    },
   ]);
 }
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { MaintenanceResult, MaintenanceType } from "@prisma/client";
 import { matchLegacyColumn } from "@/lib/legacy-import";
 import { normalizeMacAddress, validateIPv4 } from "@/lib/ip";
 import { buildMobilePairingCleanupPlan } from "@/lib/mobile-legacy";
@@ -8,6 +9,8 @@ import { suggestStockCategory } from "@/lib/stock-classification";
 import { isGenericPeripheralLikeDevice, stockRecordLooksSerialized } from "@/lib/item-workflow-classification";
 import { getAssetDisplayName, isSledAsset } from "@/lib/asset-display";
 import { isPhysicalLabelAliasType, normalizedAliasCompare } from "@/lib/label-aliases";
+import { summarizeMaintenanceReview } from "@/lib/maintenance";
+import { buildAssetValueSummary } from "@/lib/depreciation";
 
 type ReviewDevice = {
   id: string;
@@ -37,6 +40,23 @@ type ReviewDevice = {
   aliases?: Array<{ aliasType: string; value: string }>;
   sourceRelationships?: Array<{ relationshipType: string; status: string; targetDeviceId: string }>;
   targetRelationships?: Array<{ relationshipType: string; status: string; sourceDeviceId: string }>;
+  maintenanceDueAt?: Date | string | null;
+  lastCleanedAt?: Date | string | null;
+  cleaningIntervalDays?: number | null;
+  maintenanceRecords?: Array<{ id: string; maintenanceType: MaintenanceType; result: MaintenanceResult; performedAt: Date | string; nextDueAt?: Date | string | null; notes?: string | null }>;
+  purchaseDate?: Date | null;
+  warrantyExpiresAt?: Date | null;
+  facturaId?: string | null;
+  valueProfile?: {
+    purchaseValue: number | null;
+    currency: string;
+    purchaseDate: Date | null;
+    usefulLifeMonths: number | null;
+    residualPercent: number;
+    residualValue: number | null;
+    currentEstimatedValue: number | null;
+    lastCalculatedAt: Date | null;
+  } | null;
 };
 
 type ReviewFactura = {
@@ -221,6 +241,43 @@ export function summarizeStockVsAssetClassification(devices: ReviewDevice[], sto
         reason: "Stock item name looks like serialized equipment. Confirm this should be quantity stock.",
       })),
     stockMissingUsefulType: stockItems.filter((item) => item.category === "OTHER" || !item.itemType),
+  };
+}
+
+export function summarizeAssetValueQuality(devices: ReviewDevice[], now = new Date()) {
+  const trackedAssets = devices.filter((device) => !["RETIRED", "DISPOSED"].includes(device.status));
+  const withProfile = trackedAssets.filter((device) => Boolean(device.valueProfile));
+  const missingPurchaseValue = trackedAssets.filter((device) => !device.valueProfile?.purchaseValue);
+  const missingPurchaseDate = trackedAssets.filter((device) => device.valueProfile?.purchaseValue && !(device.valueProfile.purchaseDate ?? device.purchaseDate));
+  const staleEstimate = trackedAssets.filter((device) => {
+    const lastCalculatedAt = normalizeDateValue(device.valueProfile?.lastCalculatedAt);
+    if (!device.valueProfile?.purchaseValue || !lastCalculatedAt) return false;
+    return now.getTime() - lastCalculatedAt.getTime() > 1000 * 60 * 60 * 24 * 35;
+  });
+  const reviewRows = trackedAssets
+    .filter((device) => !device.valueProfile?.purchaseValue || (device.valueProfile?.purchaseValue && !(device.valueProfile.purchaseDate ?? device.purchaseDate)) || staleEstimate.includes(device))
+    .map((device) => {
+      const summary = buildAssetValueSummary(device, now);
+      const reasons = [
+        !device.valueProfile?.purchaseValue ? "Missing purchase value" : "",
+        device.valueProfile?.purchaseValue && !(device.valueProfile.purchaseDate ?? device.purchaseDate) ? "Missing purchase date" : "",
+        staleEstimate.includes(device) ? "Estimate older than 35 days" : "",
+      ].filter(Boolean);
+      return {
+        ...device,
+        reason: reasons.join("; "),
+        currentEstimatedValue: summary.currentEstimatedValue,
+        currency: device.valueProfile?.currency ?? "MXN",
+      };
+    });
+
+  return {
+    totalTracked: trackedAssets.length,
+    withProfile,
+    missingPurchaseValue,
+    missingPurchaseDate,
+    staleEstimate,
+    reviewRows,
   };
 }
 
@@ -444,6 +501,25 @@ export async function getDataQualityReview() {
         aliases: { select: { aliasType: true, value: true } },
         sourceRelationships: { select: { relationshipType: true, status: true, targetDeviceId: true } },
         targetRelationships: { select: { relationshipType: true, status: true, sourceDeviceId: true } },
+        maintenanceDueAt: true,
+        purchaseDate: true,
+        warrantyExpiresAt: true,
+        facturaId: true,
+        valueProfile: {
+          select: {
+            purchaseValue: true,
+            currency: true,
+            purchaseDate: true,
+            usefulLifeMonths: true,
+            residualPercent: true,
+            residualValue: true,
+            currentEstimatedValue: true,
+            lastCalculatedAt: true,
+          },
+        },
+        lastCleanedAt: true,
+        cleaningIntervalDays: true,
+        maintenanceRecords: { select: { id: true, maintenanceType: true, result: true, performedAt: true, nextDueAt: true, notes: true }, orderBy: { performedAt: "desc" }, take: 10 },
       },
     }),
     prisma.factura.findMany({
@@ -478,6 +554,8 @@ export async function getDataQualityReview() {
   const sledCategoryReview = findSledDisplayReview(devices);
   const mobileLegacy = buildMobilePairingCleanupPlan(devices);
   const photoCompliance = summarizePhotoCompliance(devices);
+  const maintenance = summarizeMaintenanceReview(devices);
+  const assetValue = summarizeAssetValueQuality(devices);
   const importAudit = summarizeImportRun(latestRun, latestBackupRoot());
   const mapHealth = summarizeMapHealth(maps, mapAnchors);
   const invalidIps = devices.filter((device) => device.ipAddress && !validateIPv4(device.ipAddress).ok);
@@ -531,6 +609,8 @@ export async function getDataQualityReview() {
       }),
     },
     photoCompliance,
+    maintenance,
+    assetValue,
     mapHealth,
     importAudit,
     totals: {
@@ -767,6 +847,23 @@ export async function getDataQualityExportRows(type: string) {
       addPhotoUrl: `/devices/${asset.id}#photos`,
     }));
   }
+  if (type === "asset-value-review") {
+    return review.assetValue.reviewRows.map((asset) => ({
+      assetId: asset.id,
+      assetTag: asset.assetTag,
+      assetName: asset.name,
+      category: asset.category,
+      status: asset.status,
+      purchaseValue: asset.valueProfile?.purchaseValue ?? "",
+      currency: asset.currency,
+      purchaseDate: dateText(asset.valueProfile?.purchaseDate ?? asset.purchaseDate),
+      currentEstimatedValue: asset.currentEstimatedValue ?? "",
+      lastCalculatedAt: dateText(asset.valueProfile?.lastCalculatedAt),
+      reason: asset.reason,
+      assetUrl: `/devices/${asset.id}`,
+      valueUrl: `/devices/${asset.id}/value`,
+    }));
+  }
   return null;
 }
 
@@ -833,6 +930,12 @@ function findAuditFiles(backupRoot?: string | null) {
 function dateText(value?: Date | string | null) {
   if (!value) return "";
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+function normalizeDateValue(value?: Date | string | null) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function includesText(device: ReviewDevice, value: string) {

@@ -25,7 +25,7 @@ const navGroups = [
       { href: "/stock", label: "Stockroom", icon: Package },
       { href: "/stock/issue", label: "Issue / Loan Item", icon: PackageCheck },
       { href: "/stock/issues", label: "Issue History", icon: ClipboardList },
-      { href: "/alerts?source=PRINTER", label: "Maintenance", icon: Wrench },
+      { href: "/maintenance", label: "Maintenance", icon: Wrench },
     ],
   },
   {

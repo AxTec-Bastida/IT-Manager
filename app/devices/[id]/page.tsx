@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArchiveX, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, RotateCcw, Route, ScanLine, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
+import { ArchiveX, CircleDollarSign, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, RotateCcw, Route, ScanLine, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -18,10 +18,12 @@ import { assignmentResponsibleLabel } from "@/lib/assignment-views";
 import { canPerformAction, getCurrentUser } from "@/lib/auth";
 import { buildAnchorDisplayPath } from "@/lib/map-anchors";
 import { decommissionReasonLabels } from "@/lib/decommission";
+import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel } from "@/lib/maintenance";
+import { buildAssetValueSummary, canEditAssetValue, canViewAssetValue, formatAssetAge, formatMoney } from "@/lib/depreciation";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ returned?: string; installed?: string; moved?: string; decommissioned?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ returned?: string; installed?: string; moved?: string; decommissioned?: string; value?: string }> };
 
 export default async function DeviceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
@@ -44,6 +46,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         sourceRelationships: { include: { targetDevice: true }, orderBy: { createdAt: "desc" } },
         targetRelationships: { include: { sourceDevice: true }, orderBy: { createdAt: "desc" } },
         decommissionRecords: { orderBy: { performedAt: "desc" } },
+        valueProfile: true,
       },
     }),
     prisma.device.findMany({ include: { ipRange: true } }),
@@ -60,9 +63,12 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const conflicts = detectInventoryConflicts(allDevices).filter((conflict) => conflict.affectedDeviceIds?.includes(id));
   const lastKnownLocation = locationHistory[0];
   const isPrinter = ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(device.category);
+  const isScale = device.category === "SCALE";
+  const supportsMaintenance = isPrinter || isScale;
   const isMobileAppleLike = ["PHONE", "TABLET"].includes(device.category);
   const showNetworkTracking = !isMobileAppleLike && Boolean(device.ipAddress || device.macAddress || device.usesStaticIp || device.movementAlertsEnabled);
   const latestMaintenance = device.maintenanceRecords[0];
+  const maintenanceSummary = buildMaintenanceSummary(device);
   const activeAssignmentItem = device.assignmentItems.find((item) => !item.returnedAt && ["ACTIVE", "PARTIALLY_RETURNED"].includes(item.assignment.status));
   const activeRmaItem = device.rmaItems.find((item) => item.result === "PENDING" && ["SENT", "ACTIVE", "PARTIALLY_RETURNED"].includes(item.rmaCase.status));
   const activeLoanItem = device.assetLoanItems.find((item) => item.returnStatus === "PENDING" && ["ACTIVE", "OVERDUE", "PARTIALLY_RETURNED"].includes(item.loan.status));
@@ -74,6 +80,8 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const installEligible = isInstallEligibleAsset(device);
   const moveUseful = isMoveUsefulAsset(device);
   const canWriteInventory = canPerformAction(currentUser, "inventory.write");
+  const showAssetValue = canViewAssetValue(currentUser);
+  const editAssetValue = canEditAssetValue(currentUser);
   const canWriteTasks = canPerformAction(currentUser, "tasks.write");
   const canWriteAssignments = canPerformAction(currentUser, "assignments.write");
   const canWriteLoans = canPerformAction(currentUser, "loans.write");
@@ -86,6 +94,8 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const pairedRelationships = [...device.sourceRelationships, ...device.targetRelationships].filter((relationship) => ["PAIRED_WITH", "IPOD_SLED_PAIR", "IPHONE_SLED_PAIR"].includes(relationship.relationshipType));
   const currentAnchorPath = device.currentMapAnchor ? buildAnchorDisplayPath(device.currentMapAnchor) : null;
   const latestDecommissionRecord = device.decommissionRecords[0];
+  const valueSummary = buildAssetValueSummary(device);
+  const valueCurrency = device.valueProfile?.currency ?? "MXN";
 
   const fields = [
     ["Asset tag", device.assetTag || "-"],
@@ -211,6 +221,12 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         </div>
       ) : null}
 
+      {query.value ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
+          Internal asset value estimate saved.
+        </div>
+      ) : null}
+
       <section className="grid items-start gap-4 xl:grid-cols-3">
         <div className="self-start rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -310,6 +326,42 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
               </div>
             )}
           </section>
+
+          {showAssetValue ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-slate-950">Asset Value</h2>
+                  <p className="mt-1 text-xs text-slate-500">Internal IT estimate only, not official accounting book value.</p>
+                </div>
+                <CircleDollarSign className="shrink-0 text-slate-400" size={22} />
+              </div>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Purchase value</p>
+                  <p className="mt-1 font-semibold text-slate-950">{formatMoney(valueSummary.purchaseValue, valueCurrency)}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Current estimate</p>
+                  <p className="mt-1 font-semibold text-slate-950">{formatMoney(valueSummary.currentEstimatedValue, valueCurrency)}</p>
+                  <p className="text-xs text-slate-500">Age: {formatAssetAge(valueSummary.ageMonths)} / life {valueSummary.usefulLifeMonths} months</p>
+                </div>
+                {latestDecommissionRecord?.estimatedValueAtDecommission != null ? (
+                  <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
+                    <p className="text-xs font-medium uppercase text-rose-700">Decommission snapshot</p>
+                    <p className="mt-1 font-semibold text-rose-950">{formatMoney(latestDecommissionRecord.estimatedValueAtDecommission, latestDecommissionRecord.estimatedValueCurrency ?? valueCurrency)}</p>
+                  </div>
+                ) : null}
+                {valueSummary.reason ? <p className="text-xs text-slate-500">{valueSummary.reason}</p> : null}
+              </div>
+              {editAssetValue ? (
+                <Link href={`/devices/${device.id}/value`} className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <CircleDollarSign size={16} />
+                  Edit internal value
+                </Link>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="font-semibold text-slate-950">Current RMA</h2>
@@ -683,17 +735,33 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         }}
       />
 
-      {isPrinter ? (
+      {supportsMaintenance ? (
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-semibold text-slate-950">Printer maintenance</h2>
-              <p className="text-sm text-slate-500">Manual supply levels and scheduled printer care. Thermal and MFP alerts stay separate.</p>
+              <h2 className="font-semibold text-slate-950">{isScale ? "Scale maintenance / calibration" : "Printer maintenance"}</h2>
+              <p className="text-sm text-slate-500">{isScale ? "Manual calibration checks, weight tests, cleaning, and follow-up." : "Manual supply levels, test prints, parts, and scheduled printer care."}</p>
             </div>
-            {canWriteInventory ? <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-              <Wrench size={16} />
-              Add maintenance record
-            </Link> : null}
+            <div className="grid gap-2 sm:flex">
+              <Link href={`/devices/${device.id}/maintenance`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">View history</Link>
+              {canWriteInventory ? <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                <Wrench size={16} />
+                Add record
+              </Link> : null}
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["Schedule status", maintenanceStatusLabel(maintenanceSummary.status)],
+              ["Last result", maintenanceSummary.lastResult ? maintenanceResultLabels[maintenanceSummary.lastResult] : "-"],
+              ["Next due", maintenanceSummary.nextDueAt ? maintenanceSummary.nextDueAt.toLocaleDateString() : "No schedule"],
+              ["Failed/follow-up", maintenanceSummary.failedOrFollowUp.length],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md bg-slate-50 p-3">
+                <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
+              </div>
+            ))}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {device.category === "MFP_PRINTER"
@@ -712,7 +780,23 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                     <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
                   </div>
                 ))
-              : [
+              : isScale
+                ? [
+                  ["Calibration/check due", device.maintenanceDueAt ? device.maintenanceDueAt.toLocaleDateString() : "-"],
+                  ["Last check", latestMaintenance ? latestMaintenance.performedAt.toLocaleDateString() : "-"],
+                  ["Last type", latestMaintenance ? maintenanceTypeLabels[latestMaintenance.maintenanceType] : "-"],
+                  ["Test weight", latestMaintenance?.testWeight ?? "-"],
+                  ["Expected value", latestMaintenance?.expectedValue ?? "-"],
+                  ["Measured value", latestMaintenance?.measuredValue ?? "-"],
+                  ["Location", device.location || device.areaDepartment || "-"],
+                  ["IP/MAC", [device.ipAddress, device.macAddress].filter(Boolean).join(" / ") || "-"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-md bg-slate-50 p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
+                  </div>
+                ))
+                : [
                   ["Last cleaned", device.lastCleanedAt ? device.lastCleanedAt.toLocaleDateString() : "Not recorded"],
                   ["Cleaning interval", `${device.cleaningIntervalDays ?? 30} days`],
                   ["Printhead replaced", device.lastPrintheadReplacementAt ? device.lastPrintheadReplacementAt.toLocaleDateString() : "-"],

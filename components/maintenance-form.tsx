@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Device, StockItem } from "@prisma/client";
-import { Save } from "lucide-react";
-import { maintenanceTypeLabels, maintenanceTypeOptions } from "@/lib/constants";
+import { Camera, Save } from "lucide-react";
+import { maintenanceTypeLabels, maintenanceTypeOptions, printerMaintenanceTypeOptions, scaleMaintenanceTypeOptions } from "@/lib/constants";
+import { defaultMaintenanceTypeForAsset, maintenanceResultLabels, maintenanceResultOptions, testPrintResultOptions } from "@/lib/maintenance";
 
 type Props = {
   asset: Device;
@@ -15,6 +16,9 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const isPrinter = ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(asset.category);
+  const isScale = asset.category === "SCALE";
+  const typeOptions = isPrinter ? printerMaintenanceTypeOptions : isScale ? scaleMaintenanceTypeOptions : maintenanceTypeOptions;
   const inputClass = "w-full min-h-14 rounded-md sm:min-h-12 border border-slate-300 bg-white px-3 py-2 text-base text-slate-950 shadow-sm focus:border-slate-950 focus:outline-none sm:text-sm";
   const labelClass = "space-y-1 text-sm font-medium text-slate-700";
 
@@ -50,8 +54,8 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
           </label>
           <label className={labelClass}>
             Maintenance type
-            <select className={inputClass} name="maintenanceType" defaultValue={asset.category === "THERMAL_PRINTER" ? "CLEANING" : "INSPECTION"}>
-              {maintenanceTypeOptions.map((type) => (
+            <select className={inputClass} name="maintenanceType" defaultValue={defaultMaintenanceTypeForAsset(asset)}>
+              {typeOptions.map((type) => (
                 <option key={type} value={type}>
                   {maintenanceTypeLabels[type]}
                 </option>
@@ -66,6 +70,50 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
             Performed by
             <input className={inputClass} name="performedBy" placeholder="Technician name" />
           </label>
+          <label className={labelClass}>
+            Result
+            <select className={inputClass} name="result" defaultValue="PASS">
+              {maintenanceResultOptions.map((result) => (
+                <option key={result} value={result}>{maintenanceResultLabels[result]}</option>
+              ))}
+            </select>
+          </label>
+          <label className={labelClass}>
+            Vendor ticket
+            <input className={inputClass} name="vendorTicket" placeholder="Ticket / case number" />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+        <legend className="px-2 text-sm font-semibold text-slate-950">Test / calibration details</legend>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {isPrinter ? (
+            <label className={labelClass}>
+              Test print result
+              <select className={inputClass} name="resultDetails" defaultValue="">
+                <option value="">Not a test print / not recorded</option>
+                {testPrintResultOptions.map((result) => <option key={result} value={result}>{result}</option>)}
+              </select>
+            </label>
+          ) : null}
+          {isScale ? (
+            <>
+              <label className={labelClass}>
+                Test weight used
+                <input className={inputClass} name="testWeight" placeholder="Example: 5 kg certified weight" />
+              </label>
+              <label className={labelClass}>
+                Expected value
+                <input className={inputClass} name="expectedValue" placeholder="Example: 5.000 kg" />
+              </label>
+              <label className={labelClass}>
+                Measured value
+                <input className={inputClass} name="measuredValue" placeholder="Example: 5.002 kg" />
+              </label>
+            </>
+          ) : null}
+          {!isPrinter && !isScale ? <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-600 lg:col-span-2">This asset is not classified as a printer or scale. Use notes for general maintenance details.</p> : null}
         </div>
       </fieldset>
 
@@ -119,12 +167,22 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
           </label>
           <label className={`${labelClass} lg:col-span-2`}>
             Notes
-            <textarea className={inputClass} name="notes" rows={4} />
+            <textarea className={inputClass} name="notes" rows={4} placeholder="Required for Fail or Needs follow-up. Include issue, action taken, and next step." />
           </label>
         </div>
       </fieldset>
 
-      <div>
+      <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p>Need evidence? Save the record, then add a test print, damaged part, or scale display photo from the asset photo panel.</p>
+          <a href={`/devices/${asset.id}#photos`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-sky-300 bg-white px-3 font-semibold text-sky-900 hover:bg-sky-100">
+            <Camera size={15} />
+            Add evidence photo
+          </a>
+        </div>
+      </div>
+
+      <div className="sticky bottom-20 z-20 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <button className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-60 sm:min-h-12 sm:w-auto sm:text-sm" disabled={saving}>
           <Save size={16} />
           {saving ? "Saving..." : "Save maintenance"}

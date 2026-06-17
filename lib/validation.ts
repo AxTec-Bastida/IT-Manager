@@ -2,11 +2,13 @@ import {
   AssignmentStatus,
   AssignmentTargetType,
   AppRole,
+  DepreciationMethod,
   DeviceCategory,
   DeviceCondition,
   DeviceStatus,
   EmployeeStatus,
   MaintenanceType,
+  MaintenanceResult,
   PurchaseNoteStatus,
   StockCategory,
   StockIssueType,
@@ -86,6 +88,16 @@ export const deviceSchema = z.object({
   movementAlertsEnabled: z.coerce.boolean().default(false),
   allowedZoneDistance: z.coerce.number().int().min(0).max(10).default(0),
   ipRangeId: optionalText,
+});
+
+export const assetValueProfileSchema = z.object({
+  purchaseValue: z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().positive("Purchase value must be greater than zero.").nullable()),
+  currency: z.string().trim().min(1, "Currency is required.").max(8).default("MXN"),
+  purchaseDate: optionalDate,
+  depreciationMethod: z.nativeEnum(DepreciationMethod).default("STRAIGHT_LINE"),
+  usefulLifeMonths: optionalInt.refine((value) => value == null || value >= 1, "Useful life must be at least 1 month."),
+  residualPercent: z.preprocess((value) => (value === "" || value == null ? 30 : value), z.coerce.number().min(0).max(100)),
+  notes: optionalText,
 });
 
 export const facturaSchema = z.object({
@@ -306,6 +318,7 @@ export const assetLoanReturnSchema = z.object({
 export const maintenanceRecordSchema = z.object({
   assetId: z.string().trim().min(1, "Asset is required."),
   maintenanceType: z.nativeEnum(MaintenanceType),
+  result: z.nativeEnum(MaintenanceResult).default("PASS"),
   performedAt: z.string().optional().nullable().transform((value) => (value ? new Date(value) : new Date())),
   performedBy: optionalText,
   notes: optionalText,
@@ -317,6 +330,18 @@ export const maintenanceRecordSchema = z.object({
   cost: optionalNumber.refine((value) => value == null || value >= 0, "Cost must be zero or higher."),
   currency: optionalText.transform((value) => value || "USD"),
   nextDueAt: optionalDate,
+  vendorTicket: optionalText,
+  testWeight: optionalText,
+  measuredValue: optionalText,
+  expectedValue: optionalText,
+  resultDetails: optionalText,
+}).superRefine((value, ctx) => {
+  if ((value.result === "FAIL" || value.result === "NEEDS_FOLLOW_UP") && !value.notes) {
+    ctx.addIssue({ code: "custom", path: ["notes"], message: "Notes are required when result is Fail or Needs follow-up." });
+  }
+  if (Number.isNaN(value.performedAt.getTime())) {
+    ctx.addIssue({ code: "custom", path: ["performedAt"], message: "Enter a valid performed date." });
+  }
 });
 
 export const taskSchema = z.object({

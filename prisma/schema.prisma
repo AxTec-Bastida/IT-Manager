@@ -80,6 +80,10 @@ enum DeviceRelationshipStatus {
   NEEDS_REVIEW
 }
 
+enum DepreciationMethod {
+  STRAIGHT_LINE
+}
+
 enum DeviceCondition {
   NEW
   GOOD
@@ -179,18 +183,39 @@ enum StockReturnCondition {
 
 enum MaintenanceType {
   CLEANING
+  CLEAN_PRINTHEAD
+  CLEAN_ROLLER
   PREVENTIVE_MAINTENANCE
   TONER_REPLACEMENT
   INK_REPLACEMENT
   DRUM_REPLACEMENT
   FUSER_REPLACEMENT
   PRINTHEAD_REPLACEMENT
+  REPLACE_PRINTHEAD
+  REPLACE_ROLLER
+  REPLACE_LABEL_SENSOR
+  REPLACE_PLATEN_ROLLER
   PLATEN_ROLLER_REPLACEMENT
   CUTTER_REPLACEMENT
   POWER_SUPPLY_REPLACEMENT
+  TEST_PRINT
+  NETWORK_CHECK
+  FIRMWARE_OR_CONFIG_CHECK
+  CALIBRATION_CHECK
+  WEIGHT_TEST
+  POWER_CHECK
+  DISPLAY_CHECK
+  RELOCATION_CHECK
+  GENERAL_REPAIR
   REPAIR
   INSPECTION
   OTHER
+}
+
+enum MaintenanceResult {
+  PASS
+  FAIL
+  NEEDS_FOLLOW_UP
 }
 
 enum AlertType {
@@ -585,6 +610,7 @@ model Device {
   auditExpectedItems            InventoryAuditExpectedItem[]
   auditScans                    InventoryAuditScan[]
   decommissionRecords           AssetDecommissionRecord[]
+  valueProfile                  AssetValueProfile?
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
 
@@ -610,6 +636,8 @@ model AssetDecommissionRecord {
   finalStatus       DeviceStatus
   checklistJson     String?
   notes             String?
+  estimatedValueAtDecommission Float?
+  estimatedValueCurrency       String?
   approvedByUserId  String?
   approvedByName    String?
   performedByUserId String?
@@ -623,6 +651,27 @@ model AssetDecommissionRecord {
   @@index([finalStatus])
   @@index([performedAt])
   @@index([performedByUserId])
+}
+
+model AssetValueProfile {
+  id                    String              @id @default(cuid())
+  deviceId              String              @unique
+  device                Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  purchaseValue         Float?
+  currency              String              @default("MXN")
+  purchaseDate          DateTime?
+  depreciationMethod    DepreciationMethod  @default(STRAIGHT_LINE)
+  usefulLifeMonths      Int?
+  residualPercent       Float               @default(30)
+  residualValue         Float?
+  currentEstimatedValue Float?
+  lastCalculatedAt      DateTime?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([currency])
+  @@index([purchaseDate])
 }
 
 model DeviceAlias {
@@ -916,6 +965,7 @@ model MaintenanceRecord {
   assetId          String
   asset            Device          @relation(fields: [assetId], references: [id], onDelete: Cascade)
   maintenanceType  MaintenanceType
+  result           MaintenanceResult @default(PASS)
   performedAt      DateTime        @default(now())
   performedBy      String?
   notes            String?
@@ -928,12 +978,18 @@ model MaintenanceRecord {
   cost             Float?
   currency         String?         @default("USD")
   nextDueAt        DateTime?
+  vendorTicket     String?
+  testWeight       String?
+  measuredValue    String?
+  expectedValue    String?
+  resultDetails    String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
   @@index([assetId])
   @@index([stockItemId])
   @@index([maintenanceType])
+  @@index([result])
   @@index([performedAt])
   @@index([nextDueAt])
 }

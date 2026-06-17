@@ -11,6 +11,7 @@ import {
   summarizeStockVsAssetClassification,
   suggestedAssetName,
   summarizePhotoCompliance,
+  summarizeAssetValueQuality,
   parseSkippedDuplicateRows,
   summarizeMissingFields,
   summarizeMobileAssets,
@@ -239,6 +240,47 @@ describe("data quality review helpers", () => {
     expect(summary.fixedMissingLocation[0].checklist.missing).toContain("LOCATION_INSTALLED");
     expect(summary.photosMissingThumbnails.map((item) => item.asset.id)).toEqual(["scale"]);
     expect(summary.oversizedPhotos.map((item) => item.asset.id)).toEqual(["scale"]);
+  });
+
+  it("summarizes asset value review gaps", () => {
+    const summary = summarizeAssetValueQuality([
+      { ...baseDevice, id: "missing-value", valueProfile: null },
+      {
+        ...baseDevice,
+        id: "missing-date",
+        valueProfile: {
+          purchaseValue: 1200,
+          currency: "MXN",
+          purchaseDate: null,
+          usefulLifeMonths: 36,
+          residualPercent: 30,
+          residualValue: 360,
+          currentEstimatedValue: 1200,
+          lastCalculatedAt: new Date("2026-06-01"),
+        },
+      },
+      {
+        ...baseDevice,
+        id: "complete",
+        purchaseDate: new Date("2026-01-01"),
+        valueProfile: {
+          purchaseValue: 1500,
+          currency: "MXN",
+          purchaseDate: new Date("2026-01-01"),
+          usefulLifeMonths: 36,
+          residualPercent: 30,
+          residualValue: 450,
+          currentEstimatedValue: 1350,
+          lastCalculatedAt: new Date("2026-06-01"),
+        },
+      },
+    ], new Date("2026-06-15"));
+
+    expect(summary.totalTracked).toBe(3);
+    expect(summary.withProfile).toHaveLength(2);
+    expect(summary.missingPurchaseValue.map((asset) => asset.id)).toEqual(["missing-value"]);
+    expect(summary.missingPurchaseDate.map((asset) => asset.id)).toEqual(["missing-date"]);
+    expect(summary.reviewRows.map((asset) => asset.id)).toEqual(["missing-value", "missing-date"]);
   });
 
   it("parses skipped duplicate workbook row audit messages", () => {

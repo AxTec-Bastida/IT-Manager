@@ -13,6 +13,7 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, manual l
 - Generates central operational alerts for IPAM conflicts, low stock, printer maintenance, warranty expiration, RMA follow-ups, loan overdue checks, stock loan overdue checks, and data integrity review.
 - Stores asset photo metadata with files on disk for overview photos, asset tags, serial labels, condition, damage, installed-location evidence, RMA/return condition, and other documentation.
 - Tracks facturas/purchase records, attached factura PDFs/photos, linked assets, linked stock items, vendor details, PO numbers, costs, and warranty dates.
+- Tracks optional internal asset value estimates with straight-line depreciation for IT review and decommission snapshots. These estimates are not official accounting book value.
 - Adds a lightweight IT Workspace for quick follow-up tasks, PO tracker notes, and common IT resource links.
 - Tracks RMA / repair batches for sending groups of devices to repair, following up, and receiving returned devices without deleting assignment history.
 - Sends manual SMTP email receipts and summaries for assignments, returns, asset loans, stock issues, stock returns, and RMA cases, with every attempt recorded in `EmailLog`.
@@ -26,7 +27,7 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, manual l
 - Uses the phone camera to scan QR codes and barcodes for device labels, serial numbers, MACs, IP labels, and internal tags.
 - Generates safe asset tag QR/barcode label previews and Zebra ZPL exports without encoding sensitive data.
 - Shows stored manual asset location context on a warehouse map.
-- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, facturas, tasks, PO tracker notes, tool links, RMA cases/items, asset loans/items, conflicts, and scan results.
+- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, asset values, facturas, tasks, PO tracker notes, tool links, RMA cases/items, asset loans/items, conflicts, and scan results.
 - Includes sample warehouse data and intentional conflicts for testing.
 
 ## Stack
@@ -179,6 +180,7 @@ The current controlled beta runtime is Windows-native:
 - Docker Compose is supported by the repo but is not the selected runtime on this machine because Docker CLI/Desktop is not installed or available.
 - Use exactly one scheduler. Do not enable the Docker Compose `jobs` profile while the Windows Task Scheduler job is active.
 - Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
+- Phase 59B reconciled asset value/depreciation work into this correct beta path. Asset values are optional internal IT estimates stored in `AssetValueProfile`; run `npm run backup` before migrations and use `npx prisma migrate deploy`, never `prisma migrate reset`, on real data.
 
 ### Phase 55 Phone / PWA / Camera Beta Notes
 
@@ -865,7 +867,9 @@ Import audit files from the controlled first import are stored under the pre-imp
 
 The Data Quality page shows the latest ImportRun, warning count, skipped duplicate count, redaction count, and the backup folder paths for these audit files.
 
-Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
+Asset Value / Depreciation review flags active assets missing purchase value, missing purchase date, or stale internal estimates. These values are for IT lifecycle context and decommission snapshots only, not accounting. Use the asset detail `Asset Value` card or `/devices/[id]/value` to edit permitted records.
+
+Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, asset value review, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
 
 ## RMA / Repair Workflow
 
@@ -1561,11 +1565,13 @@ Restore drill recommendation:
 
 ### OneDrive Warning
 
-The current project path is:
+The active beta project path is:
 
 ```text
-C:\Users\abastida\OneDrive - TechStyle\Documents\New project 3
+C:\Dev\warehouse-it-inventory
 ```
+
+The old OneDrive copy at `C:\Users\abastida\OneDrive - TechStyle\Documents\New project 3` is legacy/reference only. Do not develop or deploy from it.
 
 OneDrive can lock `.next`, SQLite, and Prisma files while syncing. That has already caused local build/database friction. Keep OneDrive for backup copies or exported files if useful, but the recommended active project path for daily use is:
 
@@ -2067,8 +2073,10 @@ Use `/reports` for phone-first operational summaries without turning the app int
 - Audits
 - RMA
 - Warranty / Facturas
+- Maintenance
+- Asset values
 - Tasks / IT work
 
-Each report page shows summary cards and bounded recent or priority rows. CSV exports are available from `/api/reports/[type]/export`, for example `/api/reports/inventory/export` or `/api/reports/stock/export`.
+Each report page shows summary cards and bounded recent or priority rows. CSV exports are available from `/api/reports/[type]/export`, for example `/api/reports/inventory/export`, `/api/reports/stock/export`, or `/api/reports/asset-values/export`.
 
 Reports require sign-in and respect existing role permissions. Audit reports use `audits.read`, task reports use `tasks.read`, and other operational summaries use `inventory.read`. Reports Lite intentionally does not include charting, scheduled emailed reports, full analytics, sensitive notes, credentials, BitLocker data, or invoice OCR.

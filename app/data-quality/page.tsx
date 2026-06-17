@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Camera, ClipboardCheck, ClipboardList, Database, Download, Map, Network, Package, ReceiptText, Scale, ShieldCheck, Smartphone, Tags, Truck, Wrench } from "lucide-react";
+import { AlertTriangle, Camera, CircleDollarSign, ClipboardCheck, ClipboardList, Database, Download, Map, Network, Package, ReceiptText, Scale, ShieldCheck, Smartphone, Tags, Truck, Wrench } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { DataQualityActionButton } from "@/components/data-quality-actions";
 import { PageHeader } from "@/components/page-header";
@@ -8,6 +8,7 @@ import { categoryLabels, stockCategoryLabels, statusLabels } from "@/lib/constan
 import { getDataQualityReview } from "@/lib/data-quality";
 import { isInstallEligibleAsset } from "@/lib/equipment-install";
 import { isMoveUsefulAsset } from "@/lib/equipment-move";
+import { maintenanceResultLabels } from "@/lib/maintenance";
 import { requiredPhotoLabels } from "@/lib/photo-compliance";
 import { prisma } from "@/lib/prisma";
 
@@ -55,6 +56,7 @@ export default async function DataQualityPage() {
         <SummaryCard icon={Package} label="Suspicious Stock" value={review.suspiciousStock.length} helper="Comment-like imported rows" />
         <SummaryCard icon={Camera} label="Missing Photos" value={review.photoCompliance.missingRequired.length} helper="Assets missing required photo types" />
         <SummaryCard icon={Smartphone} label="Mobile Pairing" value={review.suspiciousAssignments.length} helper="Asset-like assigned values" />
+        <SummaryCard icon={CircleDollarSign} label="Asset Value" value={review.assetValue.reviewRows.length} helper="Missing or stale internal estimates" />
         <SummaryCard icon={Tags} label="Label Aliases" value={review.labelAliasReview.length} helper="Duplicate physical label codes" />
         <SummaryCard icon={Map} label="Map Anchors" value={review.mapHealth.activeAnchors.length} helper={`${review.mapHealth.manualPathMaps.length} manual path maps`} href="/map" />
         <SummaryCard icon={ClipboardCheck} label="Active Audits" value={activeAuditCount} helper="Cycle counts needing scan/review" href="/audits" />
@@ -206,6 +208,41 @@ export default async function DataQualityPage() {
         )}
       </ReviewSection>
 
+      <ReviewSection title="Asset Value / Depreciation" description="Internal IT value estimates for tracking and decommission context. These are not official accounting book values." action={<ExportLink type="asset-value-review" />}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard icon={CircleDollarSign} label="Tracked assets" value={review.assetValue.totalTracked} helper="Non-retired inventory" />
+          <SummaryCard icon={ShieldCheck} label="Value profiles" value={review.assetValue.withProfile.length} helper="Assets with internal estimates" />
+          <SummaryCard icon={AlertTriangle} label="Missing purchase value" value={review.assetValue.missingPurchaseValue.length} helper="Need internal estimate" />
+          <SummaryCard icon={AlertTriangle} label="Missing purchase date" value={review.assetValue.missingPurchaseDate.length} helper="Estimate stays at purchase value" />
+        </div>
+        {review.assetValue.reviewRows.length ? (
+          <details className="rounded-lg border border-slate-200 bg-white p-4">
+            <summary className="min-h-11 cursor-pointer list-none font-semibold text-slate-950">Show asset value review items</summary>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              {review.assetValue.reviewRows.slice(0, 40).map((asset) => (
+                <MobileCard key={asset.id}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-500">Asset value review</p>
+                      <h3 className="text-lg font-semibold text-slate-950">{asset.assetTag || asset.name}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{asset.name} / {categoryLabels[asset.category as keyof typeof categoryLabels] ?? asset.category}</p>
+                      <p className="mt-2 text-sm text-amber-800">{asset.reason}</p>
+                    </div>
+                    <Badge className="w-fit bg-amber-50 text-amber-800 ring-amber-200">Review</Badge>
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <ActionLink href={`/devices/${asset.id}`}>Open asset</ActionLink>
+                    <ActionLink href={`/devices/${asset.id}/value`}>Edit value</ActionLink>
+                  </div>
+                </MobileCard>
+              ))}
+            </div>
+          </details>
+        ) : (
+          <EmptyState title="Asset value review is clear" description="No missing or stale internal value estimates are currently flagged." />
+        )}
+      </ReviewSection>
+
       <ReviewSection title="Skipped Duplicate Workbook Rows" description="Rows skipped because they duplicated a tag or serial already seen earlier in the workbook." action={<ExportLink type="skipped-duplicates" label="Export skipped CSV" />}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard icon={ShieldCheck} label="Skipped Rows" value={review.skippedDuplicates.length} helper="Not imported automatically" />
@@ -281,6 +318,36 @@ export default async function DataQualityPage() {
           <AssetList title="Static assets missing location" assets={review.staticNetwork.missingLocation.slice(0, 8)} taskPrefix="Move static asset to correct location" />
           <AssetList title="Static IP assets missing location" assets={review.staticNetwork.staticIpMissingLocation.slice(0, 8)} taskPrefix="Verify installed asset placement" />
         </div>
+      </ReviewSection>
+
+      <ReviewSection title="Printer / Scale Maintenance" description="Manual maintenance and calibration review. This does not poll printers or scales and does not change schedules automatically." action={<ActionLink href="/maintenance">Open Maintenance</ActionLink>}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard icon={Wrench} label="Printers no history" value={review.maintenance.printersMissingHistory.length} helper="Need first cleaning/check record" />
+          <SummaryCard icon={Scale} label="Scales no check" value={review.maintenance.scalesMissingHistory.length} helper="Need first calibration/check" />
+          <SummaryCard icon={AlertTriangle} label="Overdue" value={review.maintenance.overdue.length} helper={`${review.maintenance.dueSoon.length} due soon`} />
+          <SummaryCard icon={AlertTriangle} label="Failed / follow-up" value={review.maintenance.failedNeedsFollowUp.length} helper="Create tasks as needed" />
+          <SummaryCard icon={AlertTriangle} label="Missing schedule" value={review.maintenance.noSchedule.length} helper="No next due date" />
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <AssetList title="Printers with no maintenance history" assets={review.maintenance.printersMissingHistory.slice(0, 8)} taskPrefix="Add printer maintenance baseline" />
+          <AssetList title="Scales with no calibration/check history" assets={review.maintenance.scalesMissingHistory.slice(0, 8)} taskPrefix="Add scale calibration baseline" />
+          <AssetList title="Missing maintenance schedule" assets={review.maintenance.noSchedule.slice(0, 8)} taskPrefix="Set printer or scale maintenance schedule" />
+        </div>
+        {review.maintenance.failedNeedsFollowUp.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {review.maintenance.failedNeedsFollowUp.slice(0, 8).map(({ asset, record }) => (
+              <MobileCard key={record.id} className="border-amber-200 bg-amber-50">
+                <h3 className="font-semibold text-slate-950">{asset.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">{maintenanceResultLabels[record.result]} / {new Date(record.performedAt).toLocaleDateString()}</p>
+                {record.notes ? <p className="mt-1 text-sm text-slate-600">{record.notes}</p> : null}
+                <div className="mt-3 grid gap-2 sm:flex">
+                  <ActionLink href={`/devices/${asset.id}/maintenance`}>Open history</ActionLink>
+                  <ActionLink href={`/tasks/new?title=${encodeURIComponent(`Maintenance follow-up: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}`}>Create task</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+        ) : null}
       </ReviewSection>
 
       <ReviewSection title="Mobile Apple Device Review" description="Phones and tablets should stay inventory-only unless deliberately configured later." action={<ExportLink type="mobile-network-violations" />}>

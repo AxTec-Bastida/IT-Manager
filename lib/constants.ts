@@ -203,21 +203,62 @@ export const stockReturnConditionOptions = Object.keys(stockReturnConditionLabel
 
 export const maintenanceTypeLabels: Record<MaintenanceType, string> = {
   CLEANING: "Cleaning",
+  CLEAN_PRINTHEAD: "Clean Printhead",
+  CLEAN_ROLLER: "Clean Roller",
   PREVENTIVE_MAINTENANCE: "Preventive Maintenance",
   TONER_REPLACEMENT: "Toner Replacement",
   INK_REPLACEMENT: "Ink Replacement",
   DRUM_REPLACEMENT: "Drum Replacement",
   FUSER_REPLACEMENT: "Fuser Replacement",
   PRINTHEAD_REPLACEMENT: "Printhead Replacement",
+  REPLACE_PRINTHEAD: "Replace Printhead",
+  REPLACE_ROLLER: "Replace Roller",
+  REPLACE_LABEL_SENSOR: "Replace Label Sensor",
+  REPLACE_PLATEN_ROLLER: "Replace Platen Roller",
   PLATEN_ROLLER_REPLACEMENT: "Platen Roller Replacement",
   CUTTER_REPLACEMENT: "Cutter Replacement",
   POWER_SUPPLY_REPLACEMENT: "Power Supply Replacement",
+  TEST_PRINT: "Test Print",
+  NETWORK_CHECK: "Network Check",
+  FIRMWARE_OR_CONFIG_CHECK: "Firmware / Config Check",
+  CALIBRATION_CHECK: "Calibration Check",
+  WEIGHT_TEST: "Weight Test",
+  POWER_CHECK: "Power Check",
+  DISPLAY_CHECK: "Display Check",
+  RELOCATION_CHECK: "Relocation Check",
+  GENERAL_REPAIR: "General Repair",
   REPAIR: "Repair",
   INSPECTION: "Inspection",
   OTHER: "Other",
 };
 
 export const maintenanceTypeOptions = Object.keys(maintenanceTypeLabels) as MaintenanceType[];
+
+export const printerMaintenanceTypeOptions: MaintenanceType[] = [
+  "CLEAN_PRINTHEAD",
+  "CLEAN_ROLLER",
+  "REPLACE_PRINTHEAD",
+  "REPLACE_ROLLER",
+  "REPLACE_LABEL_SENSOR",
+  "REPLACE_PLATEN_ROLLER",
+  "TEST_PRINT",
+  "NETWORK_CHECK",
+  "FIRMWARE_OR_CONFIG_CHECK",
+  "GENERAL_REPAIR",
+  "OTHER",
+];
+
+export const scaleMaintenanceTypeOptions: MaintenanceType[] = [
+  "CALIBRATION_CHECK",
+  "WEIGHT_TEST",
+  "POWER_CHECK",
+  "NETWORK_CHECK",
+  "DISPLAY_CHECK",
+  "CLEANING",
+  "RELOCATION_CHECK",
+  "GENERAL_REPAIR",
+  "OTHER",
+];
 
 export const alertTypeLabels: Record<AlertType, string> = {
   LOW_STOCK: "Low Stock",

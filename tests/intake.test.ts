@@ -61,8 +61,40 @@ describe("inventory intake helpers", () => {
       purchaseDate: null,
       warrantyExpiresAt: null,
       facturaId: null,
+      purchaseValue: null,
+      valueCurrency: "MXN",
+      usefulLifeMonths: null,
+      residualPercent: null,
       notes: null,
     })).rejects.toBeInstanceOf(ClientInputError);
+  });
+
+  it("single asset intake creates an optional value profile only when value is provided", async () => {
+    const prisma = fakePrisma();
+    await createSingleIntakeAsset(prisma, {
+      assetTag: "QA-VALUE-1",
+      name: "QA Value Laptop",
+      category: "LAPTOP",
+      serialNumber: null,
+      status: "ACTIVE",
+      condition: "GOOD",
+      location: null,
+      areaDepartment: null,
+      brand: "DELL",
+      model: "Latitude",
+      assignedTo: null,
+      purchaseDate: new Date("2026-01-01"),
+      warrantyExpiresAt: null,
+      facturaId: null,
+      purchaseValue: 1200,
+      valueCurrency: "MXN",
+      usefulLifeMonths: 36,
+      residualPercent: 30,
+      notes: null,
+    });
+
+    expect(prisma.valueProfiles).toHaveLength(1);
+    expect(prisma.valueProfiles[0]).toMatchObject({ purchaseValue: 1200, currency: "MXN", usefulLifeMonths: 36 });
   });
 
   it("bulk intake rejects existing tags before creating", async () => {
@@ -138,6 +170,7 @@ function fakePrisma(options: {
     createdMany: 0,
     stockQuantity: options.stockItem?.quantityOnHand ?? 0,
     movements: [] as Array<Record<string, unknown>>,
+    valueProfiles: [] as Array<Record<string, unknown>>,
   };
   const prisma = {
     get createdMany() {
@@ -148,6 +181,9 @@ function fakePrisma(options: {
     },
     get movements() {
       return state.movements;
+    },
+    get valueProfiles() {
+      return state.valueProfiles;
     },
     device: {
       findFirst: async ({ where }: { where: { assetTag?: string | null } }) => where.assetTag === options.duplicateAssetTag ? { id: "existing", assetTag: where.assetTag } : null,
@@ -171,6 +207,16 @@ function fakePrisma(options: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         state.movements.push(data);
         return data;
+      },
+    },
+    assetValueProfile: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        state.valueProfiles.push(data);
+        return data;
+      },
+      createMany: async ({ data }: { data: Record<string, unknown>[] }) => {
+        state.valueProfiles.push(...data);
+        return { count: data.length };
       },
     },
     activityLog: { create: async () => ({}) },

@@ -10,6 +10,7 @@ import {
   normalizeChecklistState,
   validateDecommissionRequest,
 } from "@/lib/decommission";
+import { buildAssetValueSummary } from "@/lib/depreciation";
 import { prisma } from "@/lib/prisma";
 
 type Context = { params: Promise<{ id: string }> };
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest, context: Context) {
             orderBy: { createdAt: "desc" },
             take: 1,
           },
+          valueProfile: true,
         },
       });
       if (!device) throw new ClientInputError("Asset not found.");
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest, context: Context) {
 
       const checklist = normalizeChecklistState(payload.checklist, defaultDecommissionChecklist(device.category));
       const finalStatus = finalStatusForDecommissionReason(payload.reason);
+      const valueSummary = buildAssetValueSummary(device);
 
       const record = await tx.assetDecommissionRecord.create({
         data: {
@@ -69,6 +72,8 @@ export async function POST(request: NextRequest, context: Context) {
           finalStatus,
           checklistJson: JSON.stringify(checklist),
           notes: payload.notes,
+          estimatedValueAtDecommission: valueSummary.currentEstimatedValue,
+          estimatedValueCurrency: device.valueProfile?.currency ?? null,
           approvedByName: payload.approvedByName,
           performedByUserId: actor.id,
           performedByName: actor.name,
@@ -93,6 +98,8 @@ export async function POST(request: NextRequest, context: Context) {
             reason: payload.reason,
             previousStatus: device.status,
             finalStatus,
+            estimatedValueAtDecommission: valueSummary.currentEstimatedValue,
+            estimatedValueCurrency: device.valueProfile?.currency ?? null,
             checklist,
           }),
         },

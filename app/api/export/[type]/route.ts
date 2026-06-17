@@ -43,6 +43,24 @@ export async function GET(_request: Request, context: Context) {
     rows = await prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }] });
   } else if (type === "maintenance-records") {
     rows = await prisma.maintenanceRecord.findMany({ orderBy: { performedAt: "desc" }, take: 2000 });
+  } else if (type === "asset-values") {
+    const devices = await prisma.device.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }], include: { valueProfile: true, factura: true } });
+    rows = devices.map((device) => ({
+      assetTag: device.assetTag,
+      name: device.name,
+      category: device.category,
+      status: device.status,
+      purchaseValue: device.valueProfile?.purchaseValue ?? "",
+      currency: device.valueProfile?.currency ?? "",
+      purchaseDate: (device.valueProfile?.purchaseDate ?? device.purchaseDate)?.toISOString().slice(0, 10) ?? "",
+      usefulLifeMonths: device.valueProfile?.usefulLifeMonths ?? "",
+      residualPercent: device.valueProfile?.residualPercent ?? "",
+      residualValue: device.valueProfile?.residualValue ?? "",
+      currentEstimatedValue: device.valueProfile?.currentEstimatedValue ?? "",
+      lastCalculatedAt: device.valueProfile?.lastCalculatedAt?.toISOString().slice(0, 10) ?? "",
+      facturaNumber: device.factura?.facturaNumber ?? "",
+      notes: device.valueProfile?.notes ?? "",
+    }));
   } else if (type === "tasks") {
     const tasks = await prisma.task.findMany({ orderBy: [{ status: "asc" }, { dueDate: "asc" }, { updatedAt: "desc" }], include: { relatedDevice: true, relatedStockItem: true, relatedFactura: true } });
     rows = tasks.map((task) => ({
@@ -169,7 +187,7 @@ export async function GET(_request: Request, context: Context) {
       createdAt: borrower.createdAt.toISOString(),
     }));
   } else {
-    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, facturas, tasks, po-tracker, tool-links, rma-cases, rma-items, stock-issues, asset-loans, asset-loan-items, or temporary-borrowers.", 400);
+    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, asset-values, facturas, tasks, po-tracker, tool-links, rma-cases, rma-items, stock-issues, asset-loans, asset-loan-items, or temporary-borrowers.", 400);
   }
 
     return new NextResponse(toCsv(rows), {

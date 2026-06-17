@@ -5,7 +5,18 @@ import { useState, type FormEvent } from "react";
 import { Boxes, Tags } from "lucide-react";
 import { categoryLabels, categoryOptions, conditionLabels, conditionOptions, statusLabels, statusOptions } from "@/lib/constants";
 
-type PreviewAsset = { assetTag: string; name: string; serialNumber: string | null; number: number };
+type PreviewAsset = {
+  assetTag: string;
+  name: string;
+  serialNumber: string | null;
+  number: number;
+  valuePreview?: {
+    purchaseValue: number;
+    currency: string;
+    currentEstimatedValue: number | null;
+    usefulLifeMonths: number;
+  } | null;
+};
 
 type PreviewState = {
   total: number;
@@ -149,6 +160,32 @@ export function IntakeBulkAssetsForm() {
             Responsibility target
             <input className={inputClass} name="assignedTo" placeholder="IT Stock, Operations" />
           </label>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2 lg:col-span-4">
+            <summary className="min-h-11 cursor-pointer list-none font-semibold text-slate-800">Advanced batch value defaults</summary>
+            <p className="mt-1 text-sm font-normal text-slate-600">Optional shared IT estimate for every asset in this batch. This is not official accounting book value.</p>
+            <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <label className={labelClass}>
+                Purchase value
+                <input className={inputClass} name="purchaseValue" type="number" min="0.01" step="0.01" placeholder="1000.00" />
+              </label>
+              <label className={labelClass}>
+                Currency
+                <input className={inputClass} name="valueCurrency" defaultValue="MXN" maxLength={8} />
+              </label>
+              <label className={labelClass}>
+                Purchase date
+                <input className={inputClass} name="purchaseDate" type="date" />
+              </label>
+              <label className={labelClass}>
+                Useful life months
+                <input className={inputClass} name="usefulLifeMonths" type="number" min="1" placeholder="Default" />
+              </label>
+              <label className={labelClass}>
+                Residual percent
+                <input className={inputClass} name="residualPercent" type="number" min="0" max="100" step="0.01" placeholder="30" />
+              </label>
+            </div>
+          </details>
           <label className={`${labelClass} md:col-span-2 lg:col-span-4`}>
             Serials, optional
             <textarea className={inputClass} name="serialsText" rows={4} placeholder="One serial per line. First serial maps to first generated tag." />
@@ -170,6 +207,7 @@ export function IntakeBulkAssetsForm() {
                 <p className="font-mono font-semibold text-slate-950">{asset.assetTag}</p>
                 <p className="text-slate-600">{asset.name}</p>
                 {asset.serialNumber ? <p className="text-xs text-slate-500">Serial: {asset.serialNumber}</p> : null}
+                {asset.valuePreview ? <p className="text-xs text-slate-500">Value: {asset.valuePreview.currency} {asset.valuePreview.purchaseValue} / life {asset.valuePreview.usefulLifeMonths} months</p> : null}
               </div>
             ))}
           </div>

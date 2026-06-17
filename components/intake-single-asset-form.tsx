@@ -137,6 +137,28 @@ export function IntakeSingleAssetForm({ facturas }: Props) {
               {facturas.map((factura) => <option key={factura.id} value={factura.id}>{factura.facturaNumber} - {factura.vendorName}</option>)}
             </select>
           </label>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+            <summary className="min-h-11 cursor-pointer list-none font-semibold text-slate-800">Advanced internal asset value</summary>
+            <p className="mt-1 text-sm font-normal text-slate-600">Optional IT estimate only. This is not official accounting book value.</p>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <label className={labelClass}>
+                Purchase value
+                <input className={inputClass} name="purchaseValue" type="number" min="0.01" step="0.01" placeholder="1000.00" />
+              </label>
+              <label className={labelClass}>
+                Currency
+                <input className={inputClass} name="valueCurrency" defaultValue="MXN" maxLength={8} />
+              </label>
+              <label className={labelClass}>
+                Useful life months
+                <input className={inputClass} name="usefulLifeMonths" type="number" min="1" placeholder="Default by category" />
+              </label>
+              <label className={labelClass}>
+                Residual percent
+                <input className={inputClass} name="residualPercent" type="number" min="0" max="100" step="0.01" placeholder="30" />
+              </label>
+            </div>
+          </details>
           <label className={`${labelClass} md:col-span-2`}>
             Notes
             <textarea className={inputClass} name="notes" rows={3} placeholder="Intake notes, accessories, packaging, receiving condition" />
