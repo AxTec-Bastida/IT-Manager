@@ -119,6 +119,7 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
 
   const selectedCount = candidates.filter((candidate) => candidate.selected).length;
   const inputClass = "min-h-12 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none";
+  const sourceLabel = sourceType === "XML" ? "XML" : "PDF text";
 
   return (
     <div className="space-y-5">
@@ -140,7 +141,7 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
           </div>
         </div>
         {!hasPdfAttachment && !hasXmlAttachment ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">Upload a PDF/photo or XML attachment before using assisted extraction.</p> : null}
-        {hasExistingLineItems ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">This factura already has line items. Review carefully before adding duplicates.</p> : null}
+        {hasExistingLineItems ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800">This factura already has line items. Exact duplicate candidates are blocked unless you explicitly allow duplicates after review.</p> : null}
         {xmlMetadata ? <XmlMetadataCard metadata={xmlMetadata} /> : null}
         {warnings.length ? <div className="mt-3 grid gap-2">{warnings.map((warning) => <p key={warning} className="rounded-md bg-slate-50 p-2 text-sm text-slate-700">{warning}</p>)}</div> : null}
         {message ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">{message}</p> : null}
@@ -154,7 +155,10 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-500">Candidate {index + 1}</p>
                   <h3 className="mt-1 text-lg font-semibold text-slate-950">{candidate.description}</h3>
-                  <p className="mt-1 text-sm text-slate-500">Confidence {Math.round(candidate.confidence * 100)}%</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">Source: {sourceLabel}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">Confidence {Math.round(candidate.confidence * 100)}%</span>
+                  </div>
                 </div>
                 <label className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">
                   <input type="checkbox" checked={candidate.selected} onChange={(event) => updateCandidate(index, { selected: event.target.checked })} />
@@ -194,6 +198,14 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
                   Currency
                   <input className={inputClass} value={candidate.currency} maxLength={8} onChange={(event) => updateCandidate(index, { currency: event.target.value.toUpperCase() })} />
                 </label>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Detected totals</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <FactValue label="Detected total" value={candidate.totalCost != null ? formatMoney(candidate.totalCost, candidate.currency) : "Not detected"} />
+                    <FactValue label="Quantity x unit" value={candidate.quantity && candidate.unitCost != null ? formatMoney(candidate.quantity * candidate.unitCost, candidate.currency) : "Needs review"} />
+                    <FactValue label="Review status" value={candidate.warnings.length ? "Warnings present" : "Looks consistent"} />
+                  </div>
+                </div>
                 <label className="grid gap-1 text-sm font-semibold text-slate-700 md:col-span-2">
                   Notes
                   <textarea className={inputClass} rows={3} value={candidate.notes ?? ""} onChange={(event) => updateCandidate(index, { notes: event.target.value })} />
@@ -216,6 +228,7 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
 
       {candidates.length ? (
         <div className="sticky bottom-20 z-10 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur lg:bottom-0">
+          {hasExistingLineItems ? <p className="mb-3 rounded-md bg-amber-50 p-2 text-sm text-amber-800">Duplicate check is active for this factura. Leave confirmation off unless you intentionally need another matching row.</p> : null}
           <label className="mb-3 flex items-start gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={allowDuplicates} onChange={(event) => setAllowDuplicates(event.target.checked)} />
             Allow possible duplicates after review
@@ -228,6 +241,19 @@ export function FacturaExtractionReview({ facturaId, hasExistingLineItems, hasPd
       ) : null}
     </div>
   );
+}
+
+function FactValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-white p-2">
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function formatMoney(value: number, currency: string) {
+  return `${currency || "MXN"} ${Number(value).toFixed(2)}`;
 }
 
 function XmlMetadataCard({ metadata }: { metadata: XmlMetadata }) {

@@ -56,6 +56,31 @@ describe("factura line item helpers", () => {
     expect(candidates.some((candidate) => candidate.description.toLowerCase().includes("subtotal"))).toBe(false);
   });
 
+  it("parses Spanish/Mexican factura text lines and skips headers and totals", () => {
+    const candidates = parseFacturaLineItemCandidates(`
+      FACTURA QA-PHASE-66
+      Emisor QA Vendor RFC XAXX010101000
+      Cantidad ClaveProdServ No. Identificación Unidad Descripción Valor Unitario Importe
+      1 QA-PDF-001 PZA QA PDF Smoke Asset 1,000.00 1,000.00 MXN
+      2 Zebra cs6080 Cable PZA 100,50 201,00 MXN
+      Subtotal 1,201.00
+      IVA 192.16
+      Total 1,393.16 MXN
+      Forma de pago 03 Transferencia
+    `);
+
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]).toMatchObject({ description: "QA-PDF-001 PZA QA PDF Smoke Asset", quantity: 1, unitCost: 1000, totalCost: 1000 });
+    expect(candidates[1]).toMatchObject({ description: "Zebra cs6080 Cable PZA", quantity: 2, unitCost: 100.5, totalCost: 201 });
+    expect(candidates.some((candidate) => /cantidad|subtotal|forma de pago/i.test(candidate.description))).toBe(false);
+  });
+
+  it("strips plain leading row numbers from PDF table descriptions", () => {
+    const [candidate] = parseFacturaLineItemCandidates("1 Dell Latitude 5520 SKU LAT-5520 1 12000.00 12000.00 MXN");
+
+    expect(candidate).toMatchObject({ description: "Dell Latitude 5520 SKU LAT-5520", quantity: 1, unitCost: 12000, totalCost: 12000 });
+  });
+
   it("handles currency parsing and low confidence warnings", () => {
     expect(parseMoneyValue("$1,234.56")).toBe(1234.56);
     expect(parseMoneyValue("1.234,56")).toBe(1234.56);
@@ -75,6 +100,14 @@ describe("factura line item helpers", () => {
     expect(createRoute).toContain('requirePermission("inventory.write")');
     expect(createRoute).toContain("facturaLineItemSchema");
     expect(createRoute).toContain("Possible duplicate line item");
+  });
+
+  it("shows source labels, duplicate warning copy, and selectable-text guidance in the review UI", async () => {
+    const component = await fs.readFile(path.join(process.cwd(), "components", "factura-extraction-review.tsx"), "utf8");
+
+    expect(component).toContain("Source:");
+    expect(component).toContain("Exact duplicate candidates are blocked");
+    expect(component).toContain("No selectable line item candidates were found");
   });
 
   it("labels factura line item value sources", () => {

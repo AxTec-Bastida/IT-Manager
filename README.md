@@ -985,7 +985,7 @@ The Data Quality page shows the latest ImportRun, warning count, skipped duplica
 
 Asset Value / Depreciation review flags active assets missing purchase value, missing purchase date, or stale internal estimates. These values are for IT lifecycle context and decommission snapshots only, not accounting. Use the asset detail `Asset Value` card or `/devices/[id]/value` to edit permitted records.
 
-Factura Line Items / Value Matching shows structured invoice rows that need asset links or value application. Add line items from a factura detail page, or use the assisted `/facturas/[id]/extract` workflow for selectable-text PDFs. Extraction runs locally with `pdftotext` when available, returns editable candidates only, and never creates line items, links assets, or applies asset values until the user explicitly confirms. Scanned/image-only PDFs should be entered manually until OCR is added in a future phase.
+Factura Line Items / Value Matching shows structured invoice rows that need asset links or value application. Add line items from a factura detail page, or use the assisted `/facturas/[id]/extract` workflow for selectable-text PDFs or CFDI XML. PDF extraction runs locally with `pdftotext` when available, returns editable candidates only, and never creates line items, links assets, or applies asset values until the user explicitly confirms. Scanned/image-only PDFs should be entered manually until OCR is added in a future phase. XML extraction is preferred when the provider supplies CFDI XML because Concepto rows are exact.
 
 Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, asset value review, factura line item review, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
 
@@ -1836,9 +1836,9 @@ Factura line item workflow:
 
 1. Open `/facturas/[id]`.
 2. Choose `Add Line Item` for manual entry, or choose `Extract` to review assisted candidates.
-3. PDF text extraction uses local `pdftotext` for selectable-text PDFs only.
+3. PDF text extraction uses local `pdftotext` for selectable-text PDFs only. It is intended for text PDFs, not scanned/image-only PDFs.
 4. XML extraction parses local CFDI XML and can prefill exact Concepto candidates, including description, quantity, unit cost, importe, SKU/noIdentificacion, UUID, folio, vendor/RFC, date, currency, subtotal, and total.
-5. Review and edit candidates, then explicitly choose `Create selected line items`.
+5. Review source, confidence, warnings, detected totals, quantity, unit cost, and currency for every candidate, then explicitly choose `Create selected line items`.
 6. Open `Link` on the line item and link up to the purchased quantity of matching assets.
 7. Choose `Apply Value` only after reviewing the linked assets. Existing asset values are skipped by default unless overwrite is explicitly selected.
 8. Review `/data-quality` for factura XML with no line items, line items with unlinked quantity, XML total mismatches, or linked assets missing values.
@@ -1846,7 +1846,9 @@ Factura line item workflow:
 Line item safety rules:
 
 - Line items do not run OCR, do not fetch remote XML entities, and do not parse scanned/image-only invoices.
+- A PDF with selectable text is a `TEXT_PDF`. A PDF with no extracted text is treated as a scanned/image-only PDF and should use manual entry for now. Mixed PDFs should be reviewed manually because only the selectable text layer is parsed.
 - PDF/XML extraction never creates line items automatically; every candidate requires explicit review and confirmation.
+- If a factura already has line items, exact duplicate extraction candidates are blocked unless the user explicitly enables duplicate confirmation after review.
 - XML upload rejects unsafe/non-XML files and XML extraction rejects external entity or stylesheet declarations.
 - A line item cannot link more assets than its quantity.
 - Existing asset values are preserved unless overwrite is explicitly selected.

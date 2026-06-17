@@ -30,6 +30,10 @@ type ExtractableFactura = Pick<Factura, "id" | "storedFilename" | "filePath" | "
 
 const totalLinePattern = /\b(subtotal|sub total|iva|impuesto|tax|total|gran total|amount due|balance due|saldo)\b/i;
 const currencyPattern = /\b(MXN|USD|CAD)\b|\$\s*/i;
+const tableHeaderPattern = /\b(cantidad|cant\.?|descripcion|descripción|concepto|valor\s+unitario|precio\s+unitario|importe|unidad|claveprodserv|no\.?\s*identificaci[oó]n)\b/i;
+const metadataStartPattern =
+  /^(?:factura|invoice|fecha|date|cliente|customer|vendor|proveedor|emisor|receptor|rfc|direccion|direcci[oó]n|address|folio|uuid|moneda|forma\s+de\s+pago|m[eé]todo\s+de\s+pago|condiciones\s+de\s+pago|lugar\s+de\s+expedici[oó]n|uso\s+cfdi|sello|cadena\s+original|certificado|regimen|r[eé]gimen)\b/i;
+const metadataStrongPattern = /\b(?:rfc|uuid|forma\s+de\s+pago|m[eé]todo\s+de\s+pago|uso\s+cfdi|sello|cadena\s+original|certificado)\b/i;
 
 export function resolveFacturaUploadPath(factura: ExtractableFactura) {
   if (!factura.storedFilename && !factura.filePath) {
@@ -100,9 +104,10 @@ export function parseFacturaLineItemCandidates(text: string): FacturaExtractionC
 export function parseMoneyValue(value: string) {
   let text = value
     .replace(/\b(MXN|USD|CAD)\b/gi, "")
-    .replace(/[$,\s]/g, (match) => (match === "," ? "," : ""))
+    .replace(/\$/g, "")
     .trim();
   if (!text) return null;
+  if (!/^-?\d[\d.,]*$/.test(text)) return null;
   const comma = text.lastIndexOf(",");
   const dot = text.lastIndexOf(".");
   if (comma >= 0 && dot >= 0) {
@@ -117,6 +122,8 @@ export function parseMoneyValue(value: string) {
 
 function parseCandidateLine(line: string): FacturaExtractionCandidate | null {
   if (totalLinePattern.test(line)) return null;
+  if (looksLikeTableHeader(line)) return null;
+  if (looksLikeInvoiceMetadata(line)) return null;
   const tokens = line.split(/\s+/);
   if (tokens.length < 4) return null;
 
@@ -135,15 +142,18 @@ function parseCandidateLine(line: string): FacturaExtractionCandidate | null {
   let totalCost = totalNumber?.value ?? null;
 
   const xMatch = line.match(/^(.+?)\s+(\d{1,5})\s*(?:x|@)\s*([$\d.,]+)(?:\s+([$\d.,]+))?\s*$/i);
-  let descriptionEndIndex = quantityNumber?.index ?? numericIndexes[0].index;
+  const descriptionEndIndex = quantityNumber?.index ?? numericIndexes[0].index;
+  let descriptionText = tokens.slice(0, descriptionEndIndex).join(" ");
   if (xMatch) {
     quantity = Number(xMatch[2]);
     unitCost = parseMoneyValue(xMatch[3]);
     totalCost = xMatch[4] ? parseMoneyValue(xMatch[4]) : unitCost && quantity ? roundCurrency(unitCost * quantity) : null;
-    descriptionEndIndex = -1;
+    descriptionText = xMatch[1];
+  } else if (quantity && quantityNumber?.index === 0 && unitNumber) {
+    descriptionText = tokens.slice(1, unitNumber.index).join(" ");
   }
 
-  const description = cleanDescription(xMatch?.[1] ?? tokens.slice(0, descriptionEndIndex).join(" "));
+  const description = cleanDescription(descriptionText);
   if (!description || description.length < 3) return null;
   if (looksLikeInvoiceMetadata(description)) return null;
 
@@ -186,10 +196,13 @@ function normalizeWhitespace(value: string) {
 }
 
 function cleanDescription(value: string) {
-  return normalizeWhitespace(value)
+  const cleaned = normalizeWhitespace(value)
     .replace(/^\d+\s*[-.)]\s*/, "")
+    .replace(/^\d{1,4}\s+(?=\D)/, "")
+    .replace(/\b(?:ClaveProdServ|No\.?\s*Identificaci[oó]n|Cantidad|Unidad|Valor\s+Unitario|Precio\s+Unitario|Importe|Descripci[oó]n|Descripcion)\b/gi, "")
     .replace(/\b(?:MXN|USD|CAD)\b/gi, "")
     .trim();
+  return normalizeWhitespace(cleaned);
 }
 
 function detectCurrency(value: string) {
@@ -216,7 +229,12 @@ function detectModel(value: string) {
 }
 
 function looksLikeInvoiceMetadata(description: string) {
-  return /\b(factura|invoice|fecha|date|cliente|customer|vendor|rfc|direccion|address|folio)\b/i.test(description);
+  return metadataStartPattern.test(description) || metadataStrongPattern.test(description);
+}
+
+function looksLikeTableHeader(line: string) {
+  const matches = line.match(new RegExp(tableHeaderPattern.source, "gi")) ?? [];
+  return matches.length >= 2 && !/\d+[.,]\d{2}/.test(line);
 }
 
 function roundCurrency(value: number) {
