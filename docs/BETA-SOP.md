@@ -25,14 +25,18 @@ Current Phase 55 phone beta status:
 - Real teammate phone/PWA install/camera permission still must be confirmed on the physical device and browser used for beta.
 - If phone camera is blocked on `http://192.168.0.67:3000`, use manual scan or scan-from-photo/gallery upload and plan HTTPS/trusted-origin setup as a future hardening task.
 
-Current Phase 61 HTTPS/trusted-origin guidance:
+Current Phase 62 HTTPS/trusted-origin runtime:
 
+- Preferred beta URL / `APP_BASE_URL`: `https://warehouse-it.local`.
+- Local runtime path for reviewed Caddy binary/config: `C:\Tools\caddy`.
+- Server hosts-file test entry: `127.0.0.1 warehouse-it.local`.
 - Plain HTTP LAN URLs can block or destabilize phone camera, barcode scanning, photo capture, and PWA install.
 - Recommended beta path is LAN-only HTTPS through Caddy reverse proxy to `127.0.0.1:3000`.
 - Alternate path is mkcert plus an approved local HTTPS reverse proxy.
 - Do not expose the app publicly, port-forward it, or publish tunnel URLs during beta.
 - Do not commit generated certificates, private keys, local CA files, `.env`, uploads, backups, or database files.
-- Once HTTPS is configured, update `.env` to `APP_BASE_URL=https://warehouse-it.local` or the approved HTTPS host and restart the app.
+- Keep `http://192.168.0.67:3000` only as fallback if Caddy/certificate trust needs repair.
+- Current server-side HTTPS proxy validation passed with `curl.exe -k`; local browser/phone trust still requires installing the Caddy local CA on the test device before real camera/PWA validation.
 
 ## Migration Safety
 
@@ -192,17 +196,45 @@ Recommended: Caddy reverse proxy.
 2. Configure Caddy with a reviewed local Caddyfile:
 
    ```text
+   {
+     skip_install_trust
+   }
+
    https://warehouse-it.local {
+     tls internal
      reverse_proxy 127.0.0.1:3000
    }
    ```
 
 3. Make `warehouse-it.local` resolve to the server IP through local DNS or hosts-file testing.
-4. Trust the Caddy local CA/certificate on the test phone if required.
+4. `tls internal` uses Caddy's local CA. `skip_install_trust` prevents hidden startup prompts; trust the Caddy local CA/certificate on the test phone before relying on camera/PWA testing.
 5. Set `APP_BASE_URL=https://warehouse-it.local` in `.env`.
 6. Restart the app and Caddy.
 7. Run `npm run doctor`; HTTP LAN should warn, HTTPS should avoid the phone-camera warning.
 8. Run the Phone Smoke Checklist.
+
+Runtime commands for this beta machine:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run start
+```
+
+In a second terminal:
+
+```powershell
+C:\Tools\caddy\caddy.exe run --config C:\Tools\caddy\Caddyfile
+```
+
+Server-side HTTPS smoke checks:
+
+```powershell
+curl.exe -k https://warehouse-it.local/api/health
+curl.exe -k -I https://warehouse-it.local/login
+curl.exe -k -I https://warehouse-it.local/manifest.webmanifest
+```
+
+The `-k` flag is only for server-side proxy validation while device trust is being installed. It is not a substitute for trusting the Caddy local CA on the phone.
 
 Alternate: mkcert.
 

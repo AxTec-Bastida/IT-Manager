@@ -193,6 +193,7 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("SMTP_FROM");
     expect(sop).toContain("HTTPS Setup Runbook");
     expect(sop).toContain("https://warehouse-it.local");
+    expect(sop).toContain("C:\\Tools\\caddy");
     expect(registerTask).toContain("Warehouse IT Inventory Jobs");
     expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(registerTask).toContain("jobs:run-due");
@@ -215,6 +216,8 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("Plain HTTP LAN URLs can block");
     expect(gitignore).toContain("*.key");
     expect(gitignore).toContain("/certs/");
+    expect(caddyfile).toContain("skip_install_trust");
+    expect(caddyfile).toContain("tls internal");
     expect(caddyfile).toContain("reverse_proxy 127.0.0.1:3000");
     expect(caddyfile).not.toMatch(/PRIVATE KEY|BEGIN CERTIFICATE|BEGIN .*KEY/);
   });

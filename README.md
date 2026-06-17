@@ -187,14 +187,19 @@ Current HTTP fallback:
 4. Use a local hostname such as `warehouse-it.local`:
 
    ```text
+   {
+     skip_install_trust
+   }
+
    https://warehouse-it.local {
+     tls internal
      reverse_proxy 127.0.0.1:3000
    }
    ```
 
 5. Point `warehouse-it.local` to the server IP through local DNS or a hosts-file entry on test devices where appropriate.
 6. Start Caddy manually for testing or install it as a Windows service after the config is reviewed.
-7. If using Caddy's local CA/internal certificate, install and trust the relevant local CA on the phone before beta users rely on it.
+7. `tls internal` keeps the beta LAN-only by using Caddy's local CA instead of public certificate issuance. `skip_install_trust` prevents hidden startup prompts; install and trust the relevant local CA on the phone before beta users rely on it.
 8. Update local `.env`:
 
    ```text
@@ -204,6 +209,24 @@ Current HTTP fallback:
 9. Restart the app and run `npm run doctor`. A plain HTTP LAN `APP_BASE_URL` should warn; an HTTPS URL should pass.
 
 Do not commit Caddy-generated certificates, private keys, local CA files, or edited configs that contain local secrets.
+
+Phase 62 local runtime notes:
+
+- Caddy v2.11.4 can be installed globally with Winget when the Windows certificate store allows it, or run from a reviewed local tools folder such as `C:\Tools\caddy`.
+- The runtime Caddyfile should use `skip_install_trust`, `tls internal`, and `reverse_proxy 127.0.0.1:3000`.
+- Start the app first with `npm run start`, then start Caddy with:
+
+  ```powershell
+  C:\Tools\caddy\caddy.exe run --config C:\Tools\caddy\Caddyfile
+  ```
+
+- Validate the proxy from the server with:
+
+  ```powershell
+  curl.exe -k https://warehouse-it.local/api/health
+  ```
+
+- If browser or phone testing shows a certificate authority warning, HTTPS is serving but the device does not yet trust the Caddy local CA. Install/trust the Caddy local root certificate on that device before relying on camera/PWA testing. Do not bypass certificate warnings for real beta users unless Admin explicitly accepts the risk.
 
 ### Option B: mkcert Local Certificate
 
@@ -279,7 +302,7 @@ The current controlled beta runtime is Windows-native:
 
 Server-side LAN checks passed for the beta URL on `/api/health`, `/login`, `/scan`, `/devices`, `/reports`, `/photos/compliance`, and `/map`. The PWA manifest is available and includes PNG icons plus the SVG icon for broader Android/iOS install compatibility.
 
-Real phone testing still needs to be completed on the actual teammate device/browser. Record the device/browser, PWA install result, camera permission result, manual scan fallback result, and photo upload result in the beta notes. If phone camera access is blocked over `http://192.168.0.67:3000`, continue beta with manual scan, scan-from-photo, and gallery upload. Treat HTTPS/trusted-origin setup as a future hardening task rather than adding it ad hoc during beta.
+Real phone testing still needs to be completed on the actual teammate device/browser. Record the device/browser, PWA install result, camera permission result, manual scan fallback result, and photo upload result in the beta notes. If phone camera access is blocked over the HTTPS beta URL, check local DNS/hosts resolution and certificate trust first, then continue beta with manual scan, scan-from-photo, and gallery upload as fallback.
 
 ### Prisma Migration Baseline Safety
 
@@ -768,7 +791,7 @@ npm run build
 npm start
 ```
 
-By default, the app runs on port `3000`. `next start` listens on `0.0.0.0`, so LAN users can open the configured beta URL if Windows Firewall and the network allow it. The current beta URL is `http://192.168.0.67:3000`; if that IP changes, update `.env`, `APP_BASE_URL`, and the beta SOP. For reliable phone camera/PWA behavior, plan an HTTPS/trusted-origin setup later with Caddy, Nginx, or an internal certificate.
+By default, the app runs on port `3000`. For the controlled beta, keep `next start` on `127.0.0.1:3000` behind the LAN-only HTTPS reverse proxy and use `https://warehouse-it.local` as the preferred phone URL. Keep `http://192.168.0.67:3000` only as a fallback while DNS/certificate trust is being repaired.
 
 Before Prisma migrations or schema changes, run `npm run backup`. Do not run `npm run prisma:seed` on real data unless you are intentionally resetting a development database and have set `ALLOW_DESTRUCTIVE_SEED=true`. The Phase 54 baseline records the existing real SQLite schema in `_prisma_migrations`, so future production updates should run `npx prisma migrate deploy` after backup and before `npx prisma generate`. SQLite is appropriate for local/small internal use; for multi-user/team production, consider Postgres later rather than stretching local SQLite beyond its comfort zone.
 
