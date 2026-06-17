@@ -12,8 +12,8 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, manual l
 - Records printer/fixed-asset maintenance history, parts used, cleaning dates, supply replacement dates, and next due dates.
 - Generates central operational alerts for IPAM conflicts, low stock, printer maintenance, warranty expiration, RMA follow-ups, loan overdue checks, stock loan overdue checks, and data integrity review.
 - Stores asset photo metadata with files on disk for overview photos, asset tags, serial labels, condition, damage, installed-location evidence, RMA/return condition, and other documentation.
-- Tracks facturas/purchase records, attached factura PDFs/photos, linked assets, linked stock items, vendor details, PO numbers, costs, and warranty dates.
-- Tracks optional internal asset value estimates with straight-line depreciation for IT review and decommission snapshots. These estimates are not official accounting book value.
+- Tracks facturas/purchase records, attached factura PDFs/photos, structured line items, linked assets, linked stock items, vendor details, PO numbers, costs, and warranty dates.
+- Tracks optional internal asset value estimates with straight-line depreciation for IT review and decommission snapshots. These estimates can be manually entered or applied from linked factura line items, and are not official accounting book value.
 - Adds a lightweight IT Workspace for quick follow-up tasks, PO tracker notes, and common IT resource links.
 - Tracks RMA / repair batches for sending groups of devices to repair, following up, and receiving returned devices without deleting assignment history.
 - Sends manual SMTP email receipts and summaries for assignments, returns, asset loans, stock issues, stock returns, and RMA cases, with every attempt recorded in `EmailLog`.
@@ -27,7 +27,7 @@ Phone-first warehouse IT inventory tracking with IPAM, camera scanning, manual l
 - Uses the phone camera to scan QR codes and barcodes for device labels, serial numbers, MACs, IP labels, and internal tags.
 - Generates safe asset tag QR/barcode label previews and Zebra ZPL exports without encoding sensitive data.
 - Shows stored manual asset location context on a warehouse map.
-- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, asset values, facturas, tasks, PO tracker notes, tool links, RMA cases/items, asset loans/items, conflicts, and scan results.
+- Imports and exports CSV for devices, ranges, stock items, stock movements, maintenance records, asset values, facturas, factura line item review, tasks, PO tracker notes, tool links, RMA cases/items, asset loans/items, conflicts, and scan results.
 - Includes sample warehouse data and intentional conflicts for testing.
 
 ## Stack
@@ -869,7 +869,9 @@ The Data Quality page shows the latest ImportRun, warning count, skipped duplica
 
 Asset Value / Depreciation review flags active assets missing purchase value, missing purchase date, or stale internal estimates. These values are for IT lifecycle context and decommission snapshots only, not accounting. Use the asset detail `Asset Value` card or `/devices/[id]/value` to edit permitted records.
 
-Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, asset value review, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
+Factura Line Items / Value Matching shows structured invoice rows that need asset links or value application. Add line items from a factura detail page, link only the matching purchased assets, then use Apply Value to create or update `AssetValueProfile` records from the line item unit cost. The apply step is explicit and defaults to preserving existing asset values unless overwrite is selected.
+
+Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, asset value review, factura line item review, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
 
 ## RMA / Repair Workflow
 
@@ -1710,7 +1712,24 @@ Workflow:
 4. Select assets and stock items to link.
 5. Save.
 
-Asset detail pages show linked factura information. Stock detail pages show linked factura information. Factura detail pages show linked assets, linked stock items, and linked stock movements.
+Asset detail pages show linked factura information. Stock detail pages show linked factura information. Factura detail pages show linked assets, linked stock items, linked stock movements, and structured line items when entered.
+
+Factura line item workflow:
+
+1. Open `/facturas/[id]`.
+2. Choose `Add Line Item`.
+3. Enter description, optional SKU/model/category, quantity, unit cost, currency, and notes.
+4. Open `Link` on the line item and link up to the purchased quantity of matching assets.
+5. Choose `Apply Value` only after reviewing the linked assets. Existing asset values are skipped by default unless overwrite is explicitly selected.
+6. Review `/data-quality` for factura line items with unlinked quantity or linked assets missing values.
+
+Line item safety rules:
+
+- Line items do not run OCR and do not parse factura PDFs automatically.
+- A line item cannot link more assets than its quantity.
+- Existing asset values are preserved unless overwrite is explicitly selected.
+- Applying a line item changes only the asset value profile and writes activity logs; it does not change asset tag, serial, status, assignments, loans, RMA, photos, stock, or factura file data.
+- Asset Value CSV includes source factura and line item fields when values were applied from a line item.
 
 CSV exports include:
 
@@ -1718,6 +1737,7 @@ CSV exports include:
 - Stock item factura number, vendor, and purchase date.
 - Stock movement factura number and vendor.
 - Full `facturas` export.
+- Data Quality `factura-line-item-review` export.
 
 ## Backup Warning
 

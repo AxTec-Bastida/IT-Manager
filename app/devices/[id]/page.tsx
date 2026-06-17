@@ -20,6 +20,7 @@ import { buildAnchorDisplayPath } from "@/lib/map-anchors";
 import { decommissionReasonLabels } from "@/lib/decommission";
 import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel } from "@/lib/maintenance";
 import { buildAssetValueSummary, canEditAssetValue, canViewAssetValue, formatAssetAge, formatMoney } from "@/lib/depreciation";
+import { lineItemValueSourceLabel } from "@/lib/factura-line-items";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,15 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         sourceRelationships: { include: { targetDevice: true }, orderBy: { createdAt: "desc" } },
         targetRelationships: { include: { sourceDevice: true }, orderBy: { createdAt: "desc" } },
         decommissionRecords: { orderBy: { performedAt: "desc" } },
-        valueProfile: true,
+        valueProfile: {
+          include: {
+            sourceFacturaLineItemAsset: {
+              include: {
+                lineItem: { include: { factura: true } },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.device.findMany({ include: { ipRange: true } }),
@@ -96,6 +105,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const latestDecommissionRecord = device.decommissionRecords[0];
   const valueSummary = buildAssetValueSummary(device);
   const valueCurrency = device.valueProfile?.currency ?? "MXN";
+  const valueSource = lineItemValueSourceLabel(device.valueProfile ?? undefined);
 
   const fields = [
     ["Asset tag", device.assetTag || "-"],
@@ -353,6 +363,14 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                   </div>
                 ) : null}
                 {valueSummary.reason ? <p className="text-xs text-slate-500">{valueSummary.reason}</p> : null}
+                {valueSource ? (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-medium uppercase text-emerald-700">Source: {valueSource.label}</p>
+                    <p className="mt-1 font-semibold text-emerald-950">{valueSource.facturaNumber} / {valueSource.vendorName}</p>
+                    <p className="text-xs text-emerald-800">{valueSource.lineItemDescription} / {formatMoney(valueSource.unitCost, valueSource.currency)}</p>
+                    <Link href={`/facturas/${valueSource.facturaId}`} className="mt-2 inline-flex min-h-10 items-center justify-center rounded-md bg-white px-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200">Open factura</Link>
+                  </div>
+                ) : null}
               </div>
               {editAssetValue ? (
                 <Link href={`/devices/${device.id}/value`} className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">

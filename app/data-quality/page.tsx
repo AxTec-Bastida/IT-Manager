@@ -51,6 +51,7 @@ export default async function DataQualityPage() {
         <SummaryCard icon={Network} label="Duplicate IPs" value={review.duplicateIps.length} helper={review.duplicateIps.length ? "Review before relying on IPAM" : "No duplicate active IPs"} />
         <SummaryCard icon={Network} label="Duplicate MACs" value={review.duplicateMacs.length} helper={review.duplicateMacs.length ? "Review hardware address conflicts" : "No duplicate active MACs"} />
         <SummaryCard icon={ReceiptText} label="Unlinked Facturas" value={review.unlinkedFacturas.length} helper="No linked assets or stock" />
+        <SummaryCard icon={ReceiptText} label="Factura Lines" value={review.facturaLineItems.lineItemsWithUnlinkedQuantity.length} helper={`${review.facturaLineItems.linkedAssetsMissingValue.length} linked assets missing values`} />
         <SummaryCard icon={ShieldCheck} label="Skipped Duplicates" value={review.skippedDuplicates.length} helper="Workbook duplicates skipped by importer" />
         <SummaryCard icon={Wrench} label="Active RMAs" value={review.totals.activeRmas} helper={`${review.totals.devicesInRma} devices currently in RMA`} />
         <SummaryCard icon={Package} label="Suspicious Stock" value={review.suspiciousStock.length} helper="Comment-like imported rows" />
@@ -292,6 +293,59 @@ export default async function DataQualityPage() {
           </div>
         ) : (
           <EmptyState title="All facturas are linked" description="Every factura has at least one linked asset or stock item." />
+        )}
+      </ReviewSection>
+
+      <ReviewSection
+        title="Factura Line Items / Value Matching"
+        description="Structured factura rows used to connect purchased quantities to assets and optional internal value estimates. Review only until you explicitly link or apply values."
+        action={<ExportLink type="factura-line-item-review" />}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard icon={ReceiptText} label="Line items" value={review.facturaLineItems.totalLineItems} helper="Structured factura rows" />
+          <SummaryCard icon={AlertTriangle} label="Unlinked quantity" value={review.facturaLineItems.lineItemsWithUnlinkedQuantity.length} helper="Quantity not fully linked to assets" />
+          <SummaryCard icon={CircleDollarSign} label="Linked missing value" value={review.facturaLineItems.linkedAssetsMissingValue.length} helper="Linked assets without value profile" />
+          <SummaryCard icon={AlertTriangle} label="Multi-line links" value={review.facturaLineItems.assetsLinkedToMultipleLineItems.length} helper="Assets linked to multiple lines" />
+        </div>
+        {review.facturaLineItems.lineItemsWithUnlinkedQuantity.length || review.facturaLineItems.linkedAssetsMissingValue.length || review.facturaLineItems.assetsLinkedToMultipleLineItems.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {review.facturaLineItems.lineItemsWithUnlinkedQuantity.slice(0, 12).map((lineItem) => (
+              <MobileCard key={lineItem.id}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">Unlinked factura quantity</p>
+                    <h3 className="text-lg font-semibold text-slate-950">{lineItem.description}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{lineItem.factura.facturaNumber} / {lineItem.factura.vendorName}</p>
+                    <p className="mt-2 text-sm text-amber-800">{lineItem.linkedCount} linked of {lineItem.quantity}; {lineItem.unlinkedQuantity} remaining.</p>
+                  </div>
+                  <Badge className="w-fit bg-amber-50 text-amber-800 ring-amber-200">Link assets</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/facturas/${lineItem.factura.id}/line-items/${lineItem.id}/link-assets`}>Link assets</ActionLink>
+                  <ActionLink href={`/facturas/${lineItem.factura.id}`}>Open factura</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+            {review.facturaLineItems.linkedAssetsMissingValue.slice(0, 12).map((asset) => (
+              <MobileCard key={asset.id}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">Linked asset missing value</p>
+                    <h3 className="text-lg font-semibold text-slate-950">{asset.assetTag || asset.name}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{asset.name} / {categoryLabels[asset.category as keyof typeof categoryLabels] ?? asset.category}</p>
+                    <p className="mt-2 text-sm text-slate-500">{asset.facturaLineItemLinks?.[0]?.lineItem.factura.facturaNumber ?? "Factura line item"}: {asset.facturaLineItemLinks?.[0]?.lineItem.description ?? "line item"}</p>
+                  </div>
+                  <Badge className="w-fit bg-sky-50 text-sky-800 ring-sky-200">Apply value</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/devices/${asset.id}/value`}>Open value</ActionLink>
+                  <ActionLink href={`/facturas/${asset.facturaLineItemLinks?.[0]?.lineItem.factura.id ?? ""}`}>Open factura</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="Factura line matching is clear" description="No linked line items need asset/value review right now." />
         )}
       </ReviewSection>
 

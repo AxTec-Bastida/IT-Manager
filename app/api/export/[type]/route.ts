@@ -44,7 +44,21 @@ export async function GET(_request: Request, context: Context) {
   } else if (type === "maintenance-records") {
     rows = await prisma.maintenanceRecord.findMany({ orderBy: { performedAt: "desc" }, take: 2000 });
   } else if (type === "asset-values") {
-    const devices = await prisma.device.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }], include: { valueProfile: true, factura: true } });
+    const devices = await prisma.device.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      include: {
+        factura: true,
+        valueProfile: {
+          include: {
+            sourceFacturaLineItemAsset: {
+              include: {
+                lineItem: { include: { factura: true } },
+              },
+            },
+          },
+        },
+      },
+    });
     rows = devices.map((device) => ({
       assetTag: device.assetTag,
       name: device.name,
@@ -58,6 +72,11 @@ export async function GET(_request: Request, context: Context) {
       residualValue: device.valueProfile?.residualValue ?? "",
       currentEstimatedValue: device.valueProfile?.currentEstimatedValue ?? "",
       lastCalculatedAt: device.valueProfile?.lastCalculatedAt?.toISOString().slice(0, 10) ?? "",
+      valueSourceType: device.valueProfile?.sourceType ?? "",
+      sourceFacturaNumber: device.valueProfile?.sourceFacturaLineItemAsset?.lineItem.factura.facturaNumber ?? "",
+      sourceFacturaVendor: device.valueProfile?.sourceFacturaLineItemAsset?.lineItem.factura.vendorName ?? "",
+      sourceLineItemDescription: device.valueProfile?.sourceFacturaLineItemAsset?.lineItem.description ?? "",
+      sourceLineItemUnitCost: device.valueProfile?.sourceFacturaLineItemAsset?.lineItem.unitCost ?? "",
       facturaNumber: device.factura?.facturaNumber ?? "",
       notes: device.valueProfile?.notes ?? "",
     }));

@@ -37,6 +37,7 @@ type ReviewDevice = {
   rmaItems?: Array<{ result?: string | null; returnedAt?: Date | string | null }>;
   assignmentItems?: Array<{ returnedAt?: Date | string | null }>;
   assetLoanItems?: Array<{ returnedAt?: Date | string | null }>;
+  facturaLineItemLinks?: Array<{ id: string; lineItem: { id: string; description: string; quantity: number; factura: { id: string; facturaNumber: string; vendorName: string } } }>;
   aliases?: Array<{ aliasType: string; value: string }>;
   sourceRelationships?: Array<{ relationshipType: string; status: string; targetDeviceId: string }>;
   targetRelationships?: Array<{ relationshipType: string; status: string; sourceDeviceId: string }>;
@@ -56,6 +57,8 @@ type ReviewDevice = {
     residualValue: number | null;
     currentEstimatedValue: number | null;
     lastCalculatedAt: Date | null;
+    sourceType?: string | null;
+    sourceFacturaLineItemAssetId?: string | null;
   } | null;
 };
 
@@ -69,6 +72,7 @@ type ReviewFactura = {
   originalFilename?: string | null;
   assets?: unknown[];
   stockItems?: unknown[];
+  lineItems?: Array<{ id: string; description: string; quantity: number; unitCost: number; currency: string; assetLinks: Array<{ id: string; deviceId: string; device?: ReviewDevice }> }>;
 };
 
 type ReviewStockItem = {
@@ -278,6 +282,30 @@ export function summarizeAssetValueQuality(devices: ReviewDevice[], now = new Da
     missingPurchaseDate,
     staleEstimate,
     reviewRows,
+  };
+}
+
+export function summarizeFacturaLineItemQuality(facturas: ReviewFactura[], devices: ReviewDevice[]) {
+  const lineItems = facturas.flatMap((factura) => (factura.lineItems ?? []).map((lineItem) => ({ ...lineItem, factura })));
+  const facturasWithNoLineItems = facturas.filter((factura) => (factura.lineItems?.length ?? 0) === 0);
+  const lineItemsWithUnlinkedQuantity = lineItems
+    .map((lineItem) => ({ ...lineItem, linkedCount: lineItem.assetLinks.length, unlinkedQuantity: Math.max(0, lineItem.quantity - lineItem.assetLinks.length) }))
+    .filter((lineItem) => lineItem.unlinkedQuantity > 0);
+  const lineItemsOverLinked = lineItems
+    .map((lineItem) => ({ ...lineItem, linkedCount: lineItem.assetLinks.length, overLinkedBy: Math.max(0, lineItem.assetLinks.length - lineItem.quantity) }))
+    .filter((lineItem) => lineItem.overLinkedBy > 0);
+  const linkedAssetsMissingValue = devices.filter((device) => (device.facturaLineItemLinks?.length ?? 0) > 0 && !device.valueProfile?.purchaseValue);
+  const assetsWithValueNoFacturaSource = devices.filter((device) => device.valueProfile?.purchaseValue && device.valueProfile.sourceType !== "FACTURA_LINE_ITEM");
+  const assetsLinkedToMultipleLineItems = devices.filter((device) => (device.facturaLineItemLinks?.length ?? 0) > 1);
+
+  return {
+    totalLineItems: lineItems.length,
+    facturasWithNoLineItems,
+    lineItemsWithUnlinkedQuantity,
+    lineItemsOverLinked,
+    linkedAssetsMissingValue,
+    assetsWithValueNoFacturaSource,
+    assetsLinkedToMultipleLineItems,
   };
 }
 
@@ -498,6 +526,12 @@ export async function getDataQualityReview() {
         rmaItems: { select: { result: true, returnedAt: true } },
         assignmentItems: { select: { returnedAt: true } },
         assetLoanItems: { select: { returnedAt: true } },
+        facturaLineItemLinks: {
+          select: {
+            id: true,
+            lineItem: { select: { id: true, description: true, quantity: true, factura: { select: { id: true, facturaNumber: true, vendorName: true } } } },
+          },
+        },
         aliases: { select: { aliasType: true, value: true } },
         sourceRelationships: { select: { relationshipType: true, status: true, targetDeviceId: true } },
         targetRelationships: { select: { relationshipType: true, status: true, sourceDeviceId: true } },
@@ -515,6 +549,8 @@ export async function getDataQualityReview() {
             residualValue: true,
             currentEstimatedValue: true,
             lastCalculatedAt: true,
+            sourceType: true,
+            sourceFacturaLineItemAssetId: true,
           },
         },
         lastCleanedAt: true,
@@ -524,7 +560,11 @@ export async function getDataQualityReview() {
     }),
     prisma.factura.findMany({
       orderBy: [{ receivedDate: "desc" }, { createdAt: "desc" }],
-      include: { assets: { select: { id: true, name: true, serialNumber: true } }, stockItems: { select: { id: true, name: true } } },
+      include: {
+        assets: { select: { id: true, name: true, serialNumber: true } },
+        stockItems: { select: { id: true, name: true } },
+        lineItems: { include: { assetLinks: true } },
+      },
     }),
     prisma.stockItem.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -556,6 +596,7 @@ export async function getDataQualityReview() {
   const photoCompliance = summarizePhotoCompliance(devices);
   const maintenance = summarizeMaintenanceReview(devices);
   const assetValue = summarizeAssetValueQuality(devices);
+  const facturaLineItems = summarizeFacturaLineItemQuality(facturas, devices);
   const importAudit = summarizeImportRun(latestRun, latestBackupRoot());
   const mapHealth = summarizeMapHealth(maps, mapAnchors);
   const invalidIps = devices.filter((device) => device.ipAddress && !validateIPv4(device.ipAddress).ok);
@@ -611,6 +652,7 @@ export async function getDataQualityReview() {
     photoCompliance,
     maintenance,
     assetValue,
+    facturaLineItems,
     mapHealth,
     importAudit,
     totals: {
@@ -863,6 +905,40 @@ export async function getDataQualityExportRows(type: string) {
       assetUrl: `/devices/${asset.id}`,
       valueUrl: `/devices/${asset.id}/value`,
     }));
+  }
+  if (type === "factura-line-item-review") {
+    return [
+      ...review.facturaLineItems.facturasWithNoLineItems.map((factura) => ({
+        reviewType: "factura-with-no-line-items",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "Factura has no structured line items.",
+        url: `/facturas/${factura.id}`,
+      })),
+      ...review.facturaLineItems.lineItemsWithUnlinkedQuantity.map((lineItem) => ({
+        reviewType: "line-item-unlinked-quantity",
+        facturaNumber: lineItem.factura.facturaNumber,
+        vendorName: lineItem.factura.vendorName,
+        lineItemDescription: lineItem.description,
+        quantity: lineItem.quantity,
+        linkedCount: lineItem.linkedCount,
+        unlinkedQuantity: lineItem.unlinkedQuantity,
+        reason: "Line item quantity is not fully linked to assets.",
+        url: `/facturas/${lineItem.factura.id}/line-items/${lineItem.id}/link-assets`,
+      })),
+      ...review.facturaLineItems.linkedAssetsMissingValue.map((asset) => ({
+        reviewType: "linked-asset-missing-value",
+        facturaNumber: asset.facturaLineItemLinks?.[0]?.lineItem.factura.facturaNumber ?? "",
+        vendorName: asset.facturaLineItemLinks?.[0]?.lineItem.factura.vendorName ?? "",
+        lineItemDescription: asset.facturaLineItemLinks?.[0]?.lineItem.description ?? "",
+        assetTag: asset.assetTag,
+        assetName: asset.name,
+        reason: "Asset is linked to a line item but has no AssetValueProfile.",
+        url: `/devices/${asset.id}/value`,
+      })),
+    ];
   }
   return null;
 }

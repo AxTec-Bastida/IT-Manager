@@ -540,8 +540,8 @@ enum InventoryAuditScanResult {
 }
 
 model Device {
-  id                            String                 @id @default(cuid())
-  assetTag                      String?                @unique
+  id                            String                       @id @default(cuid())
+  assetTag                      String?                      @unique
   name                          String
   category                      DeviceCategory
   ipAddress                     String?
@@ -552,11 +552,11 @@ model Device {
   brand                         String?
   model                         String?
   serialNumber                  String?
-  status                        DeviceStatus           @default(ACTIVE)
-  condition                     DeviceCondition        @default(GOOD)
+  status                        DeviceStatus                 @default(ACTIVE)
+  condition                     DeviceCondition              @default(GOOD)
   assignedTo                    String?
   employeeId                    String?
-  employee                      Employee?              @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employee                      Employee?                    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   purchaseDate                  DateTime?
   warrantyExpiresAt             DateTime?
   repairNotes                   String?
@@ -580,17 +580,17 @@ model Device {
   notes                         String?
   lastSeenAt                    DateTime?
   facturaId                     String?
-  factura                       Factura?               @relation(fields: [facturaId], references: [id], onDelete: SetNull)
-  isFixedAsset                  Boolean                @default(false)
-  usesStaticIp                  Boolean                @default(false)
+  factura                       Factura?                     @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  isFixedAsset                  Boolean                      @default(false)
+  usesStaticIp                  Boolean                      @default(false)
   expectedLocationZoneId        String?
-  expectedLocationZone          LocationZone?          @relation(fields: [expectedLocationZoneId], references: [id], onDelete: SetNull)
-  movementAlertsEnabled         Boolean                @default(false)
-  allowedZoneDistance           Int                    @default(0)
+  expectedLocationZone          LocationZone?                @relation(fields: [expectedLocationZoneId], references: [id], onDelete: SetNull)
+  movementAlertsEnabled         Boolean                      @default(false)
+  allowedZoneDistance           Int                          @default(0)
   currentMapAnchorId            String?
-  currentMapAnchor              AccessPointMapLocation? @relation("DeviceCurrentMapAnchor", fields: [currentMapAnchorId], references: [id], onDelete: SetNull)
+  currentMapAnchor              AccessPointMapLocation?      @relation("DeviceCurrentMapAnchor", fields: [currentMapAnchorId], references: [id], onDelete: SetNull)
   ipRangeId                     String?
-  ipRange                       IpRange?               @relation(fields: [ipRangeId], references: [id], onDelete: SetNull)
+  ipRange                       IpRange?                     @relation(fields: [ipRangeId], references: [id], onDelete: SetNull)
   photos                        AssetPhoto[]
   locationHistory               AssetLocationHistory[]
   unifiSnapshots                UnifiClientSnapshot[]
@@ -600,19 +600,20 @@ model Device {
   alerts                        Alert[]
   tasks                         Task[]
   purchaseNoteItems             PurchaseNoteItem[]
-  rmaItems                      RmaItem[]              @relation("RmaItemDevice")
-  replacementForRmaItems        RmaItem[]              @relation("RmaItemReplacementDevice")
+  rmaItems                      RmaItem[]                    @relation("RmaItemDevice")
+  replacementForRmaItems        RmaItem[]                    @relation("RmaItemReplacementDevice")
   assetLoanItems                AssetLoanItem[]
   emailLogs                     EmailLog[]
   aliases                       DeviceAlias[]
-  sourceRelationships           DeviceRelationship[]   @relation("DeviceRelationshipSource")
-  targetRelationships           DeviceRelationship[]   @relation("DeviceRelationshipTarget")
+  sourceRelationships           DeviceRelationship[]         @relation("DeviceRelationshipSource")
+  targetRelationships           DeviceRelationship[]         @relation("DeviceRelationshipTarget")
   auditExpectedItems            InventoryAuditExpectedItem[]
   auditScans                    InventoryAuditScan[]
   decommissionRecords           AssetDecommissionRecord[]
   valueProfile                  AssetValueProfile?
-  createdAt                     DateTime               @default(now())
-  updatedAt                     DateTime               @updatedAt
+  facturaLineItemLinks          FacturaLineItemAsset[]
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
 
   @@index([ipAddress])
   @@index([macAddress])
@@ -629,22 +630,22 @@ model Device {
 }
 
 model AssetDecommissionRecord {
-  id                String                    @id @default(cuid())
-  deviceId          String
-  device            Device                    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  reason            AssetDecommissionReason
-  finalStatus       DeviceStatus
-  checklistJson     String?
-  notes             String?
+  id                           String                  @id @default(cuid())
+  deviceId                     String
+  device                       Device                  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  reason                       AssetDecommissionReason
+  finalStatus                  DeviceStatus
+  checklistJson                String?
+  notes                        String?
   estimatedValueAtDecommission Float?
   estimatedValueCurrency       String?
-  approvedByUserId  String?
-  approvedByName    String?
-  performedByUserId String?
-  performedByName   String?
-  performedAt       DateTime                  @default(now())
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  approvedByUserId             String?
+  approvedByName               String?
+  performedByUserId            String?
+  performedByName              String?
+  performedAt                  DateTime                @default(now())
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
 
   @@index([deviceId])
   @@index([reason])
@@ -654,24 +655,29 @@ model AssetDecommissionRecord {
 }
 
 model AssetValueProfile {
-  id                    String              @id @default(cuid())
-  deviceId              String              @unique
-  device                Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  purchaseValue         Float?
-  currency              String              @default("MXN")
-  purchaseDate          DateTime?
-  depreciationMethod    DepreciationMethod  @default(STRAIGHT_LINE)
-  usefulLifeMonths      Int?
-  residualPercent       Float               @default(30)
-  residualValue         Float?
-  currentEstimatedValue Float?
-  lastCalculatedAt      DateTime?
-  notes                 String?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                           String                @id @default(cuid())
+  deviceId                     String                @unique
+  device                       Device                @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  purchaseValue                Float?
+  currency                     String                @default("MXN")
+  purchaseDate                 DateTime?
+  depreciationMethod           DepreciationMethod    @default(STRAIGHT_LINE)
+  usefulLifeMonths             Int?
+  residualPercent              Float                 @default(30)
+  residualValue                Float?
+  currentEstimatedValue        Float?
+  lastCalculatedAt             DateTime?
+  notes                        String?
+  sourceType                   String?
+  sourceFacturaLineItemAssetId String?
+  sourceFacturaLineItemAsset   FacturaLineItemAsset? @relation(fields: [sourceFacturaLineItemAssetId], references: [id], onDelete: SetNull)
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
 
   @@index([currency])
   @@index([purchaseDate])
+  @@index([sourceType])
+  @@index([sourceFacturaLineItemAssetId])
 }
 
 model DeviceAlias {
@@ -735,32 +741,32 @@ model LocationZone {
 }
 
 model AssetPhoto {
-  id               String         @id @default(cuid())
-  assetId          String
-  asset            Device         @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  photoType        AssetPhotoType @default(OTHER)
-  caption          String?
-  originalFilename String?
-  storedFilename   String
-  filePath         String
-  mimeType         String
-  fileSize         Int
-  sizeBytes        Int?
-  width            Int?
-  height           Int?
-  thumbnailFilename String?
-  thumbnailPath    String?
-  optimizedFilename String?
-  optimizedPath    String?
-  uploadedByUserId String?
-  uploadedByUser   AppUser?       @relation("AssetPhotoUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
-  uploadedByName   String?
-  compressionApplied Boolean      @default(false)
-  source           PhotoSource    @default(UNKNOWN)
-  isPrimary        Boolean        @default(false)
-  uploadedBy       String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  assetId            String
+  asset              Device         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  photoType          AssetPhotoType @default(OTHER)
+  caption            String?
+  originalFilename   String?
+  storedFilename     String
+  filePath           String
+  mimeType           String
+  fileSize           Int
+  sizeBytes          Int?
+  width              Int?
+  height             Int?
+  thumbnailFilename  String?
+  thumbnailPath      String?
+  optimizedFilename  String?
+  optimizedPath      String?
+  uploadedByUserId   String?
+  uploadedByUser     AppUser?       @relation("AssetPhotoUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedByName     String?
+  compressionApplied Boolean        @default(false)
+  source             PhotoSource    @default(UNKNOWN)
+  isPrimary          Boolean        @default(false)
+  uploadedBy         String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([assetId])
   @@index([photoType])
@@ -770,7 +776,7 @@ model AssetPhoto {
 }
 
 model Factura {
-  id               String          @id @default(cuid())
+  id               String            @id @default(cuid())
   facturaNumber    String
   vendorName       String
   vendorRfc        String?
@@ -778,7 +784,7 @@ model Factura {
   receivedDate     DateTime?
   poNumber         String?
   totalAmount      Float?
-  currency         String          @default("USD")
+  currency         String            @default("USD")
   warrantyStartAt  DateTime?
   warrantyEndAt    DateTime?
   notes            String?
@@ -790,15 +796,57 @@ model Factura {
   assets           Device[]
   stockItems       StockItem[]
   stockMovements   StockMovement[]
+  lineItems        FacturaLineItem[]
   tasks            Task[]
   purchaseNotes    PurchaseNote[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([facturaNumber])
   @@index([vendorName])
   @@index([poNumber])
   @@index([purchaseDate])
+}
+
+model FacturaLineItem {
+  id          String                 @id @default(cuid())
+  facturaId   String
+  factura     Factura                @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  description String
+  sku         String?
+  model       String?
+  category    DeviceCategory?
+  quantity    Int
+  unitCost    Float
+  currency    String                 @default("MXN")
+  totalCost   Float
+  notes       String?
+  assetLinks  FacturaLineItemAsset[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([facturaId])
+  @@index([category])
+  @@index([sku])
+  @@index([model])
+}
+
+model FacturaLineItemAsset {
+  id                String              @id @default(cuid())
+  facturaLineItemId String
+  lineItem          FacturaLineItem     @relation(fields: [facturaLineItemId], references: [id], onDelete: Cascade)
+  deviceId          String
+  device            Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  allocatedUnitCost Float?
+  currency          String              @default("MXN")
+  notes             String?
+  valueProfiles     AssetValueProfile[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([facturaLineItemId, deviceId])
+  @@index([facturaLineItemId])
+  @@index([deviceId])
 }
 
 model StockItem {
@@ -961,30 +1009,30 @@ model StockIssue {
 }
 
 model MaintenanceRecord {
-  id               String          @id @default(cuid())
+  id               String            @id @default(cuid())
   assetId          String
-  asset            Device          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset            Device            @relation(fields: [assetId], references: [id], onDelete: Cascade)
   maintenanceType  MaintenanceType
   result           MaintenanceResult @default(PASS)
-  performedAt      DateTime        @default(now())
+  performedAt      DateTime          @default(now())
   performedBy      String?
   notes            String?
   stockItemId      String?
-  stockItem        StockItem?      @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
+  stockItem        StockItem?        @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
   quantityUsed     Int?
   partSerialNumber String?
   previousPartInfo String?
   newPartInfo      String?
   cost             Float?
-  currency         String?         @default("USD")
+  currency         String?           @default("USD")
   nextDueAt        DateTime?
   vendorTicket     String?
   testWeight       String?
   measuredValue    String?
   expectedValue    String?
   resultDetails    String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([assetId])
   @@index([stockItemId])
@@ -1056,21 +1104,21 @@ model Employee {
 }
 
 model AppUser {
-  id           String        @id @default(cuid())
-  name         String
-  email        String        @unique
-  username     String?       @unique
-  passwordHash String
-  role         AppRole       @default(VIEWER)
-  isActive     Boolean       @default(true)
-  lastLoginAt  DateTime?
-  sessions     AppSession[]
-  activityLogs ActivityLog[]
-  assignedTasks Task[]       @relation("TaskAssignedUser")
-  uploadedAssetPhotos AssetPhoto[] @relation("AssetPhotoUploadedByUser")
+  id                      String           @id @default(cuid())
+  name                    String
+  email                   String           @unique
+  username                String?          @unique
+  passwordHash            String
+  role                    AppRole          @default(VIEWER)
+  isActive                Boolean          @default(true)
+  lastLoginAt             DateTime?
+  sessions                AppSession[]
+  activityLogs            ActivityLog[]
+  assignedTasks           Task[]           @relation("TaskAssignedUser")
+  uploadedAssetPhotos     AssetPhoto[]     @relation("AssetPhotoUploadedByUser")
   uploadedStockItemPhotos StockItemPhoto[] @relation("StockItemPhotoUploadedByUser")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
   @@index([email])
   @@index([username])
@@ -1079,12 +1127,12 @@ model AppUser {
 }
 
 model AppSession {
-  id        String   @id @default(cuid())
-  userId    String
-  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  user       AppUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
 
   @@index([userId])
@@ -1092,30 +1140,30 @@ model AppSession {
 }
 
 model Assignment {
-  id               String           @id @default(cuid())
-  assignmentNumber String           @unique
+  id               String               @id @default(cuid())
+  assignmentNumber String               @unique
   employeeId       String?
-  employee         Employee?        @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  employee         Employee?            @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   targetId         String?
-  target           AssignmentTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  target           AssignmentTarget?    @relation(fields: [targetId], references: [id], onDelete: SetNull)
   targetType       AssignmentTargetType @default(EMPLOYEE)
   targetName       String?
   targetPath       String?
   assignedBy       String?
-  assignmentDate   DateTime         @default(now())
+  assignmentDate   DateTime             @default(now())
   signatureData    String?
-  termsAccepted    Boolean          @default(false)
+  termsAccepted    Boolean              @default(false)
   termsText        String?
   notes            String?
-  status           AssignmentStatus @default(ACTIVE)
+  status           AssignmentStatus     @default(ACTIVE)
   emailSentAt      DateTime?
   emailTo          String?
   emailCc          String?
   emailError       String?
   items            AssignmentItem[]
   emailLogs        EmailLog[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([employeeId])
   @@index([targetId])
@@ -1125,17 +1173,17 @@ model Assignment {
 }
 
 model AssignmentTarget {
-  id          String                 @id @default(cuid())
+  id          String               @id @default(cuid())
   type        AssignmentTargetType
   name        String
   parentId    String?
-  parent      AssignmentTarget?      @relation("AssignmentTargetTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    AssignmentTarget[]     @relation("AssignmentTargetTree")
+  parent      AssignmentTarget?    @relation("AssignmentTargetTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    AssignmentTarget[]   @relation("AssignmentTargetTree")
   path        String
-  isActive    Boolean                @default(true)
+  isActive    Boolean              @default(true)
   assignments Assignment[]
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   @@unique([type, path])
   @@index([type])
@@ -1606,23 +1654,23 @@ model ImportRowError {
 }
 
 model InventoryAuditSession {
-  id           String                       @id @default(cuid())
-  auditNumber  String?                      @unique
-  title        String
-  scopeType    InventoryAuditScopeType
-  area         String?
-  department   String?
-  location     String?
-  category     DeviceCategory?
-  status       InventoryAuditSessionStatus  @default(ACTIVE)
-  startedAt    DateTime                     @default(now())
-  completedAt  DateTime?
-  createdBy    String?
-  notes        String?
+  id            String                       @id @default(cuid())
+  auditNumber   String?                      @unique
+  title         String
+  scopeType     InventoryAuditScopeType
+  area          String?
+  department    String?
+  location      String?
+  category      DeviceCategory?
+  status        InventoryAuditSessionStatus  @default(ACTIVE)
+  startedAt     DateTime                     @default(now())
+  completedAt   DateTime?
+  createdBy     String?
+  notes         String?
   expectedItems InventoryAuditExpectedItem[]
-  scans        InventoryAuditScan[]
-  createdAt    DateTime                     @default(now())
-  updatedAt    DateTime                     @updatedAt
+  scans         InventoryAuditScan[]
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
 
   @@index([auditNumber])
   @@index([status])
@@ -1657,17 +1705,17 @@ model InventoryAuditExpectedItem {
 }
 
 model InventoryAuditScan {
-  id             String                    @id @default(cuid())
-  auditSessionId String
-  auditSession   InventoryAuditSession     @relation(fields: [auditSessionId], references: [id], onDelete: Cascade)
-  scannedValue   String
+  id              String                   @id @default(cuid())
+  auditSessionId  String
+  auditSession    InventoryAuditSession    @relation(fields: [auditSessionId], references: [id], onDelete: Cascade)
+  scannedValue    String
   normalizedValue String
   matchedDeviceId String?
-  matchedDevice  Device?                   @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
-  resultType     InventoryAuditScanResult
-  scannedAt      DateTime                  @default(now())
-  notes          String?
-  createdAt      DateTime                  @default(now())
+  matchedDevice   Device?                  @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
+  resultType      InventoryAuditScanResult
+  scannedAt       DateTime                 @default(now())
+  notes           String?
+  createdAt       DateTime                 @default(now())
 
   @@index([auditSessionId])
   @@index([matchedDeviceId])

@@ -114,6 +114,25 @@ export const facturaSchema = z.object({
   notes: optionalText,
 });
 
+export const facturaLineItemSchema = z.object({
+  description: z.string().trim().min(1, "Description is required."),
+  sku: optionalText,
+  model: optionalText,
+  category: z.nativeEnum(DeviceCategory).optional().nullable().transform((value) => value || null),
+  quantity: z.coerce.number().int().min(1, "Quantity must be greater than zero."),
+  unitCost: z.coerce.number().min(0, "Unit cost must be zero or higher."),
+  currency: optionalText.transform((value) => value || "MXN"),
+  notes: optionalText,
+});
+
+export const facturaLineItemLinkAssetsSchema = z.object({
+  assetIds: z.array(z.string().min(1)).default([]),
+});
+
+export const facturaLineItemApplyValuesSchema = z.object({
+  overwriteExisting: z.coerce.boolean().default(false),
+});
+
 export const ipRangeSchema = z
   .object({
     name: z.string().trim().min(1, "Range name is required."),

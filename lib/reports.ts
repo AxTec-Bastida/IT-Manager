@@ -448,6 +448,19 @@ async function getAssetValuesReport() {
           residualValue: true,
           currentEstimatedValue: true,
           lastCalculatedAt: true,
+          sourceType: true,
+          sourceFacturaLineItemAsset: {
+            select: {
+              lineItem: {
+                select: {
+                  description: true,
+                  unitCost: true,
+                  currency: true,
+                  factura: { select: { id: true, facturaNumber: true, vendorName: true } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -457,8 +470,10 @@ async function getAssetValuesReport() {
   const review = summarizeAssetValueQuality(devices);
   const totalPurchaseValue = devices.reduce((sum, device) => sum + (device.valueProfile?.purchaseValue ?? 0), 0);
   const totalEstimatedValue = devices.reduce((sum, device) => sum + (device.valueProfile?.currentEstimatedValue ?? 0), 0);
+  const facturaLineSources = devices.filter((device) => device.valueProfile?.sourceType === "FACTURA_LINE_ITEM").length;
   return baseReport("asset-values", [
     { label: "Assets with values", value: review.withProfile.length, href: "/api/export/asset-values" },
+    { label: "Factura-line sourced", value: facturaLineSources, href: "/api/export/asset-values" },
     { label: "Missing purchase value", value: review.missingPurchaseValue.length, href: "/data-quality" },
     { label: "Missing purchase date", value: review.missingPurchaseDate.length, href: "/data-quality" },
     { label: "Current estimate total", value: Math.round(totalEstimatedValue) },
@@ -468,6 +483,7 @@ async function getAssetValuesReport() {
       rows: [
         { label: "Purchase value total", value: Math.round(totalPurchaseValue), helper: "Internal IT estimate total only" },
         { label: "Current estimated value total", value: Math.round(totalEstimatedValue), helper: "Straight-line estimate where available" },
+        { label: "Factura line item sources", value: facturaLineSources, helper: "Values applied from structured factura line items" },
       ],
     },
     {

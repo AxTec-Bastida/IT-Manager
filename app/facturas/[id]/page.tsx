@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Edit, FileText, ReceiptText } from "lucide-react";
+import { ClipboardList, Edit, FileText, Link2, Plus, ReceiptText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { hasPagePermission } from "@/lib/page-permissions";
+import { categoryLabels } from "@/lib/constants";
+import { unlinkedQuantity } from "@/lib/factura-line-items";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,7 @@ export default async function FacturaDetailPage({ params }: Props) {
       assets: { orderBy: { name: "asc" }, include: { photos: true } },
       stockItems: { orderBy: { name: "asc" } },
       stockMovements: { include: { stockItem: true, asset: true }, orderBy: { createdAt: "desc" } },
+      lineItems: { include: { assetLinks: { include: { device: true } } }, orderBy: { createdAt: "asc" } },
       purchaseNotes: { orderBy: { updatedAt: "desc" } },
     },
   });
@@ -41,6 +44,10 @@ export default async function FacturaDetailPage({ params }: Props) {
             {canWriteInventory ? <Link href={`/facturas/${factura.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
               <Edit size={16} />
               Edit
+            </Link> : null}
+            {canWriteInventory ? <Link href={`/facturas/${factura.id}/line-items/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+              <Plus size={16} />
+              Add Line Item
             </Link> : null}
           </div>
         }
@@ -78,6 +85,72 @@ export default async function FacturaDetailPage({ params }: Props) {
             <p className="mt-3 text-sm text-slate-500">No file attached.</p>
           )}
           {factura.originalFilename ? <p className="mt-2 break-all text-xs text-slate-500">{factura.originalFilename}</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">Line Items</h2>
+            <p className="mt-1 text-sm text-slate-600">Manual structured factura rows for asset value matching. No OCR or PDF extraction.</p>
+          </div>
+          {canWriteInventory ? (
+            <Link href={`/facturas/${factura.id}/line-items/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+              <Plus size={16} />
+              Add line item
+            </Link>
+          ) : null}
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {factura.lineItems.map((lineItem) => {
+            const remaining = unlinkedQuantity(lineItem);
+            return (
+              <div key={lineItem.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">Line item</p>
+                    <h3 className="text-lg font-semibold text-slate-950">{lineItem.description}</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {[lineItem.sku, lineItem.model, lineItem.category ? categoryLabels[lineItem.category] : ""].filter(Boolean).join(" / ") || "No SKU/model/category"}
+                    </p>
+                  </div>
+                  <div className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+                    {lineItem.assetLinks.length} / {lineItem.quantity} linked
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-md bg-white p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">Unit cost</p>
+                    <p className="mt-1 font-semibold text-slate-950">{lineItem.currency} {lineItem.unitCost.toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-md bg-white p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">Total</p>
+                    <p className="mt-1 font-semibold text-slate-950">{lineItem.currency} {lineItem.totalCost.toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-md bg-white p-3">
+                    <p className="text-xs font-medium uppercase text-slate-500">Unlinked qty</p>
+                    <p className="mt-1 font-semibold text-slate-950">{remaining}</p>
+                  </div>
+                </div>
+                {lineItem.assetLinks.length ? (
+                  <div className="mt-3 grid gap-2">
+                    {lineItem.assetLinks.slice(0, 5).map((link) => (
+                      <Link key={link.id} href={`/devices/${link.deviceId}`} className="rounded-md bg-white p-3 text-sm hover:bg-slate-100">
+                        <span className="font-semibold text-slate-950">{link.device.assetTag || link.device.name}</span>
+                        <span className="text-slate-500"> / {link.device.serialNumber || "No serial"}</span>
+                      </Link>
+                    ))}
+                    {lineItem.assetLinks.length > 5 ? <p className="text-xs text-slate-500">+{lineItem.assetLinks.length - 5} more linked assets</p> : null}
+                  </div>
+                ) : null}
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {canWriteInventory ? <Link href={`/facturas/${factura.id}/line-items/${lineItem.id}/link-assets`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white"><Link2 size={16} />Link / Apply</Link> : null}
+                  {canWriteInventory ? <Link href={`/facturas/${factura.id}/line-items/${lineItem.id}/edit`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">Edit</Link> : null}
+                </div>
+              </div>
+            );
+          })}
+          {!factura.lineItems.length ? <p className="text-sm text-slate-500">No structured line items yet.</p> : null}
         </div>
       </section>
 

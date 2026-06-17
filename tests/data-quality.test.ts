@@ -17,6 +17,7 @@ import {
   summarizeMobileAssets,
   summarizeStaticAssets,
   summarizeStockReview,
+  summarizeFacturaLineItemQuality,
 } from "@/lib/data-quality";
 
 const baseDevice = {
@@ -281,6 +282,70 @@ describe("data quality review helpers", () => {
     expect(summary.missingPurchaseValue.map((asset) => asset.id)).toEqual(["missing-value"]);
     expect(summary.missingPurchaseDate.map((asset) => asset.id)).toEqual(["missing-date"]);
     expect(summary.reviewRows.map((asset) => asset.id)).toEqual(["missing-value", "missing-date"]);
+  });
+
+  it("summarizes factura line item value matching review gaps", () => {
+    const factura = {
+      id: "factura-1",
+      facturaNumber: "F-100",
+      vendorName: "Dell",
+      purchaseDate: new Date("2026-06-01"),
+      receivedDate: null,
+      notes: null,
+      assets: [],
+      stockItems: [],
+      lineItems: [
+        {
+          id: "line-1",
+          description: "Dell Latitude 5520",
+          quantity: 2,
+          unitCost: 1200,
+          currency: "MXN",
+          assetLinks: [{ id: "link-1", deviceId: "asset-1" }],
+        },
+        {
+          id: "line-2",
+          description: "Extra linked line",
+          quantity: 1,
+          unitCost: 900,
+          currency: "MXN",
+          assetLinks: [{ id: "link-2", deviceId: "asset-2" }, { id: "link-3", deviceId: "asset-3" }],
+        },
+      ],
+    };
+
+    const summary = summarizeFacturaLineItemQuality(
+      [factura],
+      [
+        { ...baseDevice, id: "asset-1", valueProfile: null, facturaLineItemLinks: [{ id: "link-1", lineItem: { id: "line-1", description: "Dell Latitude 5520", quantity: 2, factura: { id: "factura-1", facturaNumber: "F-100", vendorName: "Dell" } } }] },
+        {
+          ...baseDevice,
+          id: "asset-2",
+          valueProfile: {
+            purchaseValue: 900,
+            currency: "MXN",
+            purchaseDate: new Date("2026-06-01"),
+            usefulLifeMonths: 36,
+            residualPercent: 30,
+            residualValue: 270,
+            currentEstimatedValue: 900,
+            lastCalculatedAt: new Date("2026-06-01"),
+            sourceType: "FACTURA_LINE_ITEM",
+          },
+          facturaLineItemLinks: [
+            { id: "link-2", lineItem: { id: "line-2", description: "Extra linked line", quantity: 1, factura: { id: "factura-1", facturaNumber: "F-100", vendorName: "Dell" } } },
+            { id: "link-extra", lineItem: { id: "line-extra", description: "Another line", quantity: 1, factura: { id: "factura-1", facturaNumber: "F-100", vendorName: "Dell" } } },
+          ],
+        },
+      ],
+    );
+
+    expect(summary.totalLineItems).toBe(2);
+    expect(summary.facturasWithNoLineItems).toHaveLength(0);
+    expect(summary.lineItemsWithUnlinkedQuantity.map((item) => item.id)).toEqual(["line-1"]);
+    expect(summary.lineItemsOverLinked.map((item) => item.id)).toEqual(["line-2"]);
+    expect(summary.linkedAssetsMissingValue.map((asset) => asset.id)).toEqual(["asset-1"]);
+    expect(summary.assetsLinkedToMultipleLineItems.map((asset) => asset.id)).toEqual(["asset-2"]);
   });
 
   it("parses skipped duplicate workbook row audit messages", () => {
