@@ -39,7 +39,7 @@ describe("deployment readiness helpers", () => {
     expect(isOneDrivePath("C:\\Dev\\warehouse-it-inventory")).toBe(false);
   });
 
-  it("describes APP_BASE_URL as localhost or LAN without exposing secrets", () => {
+  it("describes APP_BASE_URL as localhost, HTTP LAN, or HTTPS LAN without exposing secrets", () => {
     expect(describeAppBaseUrl("http://localhost:3000")).toMatchObject({
       configured: true,
       scope: "localhost",
@@ -48,6 +48,13 @@ describe("deployment readiness helpers", () => {
     expect(describeAppBaseUrl("http://192.168.163.29:3000")).toMatchObject({
       configured: true,
       scope: "lan",
+      httpLan: true,
+      suggestion: "Phone camera access and PWA install may require HTTPS/trusted origin; use Caddy or mkcert for LAN beta.",
+    });
+    expect(describeAppBaseUrl("https://warehouse-it.local")).toMatchObject({
+      configured: true,
+      scope: "lan",
+      https: true,
       suggestion: undefined,
     });
     expect(describeAppBaseUrl("not-a-url")).toMatchObject({ configured: true, scope: "invalid" });
@@ -64,7 +71,7 @@ describe("deployment readiness helpers", () => {
   it("collects readiness checks and verifies package scripts include doctor", async () => {
     const result = await collectReadinessChecks({
       projectRoot: tempRoot,
-      env: { DATABASE_URL: "file:./dev.db", SESSION_SECRET: "test-session-secret-at-least-32-chars", APP_BASE_URL: "http://localhost:3000", SMTP_HOST: "smtp.local", MAIL_FROM: "it@example.com" } as NodeJS.ProcessEnv,
+      env: { DATABASE_URL: "file:./dev.db", SESSION_SECRET: "test-session-secret-at-least-32-chars", APP_BASE_URL: "https://warehouse-it.local", SMTP_HOST: "smtp.local", MAIL_FROM: "it@example.com" } as NodeJS.ProcessEnv,
       userCount: 1,
     });
 
@@ -74,6 +81,19 @@ describe("deployment readiness helpers", () => {
     expect(result.checks.find((check) => check.name === "DATABASE_URL")?.message).not.toContain("file:./dev.db");
     expect(result.checks.find((check) => check.name === "SESSION_SECRET / AUTH_SECRET")).toMatchObject({ status: "PASS" });
     expect(result.checks.find((check) => check.name === "Application users")).toMatchObject({ status: "PASS" });
+  });
+
+  it("warns when APP_BASE_URL is plain HTTP on a LAN host", async () => {
+    const result = await collectReadinessChecks({
+      projectRoot: tempRoot,
+      env: { DATABASE_URL: "file:./dev.db", SESSION_SECRET: "test-session-secret-at-least-32-chars", APP_BASE_URL: "http://192.168.0.67:3000" } as NodeJS.ProcessEnv,
+      userCount: 1,
+    });
+
+    expect(result.checks.find((check) => check.name === "APP_BASE_URL")).toMatchObject({
+      status: "WARN",
+      suggestion: "Phone camera access and PWA install may require HTTPS/trusted origin; use Caddy or mkcert for LAN beta.",
+    });
   });
 
   it("warns when the auth session secret is missing outside production", async () => {
@@ -171,6 +191,8 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("scan-from-photo");
     expect(sop).toContain("SMTP / Email Validation");
     expect(sop).toContain("SMTP_FROM");
+    expect(sop).toContain("HTTPS Setup Runbook");
+    expect(sop).toContain("https://warehouse-it.local");
     expect(registerTask).toContain("Warehouse IT Inventory Jobs");
     expect(registerTask).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(registerTask).toContain("jobs:run-due");
@@ -179,5 +201,21 @@ describe("team beta ops artifacts", () => {
     expect(startProduction).toContain("C:\\Dev\\warehouse-it-inventory");
     expect(startProduction).toContain("npm.cmd run doctor");
     expect(startProduction).toContain("npm.cmd run start");
+  });
+
+  it("documents HTTPS camera guidance and keeps local certificate material ignored", async () => {
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    const caddyfile = await fs.readFile(path.join(projectRoot, "Caddyfile.example"), "utf8");
+
+    expect(readme).toContain("HTTPS / Trusted Phone Camera Setup");
+    expect(readme).toContain("phone camera access");
+    expect(readme).toContain("Do not commit Caddy-generated certificates");
+    expect(sop).toContain("Plain HTTP LAN URLs can block");
+    expect(gitignore).toContain("*.key");
+    expect(gitignore).toContain("/certs/");
+    expect(caddyfile).toContain("reverse_proxy 127.0.0.1:3000");
+    expect(caddyfile).not.toMatch(/PRIVATE KEY|BEGIN CERTIFICATE|BEGIN .*KEY/);
   });
 });

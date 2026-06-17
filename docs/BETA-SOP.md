@@ -25,6 +25,15 @@ Current Phase 55 phone beta status:
 - Real teammate phone/PWA install/camera permission still must be confirmed on the physical device and browser used for beta.
 - If phone camera is blocked on `http://192.168.0.67:3000`, use manual scan or scan-from-photo/gallery upload and plan HTTPS/trusted-origin setup as a future hardening task.
 
+Current Phase 61 HTTPS/trusted-origin guidance:
+
+- Plain HTTP LAN URLs can block or destabilize phone camera, barcode scanning, photo capture, and PWA install.
+- Recommended beta path is LAN-only HTTPS through Caddy reverse proxy to `127.0.0.1:3000`.
+- Alternate path is mkcert plus an approved local HTTPS reverse proxy.
+- Do not expose the app publicly, port-forward it, or publish tunnel URLs during beta.
+- Do not commit generated certificates, private keys, local CA files, `.env`, uploads, backups, or database files.
+- Once HTTPS is configured, update `.env` to `APP_BASE_URL=https://warehouse-it.local` or the approved HTTPS host and restart the app.
+
 ## Migration Safety
 
 Prisma `P3005` means Prisma sees a non-empty database without migration metadata. Do not run `prisma migrate reset` on real data.
@@ -158,21 +167,58 @@ Include:
 
 ## Phone Smoke Checklist
 
-1. Open `http://192.168.0.67:3000/login`.
+1. Prefer the approved HTTPS beta URL, for example `https://warehouse-it.local/login`. Use `http://192.168.0.67:3000/login` only as a fallback while HTTPS is not ready.
 2. Log in as IT Staff.
 3. Record the device/browser, for example iPhone Safari, Android Chrome, or Zebra/warehouse device browser.
-4. Add to Home Screen / Install App if available.
-5. Open the installed app.
-6. Confirm bottom nav and More drawer open/close.
-7. Open `/scan`.
-8. Allow camera if the browser permits.
-9. Scan a safe label.
-10. If camera is blocked, manually search `QA-SMOKE-001` or use scan-from-photo.
-11. Open the QA asset.
-12. Upload one safe photo using camera or gallery.
-13. Confirm thumbnail appears and the full image opens.
-14. Check `/devices`, `/intake`, `/stock`, `/tasks`, `/reports`, `/photos/compliance`, and `/map` for horizontal overflow.
-15. Log out.
+4. Confirm the certificate is trusted. Do not bypass certificate warnings for real beta users unless Admin explicitly accepts that risk.
+5. Add to Home Screen / Install App if available.
+6. Open the installed app.
+7. Confirm bottom nav and More drawer open/close.
+8. Open `/scan`.
+9. Allow camera if prompted.
+10. Scan a safe label.
+11. If camera is blocked, manually search `QA-SMOKE-001` or use scan-from-photo.
+12. Open the QA asset.
+13. Upload one safe photo using camera or gallery.
+14. Confirm thumbnail appears and the full image opens.
+15. Check `/devices`, `/intake`, `/stock`, `/tasks`, `/reports`, `/photos/compliance`, and `/map` for horizontal overflow.
+16. Log out.
+
+## HTTPS Setup Runbook
+
+Recommended: Caddy reverse proxy.
+
+1. Keep the app on Windows-native `npm run start` at port `3000`.
+2. Configure Caddy with a reviewed local Caddyfile:
+
+   ```text
+   https://warehouse-it.local {
+     reverse_proxy 127.0.0.1:3000
+   }
+   ```
+
+3. Make `warehouse-it.local` resolve to the server IP through local DNS or hosts-file testing.
+4. Trust the Caddy local CA/certificate on the test phone if required.
+5. Set `APP_BASE_URL=https://warehouse-it.local` in `.env`.
+6. Restart the app and Caddy.
+7. Run `npm run doctor`; HTTP LAN should warn, HTTPS should avoid the phone-camera warning.
+8. Run the Phone Smoke Checklist.
+
+Alternate: mkcert.
+
+```powershell
+mkcert -install
+mkcert warehouse-it.local 192.168.0.67 localhost
+```
+
+Store generated files in an ignored local folder such as `certs\`. Install/trust the mkcert root CA on the phone. Do not commit cert/key files.
+
+Rollback:
+
+1. Stop Caddy or the HTTPS proxy.
+2. Set `APP_BASE_URL=http://192.168.0.67:3000`.
+3. Restart the app.
+4. Continue with manual scan and scan-from-photo fallback until HTTPS is fixed.
 
 ## Beta Release Checklist
 

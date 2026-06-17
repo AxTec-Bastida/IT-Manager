@@ -1,0 +1,13 @@
+# Warehouse IT Inventory beta HTTPS reverse proxy example.
+# Copy this file outside the repo or to a local untracked Caddyfile before use.
+# Do not commit generated Caddy certificates, private keys, or local CA files.
+
+https://warehouse-it.local {
+	reverse_proxy 127.0.0.1:3000
+}
+
+# LAN IP alternative when you are not ready to set up a local hostname:
+#
+# https://192.168.0.67 {
+# 	reverse_proxy 127.0.0.1:3000
+# }

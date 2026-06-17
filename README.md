@@ -161,6 +161,99 @@ Before using this with more internal users:
 - Verify asset photos, stock photos, map images, and factura files still open after backup/restore testing.
 - UniFi/API sync is disabled and unavailable due to company rules. Normal operations should rely on manual location updates, IPAM, scheduled jobs, alerts, data quality checks, RMA/loan reminders, stock thresholds, and photo compliance.
 
+## HTTPS / Trusted Phone Camera Setup
+
+The current controlled beta can still run over plain HTTP at `http://192.168.0.67:3000`, but phone camera access, photo capture, barcode scanning, and PWA install are more reliable from an HTTPS/trusted origin. Desktop `localhost` is treated specially by browsers; a phone opening a LAN IP usually is not.
+
+Recommended beta strategy: keep the app LAN-only and put Caddy in front of the existing Windows-native `npm run start` process. Caddy terminates HTTPS and reverse proxies to `127.0.0.1:3000`. Do not expose the app publicly in this phase.
+
+Current HTTP fallback:
+
+- Use manual scan input if live camera is blocked.
+- Use scan-from-photo/gallery upload when the browser permits file selection.
+- Continue using `http://192.168.0.67:3000` only as a fallback while HTTPS trust is being set up.
+
+### Option A: Caddy Reverse Proxy
+
+1. Keep the app running normally on the server:
+
+   ```powershell
+   cd C:\Dev\warehouse-it-inventory
+   npm run start
+   ```
+
+2. Install Caddy for Windows from the official Caddy project or an approved internal package source.
+3. Copy `Caddyfile.example` to a local Caddyfile location outside Git-tracked secrets if you need local edits.
+4. Use a local hostname such as `warehouse-it.local`:
+
+   ```text
+   https://warehouse-it.local {
+     reverse_proxy 127.0.0.1:3000
+   }
+   ```
+
+5. Point `warehouse-it.local` to the server IP through local DNS or a hosts-file entry on test devices where appropriate.
+6. Start Caddy manually for testing or install it as a Windows service after the config is reviewed.
+7. If using Caddy's local CA/internal certificate, install and trust the relevant local CA on the phone before beta users rely on it.
+8. Update local `.env`:
+
+   ```text
+   APP_BASE_URL=https://warehouse-it.local
+   ```
+
+9. Restart the app and run `npm run doctor`. A plain HTTP LAN `APP_BASE_URL` should warn; an HTTPS URL should pass.
+
+Do not commit Caddy-generated certificates, private keys, local CA files, or edited configs that contain local secrets.
+
+### Option B: mkcert Local Certificate
+
+Use mkcert only if the team prefers managing local cert files directly.
+
+1. Install mkcert on the server from an approved source.
+2. Run:
+
+   ```powershell
+   mkcert -install
+   mkcert warehouse-it.local 192.168.0.67 localhost
+   ```
+
+3. Store generated cert/key files in a local ignored folder such as `certs\` outside commits.
+4. Configure an HTTPS reverse proxy to use those files, or use another approved local TLS terminator.
+5. Install/trust the mkcert root CA on the phone. Do not bypass certificate warnings for real beta users unless Admin explicitly accepts that risk.
+6. Set `APP_BASE_URL=https://warehouse-it.local` or `APP_BASE_URL=https://192.168.0.67`.
+
+### Option C: Tunnel / Real Domain
+
+Tailscale Funnel, Cloudflare Tunnel, or a real public domain should be used only after approval. A tunnel can expose the app outside the LAN if misconfigured. Auth helps, but it is not a substitute for network controls.
+
+### Phone HTTPS Validation Checklist
+
+On a real phone:
+
+1. Connect to the same trusted network.
+2. Open the HTTPS beta URL.
+3. Confirm the certificate is trusted without bypassing warnings.
+4. Log in as IT Staff.
+5. Add to Home Screen / install the PWA.
+6. Open the installed app.
+7. Open `/scan`.
+8. Allow camera access.
+9. Scan a safe label or search `QA-SMOKE-001`.
+10. Open `QA-SMOKE-001`.
+11. Upload one safe photo from camera.
+12. Confirm the thumbnail appears.
+13. Verify manual scan and gallery upload still work as fallbacks.
+14. Log out.
+
+Security boundaries:
+
+- Keep this beta LAN-only.
+- Do not port-forward ports `3000` or `443` to the internet.
+- Do not publish a tunnel URL without auth and network review.
+- Protect the server PC login.
+- Keep backups running; HTTPS does not replace backups.
+- Do not commit `.env`, generated certs, private keys, local CA files, backups, database files, uploads, or secrets.
+
 ## Team Beta Ops Setup
 
 Use this checklist for the controlled Axel + one IT teammate beta. Keep the active project at:

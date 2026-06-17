@@ -65,13 +65,23 @@ export function describeAppBaseUrl(value?: string | null) {
     const url = new URL(cleanValue);
     const host = url.hostname.toLowerCase();
     const localhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    const https = url.protocol === "https:";
+    const httpLan = !localhost && url.protocol === "http:";
     return {
       configured: true,
       scope: localhost ? "localhost" as const : "lan" as const,
+      https,
+      httpLan,
       message: localhost
         ? `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (localhost/server-only).`
-        : `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (LAN/hostname candidate).`,
-      suggestion: localhost ? "For teammate/phone beta access, switch APP_BASE_URL to the reachable LAN IP or hostname." : undefined,
+        : httpLan
+          ? `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (plain HTTP LAN URL).`
+          : `APP_BASE_URL is ${maskEnvValue("APP_BASE_URL", cleanValue)} (LAN/hostname candidate).`,
+      suggestion: localhost
+        ? "For teammate/phone beta access, switch APP_BASE_URL to the reachable LAN IP or hostname."
+        : httpLan
+          ? "Phone camera access and PWA install may require HTTPS/trusted origin; use Caddy or mkcert for LAN beta."
+          : undefined,
     };
   } catch {
     return {
@@ -234,7 +244,7 @@ export async function collectReadinessChecks(options: { projectRoot?: string; en
   const appBaseUrl = describeAppBaseUrl(env.APP_BASE_URL);
   checks.push({
     name: "APP_BASE_URL",
-    status: appBaseUrl.configured && appBaseUrl.scope !== "invalid" ? "PASS" : "WARN",
+    status: appBaseUrl.configured && appBaseUrl.scope !== "invalid" && !("httpLan" in appBaseUrl && appBaseUrl.httpLan) ? "PASS" : "WARN",
     message: appBaseUrl.message,
     suggestion: appBaseUrl.suggestion,
   });
