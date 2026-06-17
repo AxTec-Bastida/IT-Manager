@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Edit, FileText, Link2, Plus, ReceiptText } from "lucide-react";
+import { ClipboardList, Edit, FileSearch, FileText, Link2, Plus, ReceiptText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { hasPagePermission } from "@/lib/page-permissions";
@@ -49,6 +49,10 @@ export default async function FacturaDetailPage({ params }: Props) {
               <Plus size={16} />
               Add Line Item
             </Link> : null}
+            {canWriteInventory && factura.filePath ? <Link href={`/facturas/${factura.id}/extract`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <FileSearch size={16} />
+              Extract
+            </Link> : null}
           </div>
         }
       />
@@ -77,10 +81,16 @@ export default async function FacturaDetailPage({ params }: Props) {
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="font-semibold text-slate-950">Attachment</h2>
           {factura.filePath ? (
-            <a href={factura.filePath} target="_blank" className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-              <FileText size={17} />
-              Open factura file
-            </a>
+            <div className="mt-3 grid gap-2">
+              <a href={factura.filePath} target="_blank" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                <FileText size={17} />
+                Open factura file
+              </a>
+              {canWriteInventory ? <Link href={`/facturas/${factura.id}/extract`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <FileSearch size={17} />
+                Extract line items
+              </Link> : null}
+            </div>
           ) : (
             <p className="mt-3 text-sm text-slate-500">No file attached.</p>
           )}
@@ -92,7 +102,8 @@ export default async function FacturaDetailPage({ params }: Props) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="font-semibold text-slate-950">Line Items</h2>
-            <p className="mt-1 text-sm text-slate-600">Manual structured factura rows for asset value matching. No OCR or PDF extraction.</p>
+            <p className="mt-1 text-sm text-slate-600">Structured factura rows for asset value matching. Add manually or use assisted extraction, then review before linking or applying values.</p>
+            {factura.lineItems.length && factura.filePath ? <p className="mt-2 rounded-md bg-amber-50 p-2 text-sm text-amber-800">This factura already has line items. Review existing rows before adding extraction candidates to avoid duplicates.</p> : null}
           </div>
           {canWriteInventory ? (
             <Link href={`/facturas/${factura.id}/line-items/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">

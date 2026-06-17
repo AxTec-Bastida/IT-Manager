@@ -348,6 +348,46 @@ describe("data quality review helpers", () => {
     expect(summary.assetsLinkedToMultipleLineItems.map((asset) => asset.id)).toEqual(["asset-2"]);
   });
 
+  it("flags factura attachments needing extraction or manual line item entry", () => {
+    const summary = summarizeFacturaLineItemQuality(
+      [
+        {
+          id: "factura-attachment",
+          facturaNumber: "QA-PDF-1",
+          vendorName: "QA Vendor",
+          purchaseDate: null,
+          receivedDate: null,
+          notes: null,
+          originalFilename: "qa.pdf",
+          filePath: "/uploads/facturas/qa.pdf",
+          assets: [],
+          stockItems: [],
+          lineItems: [],
+          extractionAttempts: [],
+        },
+        {
+          id: "factura-no-text",
+          facturaNumber: "QA-PDF-2",
+          vendorName: "QA Vendor",
+          purchaseDate: null,
+          receivedDate: null,
+          notes: null,
+          originalFilename: "scan.pdf",
+          filePath: "/uploads/facturas/scan.pdf",
+          assets: [],
+          stockItems: [],
+          lineItems: [],
+          extractionAttempts: [{ id: "attempt-1", status: "NO_TEXT", candidateCount: 0, createdLineItemCount: 0, warningsJson: "[]", createdAt: new Date("2026-06-17") }],
+        },
+      ],
+      [],
+    );
+
+    expect(summary.facturasWithAttachmentNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-1", "QA-PDF-2"]);
+    expect(summary.extractionAttemptedNoLineItems.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-2"]);
+    expect(summary.noTextExtractionAttempts.map((factura) => factura.facturaNumber)).toEqual(["QA-PDF-2"]);
+  });
+
   it("parses skipped duplicate workbook row audit messages", () => {
     const rows = parseSkippedDuplicateRows([
       {

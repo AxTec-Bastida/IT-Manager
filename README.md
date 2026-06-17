@@ -985,7 +985,7 @@ The Data Quality page shows the latest ImportRun, warning count, skipped duplica
 
 Asset Value / Depreciation review flags active assets missing purchase value, missing purchase date, or stale internal estimates. These values are for IT lifecycle context and decommission snapshots only, not accounting. Use the asset detail `Asset Value` card or `/devices/[id]/value` to edit permitted records.
 
-Factura Line Items / Value Matching shows structured invoice rows that need asset links or value application. Add line items from a factura detail page, link only the matching purchased assets, then use Apply Value to create or update `AssetValueProfile` records from the line item unit cost. The apply step is explicit and defaults to preserving existing asset values unless overwrite is selected.
+Factura Line Items / Value Matching shows structured invoice rows that need asset links or value application. Add line items from a factura detail page, or use the assisted `/facturas/[id]/extract` workflow for selectable-text PDFs. Extraction runs locally with `pdftotext` when available, returns editable candidates only, and never creates line items, links assets, or applies asset values until the user explicitly confirms. Scanned/image-only PDFs should be entered manually until OCR is added in a future phase.
 
 Focused CSV exports are available from the page for duplicate IP review, suspicious stock comments, suspicious asset names, suspicious assignments, mobile pairing review, device aliases, missing required photos, asset value review, factura line item review, skipped duplicate workbook rows, unlinked facturas, missing asset tags, missing serial numbers, static assets missing IP/MAC, mobile device tracking violations, and stock review.
 

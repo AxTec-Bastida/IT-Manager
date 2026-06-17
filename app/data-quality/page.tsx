@@ -303,12 +303,31 @@ export default async function DataQualityPage() {
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard icon={ReceiptText} label="Line items" value={review.facturaLineItems.totalLineItems} helper="Structured factura rows" />
+          <SummaryCard icon={ReceiptText} label="Attachments no lines" value={review.facturaLineItems.facturasWithAttachmentNoLineItems.length} helper="Extraction/manual entry candidates" />
           <SummaryCard icon={AlertTriangle} label="Unlinked quantity" value={review.facturaLineItems.lineItemsWithUnlinkedQuantity.length} helper="Quantity not fully linked to assets" />
           <SummaryCard icon={CircleDollarSign} label="Linked missing value" value={review.facturaLineItems.linkedAssetsMissingValue.length} helper="Linked assets without value profile" />
           <SummaryCard icon={AlertTriangle} label="Multi-line links" value={review.facturaLineItems.assetsLinkedToMultipleLineItems.length} helper="Assets linked to multiple lines" />
+          <SummaryCard icon={AlertTriangle} label="Extraction review" value={review.facturaLineItems.extractionAttemptedNoLineItems.length + review.facturaLineItems.noTextExtractionAttempts.length} helper="Attempted or no-text invoices" />
         </div>
-        {review.facturaLineItems.lineItemsWithUnlinkedQuantity.length || review.facturaLineItems.linkedAssetsMissingValue.length || review.facturaLineItems.assetsLinkedToMultipleLineItems.length ? (
+        {review.facturaLineItems.facturasWithAttachmentNoLineItems.length || review.facturaLineItems.extractionAttemptedNoLineItems.length || review.facturaLineItems.noTextExtractionAttempts.length || review.facturaLineItems.lineItemsWithUnlinkedQuantity.length || review.facturaLineItems.linkedAssetsMissingValue.length || review.facturaLineItems.assetsLinkedToMultipleLineItems.length ? (
           <div className="grid gap-3 lg:grid-cols-2">
+            {review.facturaLineItems.facturasWithAttachmentNoLineItems.slice(0, 8).map((factura) => (
+              <MobileCard key={`attachment-${factura.id}`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">Attachment needs line items</p>
+                    <h3 className="text-lg font-semibold text-slate-950">{factura.facturaNumber}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{factura.vendorName}</p>
+                    <p className="mt-2 text-sm text-slate-500">Use assisted extraction or manual entry. Results are not trusted until reviewed.</p>
+                  </div>
+                  <Badge className="w-fit bg-indigo-50 text-indigo-800 ring-indigo-200">Review</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/facturas/${factura.id}/extract`}>Extract / review</ActionLink>
+                  <ActionLink href={`/facturas/${factura.id}/line-items/new`}>Manual line item</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
             {review.facturaLineItems.lineItemsWithUnlinkedQuantity.slice(0, 12).map((lineItem) => (
               <MobileCard key={lineItem.id}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

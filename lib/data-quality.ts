@@ -70,9 +70,11 @@ type ReviewFactura = {
   receivedDate: Date | null;
   notes: string | null;
   originalFilename?: string | null;
+  filePath?: string | null;
   assets?: unknown[];
   stockItems?: unknown[];
   lineItems?: Array<{ id: string; description: string; quantity: number; unitCost: number; currency: string; assetLinks: Array<{ id: string; deviceId: string; device?: ReviewDevice }> }>;
+  extractionAttempts?: Array<{ id: string; status: string; candidateCount: number; createdLineItemCount: number; warningsJson: string | null; createdAt: Date | string }>;
 };
 
 type ReviewStockItem = {
@@ -288,6 +290,10 @@ export function summarizeAssetValueQuality(devices: ReviewDevice[], now = new Da
 export function summarizeFacturaLineItemQuality(facturas: ReviewFactura[], devices: ReviewDevice[]) {
   const lineItems = facturas.flatMap((factura) => (factura.lineItems ?? []).map((lineItem) => ({ ...lineItem, factura })));
   const facturasWithNoLineItems = facturas.filter((factura) => (factura.lineItems?.length ?? 0) === 0);
+  const facturasWithAttachmentNoLineItems = facturasWithNoLineItems.filter((factura) => Boolean(factura.filePath || factura.originalFilename));
+  const extractionAttemptedNoLineItems = facturasWithNoLineItems.filter((factura) => (factura.extractionAttempts?.length ?? 0) > 0);
+  const noTextExtractionAttempts = facturas.filter((factura) => (factura.extractionAttempts ?? []).some((attempt) => ["NO_TEXT", "FAILED"].includes(attempt.status)));
+  const lowConfidenceExtractionAttempts = facturas.filter((factura) => (factura.extractionAttempts ?? []).some((attempt) => attempt.status === "SUCCESS" && attempt.candidateCount > 0 && attempt.createdLineItemCount === 0));
   const lineItemsWithUnlinkedQuantity = lineItems
     .map((lineItem) => ({ ...lineItem, linkedCount: lineItem.assetLinks.length, unlinkedQuantity: Math.max(0, lineItem.quantity - lineItem.assetLinks.length) }))
     .filter((lineItem) => lineItem.unlinkedQuantity > 0);
@@ -301,6 +307,10 @@ export function summarizeFacturaLineItemQuality(facturas: ReviewFactura[], devic
   return {
     totalLineItems: lineItems.length,
     facturasWithNoLineItems,
+    facturasWithAttachmentNoLineItems,
+    extractionAttemptedNoLineItems,
+    noTextExtractionAttempts,
+    lowConfidenceExtractionAttempts,
     lineItemsWithUnlinkedQuantity,
     lineItemsOverLinked,
     linkedAssetsMissingValue,
@@ -564,6 +574,7 @@ export async function getDataQualityReview() {
         assets: { select: { id: true, name: true, serialNumber: true } },
         stockItems: { select: { id: true, name: true } },
         lineItems: { include: { assetLinks: true } },
+        extractionAttempts: { orderBy: { createdAt: "desc" }, take: 3 },
       },
     }),
     prisma.stockItem.findMany({
@@ -916,6 +927,33 @@ export async function getDataQualityExportRows(type: string) {
         assetTag: "",
         reason: "Factura has no structured line items.",
         url: `/facturas/${factura.id}`,
+      })),
+      ...review.facturaLineItems.facturasWithAttachmentNoLineItems.map((factura) => ({
+        reviewType: "attachment-with-no-line-items",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "Factura has an attachment but no structured line items. Try assisted extraction or enter line items manually.",
+        url: `/facturas/${factura.id}/extract`,
+      })),
+      ...review.facturaLineItems.extractionAttemptedNoLineItems.map((factura) => ({
+        reviewType: "extraction-attempted-no-line-items",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "Extraction was attempted but no line items have been created.",
+        url: `/facturas/${factura.id}/extract`,
+      })),
+      ...review.facturaLineItems.noTextExtractionAttempts.map((factura) => ({
+        reviewType: "no-text-or-failed-extraction",
+        facturaNumber: factura.facturaNumber,
+        vendorName: factura.vendorName,
+        lineItemDescription: "",
+        assetTag: "",
+        reason: "Latest extraction history includes no selectable text or extraction failure. Manual entry may be required.",
+        url: `/facturas/${factura.id}/extract`,
       })),
       ...review.facturaLineItems.lineItemsWithUnlinkedQuantity.map((lineItem) => ({
         reviewType: "line-item-unlinked-quantity",

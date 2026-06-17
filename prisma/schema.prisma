@@ -797,6 +797,7 @@ model Factura {
   stockItems       StockItem[]
   stockMovements   StockMovement[]
   lineItems        FacturaLineItem[]
+  extractionAttempts FacturaExtractionAttempt[]
   tasks            Task[]
   purchaseNotes    PurchaseNote[]
   createdAt        DateTime          @default(now())
@@ -829,6 +830,25 @@ model FacturaLineItem {
   @@index([category])
   @@index([sku])
   @@index([model])
+}
+
+model FacturaExtractionAttempt {
+  id                   String   @id @default(cuid())
+  facturaId            String
+  factura              Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  status               String
+  candidateCount       Int      @default(0)
+  createdLineItemCount Int      @default(0)
+  warningsJson         String?
+  performedByUserId    String?
+  performedByUser      AppUser? @relation(fields: [performedByUserId], references: [id], onDelete: SetNull)
+  performedByName      String?
+  createdAt            DateTime @default(now())
+
+  @@index([facturaId])
+  @@index([status])
+  @@index([performedByUserId])
+  @@index([createdAt])
 }
 
 model FacturaLineItemAsset {
@@ -1117,6 +1137,7 @@ model AppUser {
   assignedTasks           Task[]           @relation("TaskAssignedUser")
   uploadedAssetPhotos     AssetPhoto[]     @relation("AssetPhotoUploadedByUser")
   uploadedStockItemPhotos StockItemPhoto[] @relation("StockItemPhotoUploadedByUser")
+  facturaExtractionAttempts FacturaExtractionAttempt[]
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
 
