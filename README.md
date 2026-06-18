@@ -149,6 +149,47 @@ Camera permissions are per browser/origin. If the app URL changes from `http://s
 
 ## Production Readiness / Before Wider Rollout
 
+### Controlled Team Beta Status
+
+Current verdict for controlled beta: ready for Axel plus one IT teammate with daily backups, local Windows runtime, and known limitations accepted. This is not yet broad production V1.
+
+Ready:
+
+- Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
+- Auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, backups, scheduled jobs, factura extraction/line items, asset values, decommission, and BitLocker vault.
+- `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, `npm test`, `npm run lint`, and `npm run build` are the required release checks.
+- Windows Task Scheduler task `Warehouse IT Inventory Jobs` runs `npm.cmd run jobs:run-due` every 15 minutes from `C:\Dev\warehouse-it-inventory`.
+
+Pending / accepted limitations:
+
+- SMTP credentials are not configured unless `.env` is updated later. Manual workflows still save; email sends are skipped or degraded.
+- HTTPS/Caddy is configured for server-side testing, but local CA/browser/phone trust must be completed before relying on physical phone camera/PWA install.
+- Docker Compose support exists, but Docker Desktop/CLI is not validated on this beta machine.
+- `BITLOCKER_VAULT_SECRET` is configured locally; before real recovery keys are stored, keep the same secret in the approved password manager.
+- Full restore drill to a separate project folder remains a controlled admin exercise. At minimum, verify every backup includes database plus uploads before beta work.
+
+Do not do during controlled beta without explicit Admin approval:
+
+- Do not run `prisma migrate reset`, destructive seed, bulk imports, broad cleanup scripts, direct printer sending, SNMP polling, UniFi work, OCR expansion, or public tunnels.
+- Do not commit `.env`, SMTP credentials, `BITLOCKER_VAULT_SECRET`, BitLocker recovery keys, `prisma/dev.db`, uploads, backups, certificates, private keys, logs, or runtime data.
+- Do not use real BitLocker recovery keys until the vault secret is stored in the approved password manager and the reveal/audit process has been reviewed.
+
+QA record note:
+
+- `QA-*` assets, `QA-PHASE-*` facturas, and items such as `QA Smoke Mouse` are test evidence. Keep them recognizable as QA records and do not count them as production assets during operational reviews.
+
+Production update runbook:
+
+1. Run `npm run backup`.
+2. Pull the latest code.
+3. Run `npm install`.
+4. Run `npx prisma migrate deploy`.
+5. Run `npx prisma generate`.
+6. Run `npm run doctor`.
+7. Run `npm run build`.
+8. Restart the app.
+9. Check `/api/health`.
+
 Before using this with more internal users:
 
 - Move the active project out of OneDrive to `C:\Dev\warehouse-it-inventory`; keep OneDrive for copies/exports if useful.

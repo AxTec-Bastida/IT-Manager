@@ -221,4 +221,22 @@ describe("team beta ops artifacts", () => {
     expect(caddyfile).toContain("reverse_proxy 127.0.0.1:3000");
     expect(caddyfile).not.toMatch(/PRIVATE KEY|BEGIN CERTIFICATE|BEGIN .*KEY/);
   });
+
+  it("documents final controlled beta readiness and secret safety rules", async () => {
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+
+    for (const document of [readme, sop]) {
+      expect(document).toContain("Controlled Team Beta Status");
+      expect(document).toContain("QA-*");
+      expect(document).toContain("BITLOCKER_VAULT_SECRET");
+      expect(document).toContain("approved password manager");
+      expect(document).toContain("Do not commit");
+      expect(document).toContain("prisma migrate reset");
+    }
+    expect(readme).toContain("Production update runbook");
+    expect(readme).toContain("npx prisma migrate deploy");
+    expect(sop).toContain("controlled beta is ready");
+    expect(sop).toContain("not broad production V1");
+  });
 });

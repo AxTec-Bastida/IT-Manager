@@ -16,6 +16,33 @@ Current Phase 53 beta runtime decision:
 - Phase 54 baselined the current real SQLite database into Prisma migration metadata. Future schema migrations can use `npx prisma migrate deploy` after a backup.
 - SMTP is optional and currently pending unless `.env` has real company SMTP values. Without SMTP, records still save and email attempts are logged as skipped.
 
+## Controlled Team Beta Status
+
+Final Phase 69 readiness verdict: controlled beta is ready for Axel plus one IT teammate, not broad production V1.
+
+Ready for beta:
+
+- Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
+- Backups, health/doctor, scheduled jobs, auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, factura extraction/line items, asset values, decommission, and BitLocker vault.
+- Daily beta checks: `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, and `/api/health`.
+
+Pending before wider rollout:
+
+- Configure and validate SMTP with a QA recipient before sending real receipts.
+- Complete trusted HTTPS/local CA setup on the real phone before relying on live camera/PWA install.
+- Store `BITLOCKER_VAULT_SECRET` in the approved password manager before real recovery keys are entered.
+- Run a full restore drill in a separate folder before expanding to more users.
+- Validate Docker only if Docker becomes the selected runtime; do not run Docker jobs while Windows Task Scheduler is active.
+
+Do not do during beta:
+
+- Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.
+- Do not commit `.env`, SMTP credentials, `BITLOCKER_VAULT_SECRET`, BitLocker recovery keys, database files, uploads, backups, certificates, private keys, or logs.
+
+QA records:
+
+- `QA-*` assets, `QA-PHASE-*` facturas, and `QA Smoke Mouse` are controlled test evidence. Keep them clearly labeled and do not count them as production assets in manual reviews.
+
 Current Phase 55 phone beta status:
 
 - Server-side LAN checks passed for `/api/health`, `/login`, `/scan`, `/devices`, `/reports`, `/photos/compliance`, and `/map`.
