@@ -234,6 +234,21 @@ describe("team beta ops artifacts", () => {
 
     for (const document of [readme, sop]) {
       expect(document).toContain("Controlled Team Beta Status");
+      expect(document).toContain("Production V1");
+      expect(document).toContain("Controlled Team Beta is ready for Axel plus one trusted IT teammate");
+      expect(document).toContain("Wider rollout is not approved");
+      expect(document).toContain("Real SMTP provider credentials");
+      expect(document).toContain("Real physical phone");
+      expect(document).toContain("approved password manager");
+      expect(document).toContain("Not included in Production V1");
+      expect(document).toContain("Offline stock issue/return");
+      expect(document).toContain("service worker caching");
+      expect(document).toContain("SNMP printer/scale polling");
+      expect(document).toContain("UniFi API integration");
+      expect(document).toContain("direct Zebra printer sending");
+      expect(document).toContain("Daily beta checklist");
+      expect(document).toContain("Emergency / disaster checklist");
+      expect(document).toContain("Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted");
       expect(document).toContain("QA-*");
       expect(document).toContain("BITLOCKER_VAULT_SECRET");
       expect(document).toContain("approved password manager");
@@ -242,8 +257,11 @@ describe("team beta ops artifacts", () => {
     }
     expect(readme).toContain("Production update runbook");
     expect(readme).toContain("npx prisma migrate deploy");
+    expect(readme).toContain("Production V1 Sign-Off Status");
     expect(sop).toContain("controlled beta is ready");
     expect(sop).toContain("not broad production V1");
+    expect(sop).toContain("Final smoke test matrix");
+    expect(sop).toContain("| Physical phone validation | Pending | Phase 76 | Requires actual beta phone/browser. |");
   });
 
   it("documents the Phase 70 restore drill and disaster recovery guardrails", async () => {

@@ -38,6 +38,95 @@ Pending before wider rollout:
 - Repeat full restore drills periodically and before expanding to more users.
 - Validate Docker only if Docker becomes the selected runtime; do not run Docker jobs while Windows Task Scheduler is active.
 
+## Production V1 Sign-Off / Beta Freeze
+
+Phase 78 verdict:
+
+- Controlled Team Beta is ready for Axel plus one trusted IT teammate.
+- Production V1 codebase is ready pending external blockers.
+- Wider rollout is not approved until external blockers are closed and the rollout checklist is complete.
+
+External blockers:
+
+- Real SMTP provider credentials and one real QA email send.
+- Real physical phone certificate trust, camera scan, PWA/install, close/reopen offline move, close/reopen offline photo, and reconnect sync validation.
+- `BITLOCKER_VAULT_SECRET` stored in the approved password manager before real recovery keys are entered.
+- Optional `npm audit` and dependency review before broad production deployment.
+
+Ready / validated capabilities:
+
+- Core: auth/roles, inventory, scan/manual scan, intake, asset detail, assignments, loans, stockroom, maintenance, tasks, RMA, labels, maps/locations, reports, Data Quality, backups, restore drill, scheduled jobs, decommission, facturas, factura line items, PDF text extraction, XML extraction, asset value/depreciation, and BitLocker encrypted vault with fake QA validation.
+- Offline: queue foundation, offline test note, offline serialized asset move, offline conflict review center, offline asset photo upload queue, storage safety warnings, missing browser-blob conflict behavior, and mobile-width QA at 320/360/390.
+- Security/safety: no secrets in health/settings/docs/logs, no BitLocker plaintext in exports/logs/UI, server-side validation for offline sync, documented backup/restore, and verified role restrictions.
+
+Not included in Production V1:
+
+- Offline stock issue/return, offline stock photos, offline RMA, offline decommission, offline BitLocker, offline factura/import/admin actions, service worker caching, or a full offline inventory database.
+- OCR for scanned PDFs beyond the current lightweight extraction work.
+- SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, automatic emailed reports, or Docker runtime validation on this beta machine while Docker is unavailable.
+- SMTP real send and full physical phone camera/PWA validation until the external blockers are completed.
+
+Rollout checklist before adding more than Axel plus one teammate:
+
+1. Save `BITLOCKER_VAULT_SECRET` in the approved password manager.
+2. Complete real phone validation: phone model/browser, certificate trust, live camera scan, PWA/install if needed, offline move close/reopen, offline photo close/reopen, and reconnect sync.
+3. Configure SMTP credentials locally without committing `.env`.
+4. Send one real QA test email.
+5. Confirm `/api/health` has no degraded SMTP warning.
+6. Run `npm run backup` before first real team use.
+7. Confirm `npm run jobs:run-due` succeeds.
+8. Confirm the current beta URL and `APP_BASE_URL` match, preferably `https://warehouse-it.local`.
+
+Daily beta checklist:
+
+- Start of day: confirm app opens, check `/api/health`, `/data-quality`, `/offline`, `/offline/conflicts`, confirm jobs, and confirm latest backup exists.
+- During use: sync offline actions before leaving the warehouse, do not clear browser storage with pending photos, review conflicts instead of ignoring them, and do not store real BitLocker keys unless the vault secret is safely stored.
+- End of day: run `npm run backup`, check failed/conflicted offline syncs, and confirm QA/test records are not mixed with real production counts.
+
+Emergency / disaster checklist:
+
+1. Stop the app.
+2. Do not delete the database or upload folders.
+3. Copy the current database and upload folders to an emergency folder.
+4. Identify the latest backup.
+5. Restore only to a separate folder first.
+6. Confirm `BITLOCKER_VAULT_SECRET` is available.
+7. Run `npx prisma migrate status` and `npx prisma migrate deploy`.
+8. Run `npm run doctor` and `npm run build`.
+9. Test `/api/health` and login.
+10. Only then repair or replace the live app.
+
+Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted.
+
+Final smoke test matrix:
+
+| Area | Status | Last validated phase | Notes / blocker |
+| --- | --- | --- | --- |
+| Login | Ready | Phase 76 | HTTPS redirect fixed for `https://warehouse-it.local`. |
+| Dashboard | Ready | Phase 76 | Authenticated HTTPS page check passed. |
+| Scan | Ready | Phase 76 | Server-side HTTPS check passed; real phone live camera still pending. |
+| Inventory | Ready | Phase 78 | Existing tests/build pass; no broad data mutation. |
+| Asset detail | Ready | Phase 76 | QA asset detail checked through HTTPS. |
+| Photo upload | Ready | Phase 76 | QA offline photo original/thumbnail opened; real phone camera pending. |
+| Offline queue | Ready | Phase 75 | Storage safety and mobile-width queue review complete. |
+| Offline move | Ready | Phase 76 | QA move synced through HTTPS. |
+| Offline photo | Ready | Phase 76 | QA photo synced through HTTPS. |
+| Offline conflicts | Ready | Phase 76 | Missing blob conflict behavior validated. |
+| Data Quality | Ready | Phase 76 | HTTPS page check passed. |
+| Reports | Ready | Phase 55/78 | Server-side checks and tests pass; no full reports expansion in freeze. |
+| Backup | Ready | Phase 78 | `npm run backup` validates database and uploads. |
+| Restore | Ready | Phase 70 | Separate-folder restore drill passed. |
+| Jobs | Ready | Phase 78 | `npm run jobs:run-due` succeeds; final pass may have no jobs due. |
+| BitLocker fake QA reveal | Ready | Phase 70 | Restore drill confirmed Admin reveal with matching secret. |
+| Factura line items | Ready | Phase 60 | Existing tests/build pass. |
+| PDF/XML extraction | Ready | Phase 66/65 | Existing tests/build pass; OCR expansion is not V1. |
+| Asset value | Ready | Phase 59/60 | Existing tests/build pass. |
+| Decommission page load | Ready | Phase 69/78 | Included in build and readiness scope. |
+| Settings health | Ready | Phase 77/78 | Sanitized SMTP status; no secrets exposed. |
+| Email test missing-SMTP behavior | Ready with blocker | Phase 77 | Admin test logs skipped result until SMTP credentials exist. |
+| HTTPS Caddy route | Ready server-side | Phase 76 | Physical phone trust still pending. |
+| Physical phone validation | Pending | Phase 76 | Requires actual beta phone/browser. |
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.

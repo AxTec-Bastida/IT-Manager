@@ -308,6 +308,67 @@ QA record note:
 
 - `QA-*` assets, `QA-PHASE-*` facturas, and items such as `QA Smoke Mouse` are test evidence. Keep them recognizable as QA records and do not count them as production assets during operational reviews.
 
+### Production V1 Sign-Off Status
+
+Phase 78 verdict:
+
+- Controlled Team Beta is ready for Axel plus one trusted IT teammate.
+- Production V1 codebase is ready pending external blockers.
+- Wider rollout is not approved until the blockers below are closed and the final rollout checklist is complete.
+
+External blockers:
+
+- Real SMTP provider credentials are still missing; complete one real QA send before using email receipts broadly.
+- Real physical phone certificate/camera/PWA validation is still pending on the actual beta phone and browser.
+- `BITLOCKER_VAULT_SECRET` must be saved in the approved password manager before real recovery keys are stored.
+- Optional `npm audit` / dependency review remains before broad production deployment.
+
+Ready / validated capabilities:
+
+- Core: auth/roles, inventory, scan/manual scan, intake, asset details, assignments, asset loans, stockroom, maintenance, tasks, RMA, labels, maps/locations, reports, Data Quality, backups, restore drill, scheduled jobs, decommission, facturas, factura line items, PDF text extraction, XML extraction, asset value/depreciation, and the encrypted BitLocker vault with fake QA validation.
+- Offline: queue foundation, test note, serialized asset move, conflict review center, asset photo upload queue, storage safety warnings, missing browser-blob conflict behavior, and mobile-width QA at 320/360/390.
+- Security and safety: health/settings/docs/logs do not expose secrets, BitLocker plaintext is not shown in exports/logs/UI, offline sync is server-validated, backup/restore is documented, and role restrictions are covered by tests and smoke checks.
+
+Not included in Production V1:
+
+- Offline stock issue/return, stock photos, RMA, decommission, BitLocker, factura/import/admin actions, service worker caching, or a full offline inventory database.
+- OCR for scanned PDFs beyond the current lightweight extraction work.
+- SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, or automatic emailed reports.
+- Docker runtime validation on this beta machine while Docker Desktop/CLI remains unavailable.
+- SMTP real send and full physical phone camera/PWA validation until the external blockers are completed.
+
+Rollout checklist before adding more than Axel plus one teammate:
+
+1. Save `BITLOCKER_VAULT_SECRET` in the approved password manager.
+2. Complete real phone validation: phone model/browser, certificate trust, live camera scan, PWA/install if needed, offline move close/reopen, offline photo close/reopen, and reconnect sync.
+3. Configure SMTP credentials locally, without committing `.env`.
+4. Send one real QA test email.
+5. Confirm `/api/health` has no degraded SMTP warning.
+6. Run `npm run backup` before first real team use.
+7. Confirm `npm run jobs:run-due` succeeds.
+8. Confirm the current beta URL and `APP_BASE_URL` match, preferably `https://warehouse-it.local`.
+
+Daily beta checklist:
+
+- Start of day: confirm the app opens, check `/api/health`, `/data-quality`, `/offline`, `/offline/conflicts`, confirm jobs, and confirm the latest backup exists.
+- During use: sync offline actions before leaving the warehouse, do not clear browser storage with pending photos, review conflicts instead of ignoring them, and do not store real BitLocker keys until the vault secret is safely stored.
+- End of day: run `npm run backup`, check failed/conflicted offline syncs, and confirm QA/test records are not mixed into real production counts.
+
+Emergency / disaster checklist:
+
+1. Stop the app.
+2. Do not delete the database or upload folders.
+3. Copy current `prisma/dev.db`, `uploads/assets`, `uploads/facturas`, `uploads/stock`, and `uploads/maps` to an emergency folder.
+4. Identify the latest backup.
+5. Restore only to a separate folder first.
+6. Confirm `BITLOCKER_VAULT_SECRET` is available.
+7. Run `npx prisma migrate status` and `npx prisma migrate deploy`.
+8. Run `npm run doctor` and `npm run build`.
+9. Test `/api/health` and login.
+10. Only then repair or replace the live app.
+
+Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted.
+
 Production update runbook:
 
 1. Run `npm run backup`.
