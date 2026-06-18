@@ -45,7 +45,7 @@ export async function LabelPreviewCard({ item, options = {}, compact = false }: 
           </div>
         ) : null}
         {showDataMatrix ? <DataMatrixPreview value={payload.primary} compact={compact} /> : null}
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {showBarcode ? <BarcodePreview value={payload.primary} /> : null}
           <div className="rounded-md bg-slate-50 p-3">
             <p className="text-xs font-medium uppercase text-slate-500">Visible label text</p>
@@ -101,7 +101,7 @@ function BarcodePreview({ value }: { value: string }) {
   const bars = barcodeBars(value);
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-2">
+    <div className="max-w-full overflow-hidden rounded-md border border-slate-200 bg-white p-2">
       <div className="flex h-12 items-stretch overflow-hidden">
         {bars.map((bar, index) => (
           <span key={`${index}-${bar.width}-${bar.on ? "1" : "0"}`} className={bar.on ? "bg-slate-950" : "bg-white"} style={{ width: `${bar.width}px` }} />

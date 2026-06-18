@@ -87,9 +87,27 @@ export function clearSyncedOfflineActions(storage = getBrowserStorage()) {
   writeOfflineQueue(items.filter((item) => item.status !== "SYNCED"), storage);
 }
 
+export async function clearSyncedOfflineActionsAndBlobs(storage = getBrowserStorage()) {
+  const items = readOfflineQueue(storage);
+  await deleteOfflinePhotoBlobs(items.filter((item) => item.status === "SYNCED" && item.actionType === "UPLOAD_ASSET_PHOTO").map((item) => item.clientActionId)).catch(() => undefined);
+  writeOfflineQueue(items.filter((item) => item.status !== "SYNCED"), storage);
+}
+
 export async function cancelOfflineActionAndBlob(clientActionId: string, storage = getBrowserStorage()) {
   cancelOfflineAction(clientActionId, storage);
   await deleteOfflinePhotoBlob(clientActionId).catch(() => undefined);
+}
+
+export async function retryOfflineActionIfLocalBlobExists(clientActionId: string, storage = getBrowserStorage()) {
+  const item = readOfflineQueue(storage).find((candidate) => candidate.clientActionId === clientActionId);
+  if (item?.actionType === "UPLOAD_ASSET_PHOTO") {
+    const blob = await getOfflinePhotoBlob(clientActionId).catch(() => null);
+    if (!blob?.blob) {
+      return { ok: false as const, message: "Local photo file is no longer available. Retake the photo before retrying." };
+    }
+  }
+  retryOfflineAction(clientActionId, storage);
+  return { ok: true as const };
 }
 
 export async function syncOfflineQueue(fetcher: SyncFetch = fetch, storage = getBrowserStorage()) {

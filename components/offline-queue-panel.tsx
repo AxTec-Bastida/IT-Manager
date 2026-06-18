@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, RotateCcw, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, HardDrive, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { summarizeQueuedOfflineAction } from "@/lib/offline-actions";
-import { cancelOfflineActionAndBlob, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
-import { getOfflinePhotoBlob } from "@/lib/offline-photo-blobs";
+import { cancelOfflineActionAndBlob, clearSyncedOfflineActionsAndBlobs, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineActionIfLocalBlobExists, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
+import { getOfflinePhotoBlob, listOfflinePhotoBlobMetadata } from "@/lib/offline-photo-blobs";
 import { OfflineStatusIndicator } from "@/components/offline-status-indicator";
 
 type QueuedItem = OfflineQueueSnapshot["items"][number];
+type StorageInfo = {
+  queuedPhotoCount: number;
+  queuedPhotoBytes: number;
+  usageBytes: number | null;
+  quotaBytes: number | null;
+};
 
 export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appVersion: string }) {
   const [snapshot, setSnapshot] = useState<OfflineQueueSnapshot>(() => getOfflineQueueSnapshot());
@@ -16,9 +22,27 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo>({ queuedPhotoCount: 0, queuedPhotoBytes: 0, usageBytes: null, quotaBytes: null });
 
   function refresh() {
     setSnapshot(getOfflineQueueSnapshot());
+  }
+
+  async function readStorageInfo(): Promise<StorageInfo> {
+    const [photos, estimate] = await Promise.all([
+      listOfflinePhotoBlobMetadata().catch(() => []),
+      typeof navigator !== "undefined" && navigator.storage?.estimate ? navigator.storage.estimate().catch(() => null) : Promise.resolve(null),
+    ]);
+    return {
+      queuedPhotoCount: photos.length,
+      queuedPhotoBytes: photos.reduce((sum, photo) => sum + photo.sizeBytes, 0),
+      usageBytes: typeof estimate?.usage === "number" ? estimate.usage : null,
+      quotaBytes: typeof estimate?.quota === "number" ? estimate.quota : null,
+    };
+  }
+
+  async function refreshStorageInfo() {
+    setStorageInfo(await readStorageInfo());
   }
 
   useEffect(() => {
@@ -33,6 +57,16 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
       window.removeEventListener("offline", refresh);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void readStorageInfo().then((info) => {
+      if (active) setStorageInfo(info);
+    });
+    return () => {
+      active = false;
+    };
+  }, [snapshot.items]);
 
   const recentSynced = useMemo(() => snapshot.items.filter((item) => item.status === "SYNCED").slice(0, 5), [snapshot.items]);
 
@@ -69,10 +103,11 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
     }
   }
 
-  function clearSynced() {
-    clearSyncedOfflineActions();
+  async function clearSynced() {
+    await clearSyncedOfflineActionsAndBlobs();
     setMessage("Synced actions cleared from this browser.");
     refresh();
+    await refreshStorageInfo();
   }
 
   return (
@@ -113,6 +148,8 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
         {message ? <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{message}</p> : null}
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{error}</p> : null}
       </section>
+
+      <StorageSafetyCard info={storageInfo} />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3">
@@ -165,6 +202,8 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
 function QueuedActionCard({ item }: { item: QueuedItem }) {
   const summary = summarizeQueuedOfflineAction(item);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoBlobAvailable, setPhotoBlobAvailable] = useState<boolean | null>(item.actionType === "UPLOAD_ASSET_PHOTO" ? null : true);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const deviceHref = item.serverResult?.relatedDeviceId || summary.relatedDeviceId ? `/devices/${item.serverResult?.relatedDeviceId || summary.relatedDeviceId}` : null;
 
   useEffect(() => {
@@ -173,16 +212,33 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
     let objectUrl: string | null = null;
     getOfflinePhotoBlob(item.clientActionId)
       .then((record) => {
-        if (!active || !record?.blob) return;
+        if (!active) return;
+        setPhotoBlobAvailable(Boolean(record?.blob));
+        if (!record?.blob) return;
         objectUrl = URL.createObjectURL(record.blob);
         setPhotoPreviewUrl(objectUrl);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setPhotoBlobAvailable(false);
+      });
     return () => {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [item.actionType, item.clientActionId]);
+
+  async function cancelAction() {
+    if (item.actionType === "UPLOAD_ASSET_PHOTO") {
+      const confirmed = window.confirm("Cancel queued photo? This removes the local unsynced photo from this browser/device.");
+      if (!confirmed) return;
+    }
+    await cancelOfflineActionAndBlob(item.clientActionId);
+  }
+
+  async function retryAction() {
+    const result = await retryOfflineActionIfLocalBlobExists(item.clientActionId);
+    if (!result.ok) setActionMessage(result.message);
+  }
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -203,6 +259,10 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
           <p className="mt-2 text-xs text-slate-500">Created {new Date(item.createdAt).toLocaleString()} - Attempts {item.attempts}</p>
           {item.lastError ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-800">{item.lastError}</p> : null}
           {item.serverResult?.conflict ? <p className="mt-2 rounded-lg bg-orange-50 p-2 text-xs font-medium text-orange-800">{item.serverResult.conflict.reason}</p> : null}
+          {item.actionType === "UPLOAD_ASSET_PHOTO" && photoBlobAvailable === false ? (
+            <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-800">Local photo file is no longer available. Retake the photo before retrying.</p>
+          ) : null}
+          {actionMessage ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-800">{actionMessage}</p> : null}
           {deviceHref ? (
             <Link href={deviceHref} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
               Open asset
@@ -211,12 +271,12 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
         </div>
         <div className="grid gap-2 sm:min-w-40">
           {item.status === "PENDING" ? (
-            <button type="button" onClick={() => void cancelOfflineActionAndBlob(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => void cancelAction()} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
               Cancel
             </button>
           ) : null}
           {item.status === "FAILED" || item.status === "CONFLICT" ? (
-            <button type="button" onClick={() => retryOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => void retryAction()} disabled={item.actionType === "UPLOAD_ASSET_PHOTO" && photoBlobAvailable === false} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 disabled:opacity-60">
               Retry
             </button>
           ) : null}
@@ -232,6 +292,24 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
       <p className="text-2xl font-semibold text-slate-950">{value}</p>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
     </div>
+  );
+}
+
+function StorageSafetyCard({ info }: { info: StorageInfo }) {
+  const usage = info.usageBytes !== null && info.quotaBytes ? `${formatBytes(info.usageBytes)} used of ${formatBytes(info.quotaBytes)} available to this browser` : "Browser storage estimate unavailable";
+  return (
+    <section className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+      <div className="flex items-start gap-3">
+        <HardDrive className="mt-0.5 shrink-0" size={18} />
+        <div className="min-w-0">
+          <p className="font-semibold">Offline photo storage safety</p>
+          <p className="mt-1">Unsynced photos are stored only on this browser/device. Clearing browser data removes them, so sync before switching devices and keep the browser open until sync when possible.</p>
+          <p className="mt-2 text-xs font-medium">
+            Queued photo blobs: {info.queuedPhotoCount} / {formatBytes(info.queuedPhotoBytes)}. {usage}.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -251,4 +329,10 @@ function StatusBadge({ status }: { status: string }) {
       {config.label}
     </span>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.ceil(bytes / 1024)} KB`;
 }

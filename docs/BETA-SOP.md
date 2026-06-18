@@ -27,6 +27,7 @@ Ready for beta:
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Backups, health/doctor, scheduled jobs, auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, factura extraction/line items, asset values, decommission, and BitLocker vault.
 - Offline Queue foundation for safe QA test notes, serialized asset moves, and asset photo uploads only. Stock, RMA, decommission, BitLocker, factura, admin, import, bulk intake, and stock photos remain online-only.
+- Offline asset photos are browser/device-local until sync. Do not clear browser data, uninstall the PWA, or switch devices before syncing queued photos.
 - Daily beta checks: `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, and `/api/health`.
 
 Pending before wider rollout:
@@ -113,7 +114,7 @@ For normal production updates after the Phase 54 baseline:
 
 ## Offline Queue Foundation
 
-Phase 71 added `/offline` as a local action queue foundation. Phase 72 enables serialized asset moves as the first real offline workflow, and Phase 74 enables asset photo uploads.
+Phase 71 added `/offline` as a local action queue foundation. Phase 72 enables serialized asset moves as the first real offline workflow, Phase 74 enables asset photo uploads, and Phase 75 hardens mobile storage safety.
 
 Current allowed offline actions:
 
@@ -127,6 +128,8 @@ Rules:
 - The server validates every synced action and never trusts the local queue blindly.
 - Offline asset moves require `inventory.write` at sync time and are applied only if the asset, destination, and last-known state are still safe.
 - Offline asset photo sync requires `inventory.write`, a matching local IndexedDB photo blob, a valid asset, and a supported image type/size. If the blob is gone or the asset was retired/disposed, the app creates a conflict instead of uploading.
+- `/offline` shows a storage safety card with queued photo count, queued photo size, and browser storage estimate when available.
+- Clear synced removes synced queue metadata and synced photo blobs. Cancelling a queued pending photo asks for confirmation and removes that browser-local blob.
 - Unsupported action types fail or conflict clearly until later phases implement them.
 - Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, or sensitive notes.
 - Do not rely on offline mode for stock issue, stock photo upload, RMA receive, decommission, factura extraction, admin/users/settings, imports, bulk intake, or BitLocker workflows.
@@ -149,12 +152,22 @@ Offline asset photo workflow:
 3. Keep the same browser/device until sync because the photo blob lives only in that browser's IndexedDB.
 4. Return to `/offline` and tap Sync now when online.
 5. Review `/offline/conflicts` if sync reports a missing blob, missing asset, retired/disposed asset, permission problem, or invalid file.
+6. If the browser-local photo blob is missing because storage was cleared, retake the photo. The server cannot recover the original image from queue metadata.
+
+Daily offline beta checklist:
+
+1. Open `/offline`.
+2. Sync pending actions before switching devices or clearing browser data.
+3. Review `/offline/conflicts`.
+4. Check Data Quality Offline Sync Health.
+5. Cancel or mark reviewed any stale missing-blob photo conflicts after retaking the photo.
 
 Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
 - Phase 74: Offline Photo Upload Queue completed for asset photos only.
+- Phase 75: Offline Mobile Field Test + Storage Safety Polish completed for browser-local storage warnings, synced blob cleanup, missing-blob failure handling, and mobile-width offline review.
 
 ## SMTP / Email Validation
 

@@ -133,6 +133,116 @@ describe("offline queue helpers", () => {
     expect(result.conflict).toBe(1);
     expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ status: "CONFLICT", lastError: "Local photo file is no longer available." });
   });
+
+  it("clears synced photo metadata and the matching local photo blob", async () => {
+    vi.resetModules();
+    const deleteOfflinePhotoBlobs = vi.fn(async () => undefined);
+    vi.doMock("@/lib/offline-photo-blobs", () => ({
+      deleteOfflinePhotoBlob: vi.fn(async () => undefined),
+      deleteOfflinePhotoBlobs,
+      getOfflinePhotoBlob: vi.fn(async () => null),
+    }));
+    const { clearSyncedOfflineActionsAndBlobs, getOfflineQueueSnapshot } = await import("@/lib/offline-queue");
+    const storage = new MemoryStorage();
+    const syncedPhoto = {
+      clientActionId: "photo-synced",
+      actionType: "UPLOAD_ASSET_PHOTO",
+      payload: { deviceId: "dev-1", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 10_000 },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: "SYNCED",
+      attempts: 1,
+      lastError: null,
+      serverResult: null,
+      userId: "user-1",
+      appVersion: "0.1.0",
+      schemaVersion: 1,
+    };
+    const pendingMove = { ...syncedPhoto, clientActionId: "move-pending", actionType: "MOVE_ASSET", payload: { assetTag: "QA-1", targetLocationLabel: "Bench" }, status: "PENDING" };
+    storage.setItem("warehouse-it-offline-queue-v1", JSON.stringify([syncedPhoto, pendingMove]));
+
+    await clearSyncedOfflineActionsAndBlobs(storage);
+
+    expect(deleteOfflinePhotoBlobs).toHaveBeenCalledWith(["photo-synced"]);
+    expect(getOfflineQueueSnapshot(storage).items).toHaveLength(1);
+    expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ clientActionId: "move-pending", status: "PENDING" });
+  });
+
+  it("blocks retrying a failed photo action when the local blob is gone", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/offline-photo-blobs", () => ({
+      deleteOfflinePhotoBlob: vi.fn(async () => undefined),
+      deleteOfflinePhotoBlobs: vi.fn(async () => undefined),
+      getOfflinePhotoBlob: vi.fn(async () => null),
+    }));
+    const { getOfflineQueueSnapshot, retryOfflineActionIfLocalBlobExists } = await import("@/lib/offline-queue");
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "warehouse-it-offline-queue-v1",
+      JSON.stringify([
+        {
+          clientActionId: "photo-failed",
+          actionType: "UPLOAD_ASSET_PHOTO",
+          payload: { deviceId: "dev-1", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 10_000 },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: "FAILED",
+          attempts: 1,
+          lastError: "Network failed",
+          serverResult: null,
+          userId: "user-1",
+          appVersion: "0.1.0",
+          schemaVersion: 1,
+        },
+      ]),
+    );
+
+    const result = await retryOfflineActionIfLocalBlobExists("photo-failed", storage);
+
+    expect(result).toMatchObject({ ok: false, message: "Local photo file is no longer available. Retake the photo before retrying." });
+    expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ status: "FAILED", lastError: "Network failed" });
+  });
+
+  it("allows retrying a failed photo action when the browser still has the local blob", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/offline-photo-blobs", () => ({
+      deleteOfflinePhotoBlob: vi.fn(async () => undefined),
+      deleteOfflinePhotoBlobs: vi.fn(async () => undefined),
+      getOfflinePhotoBlob: vi.fn(async () => ({
+        blob: new Blob(["photo"], { type: "image/webp" }),
+        fileName: "overview.webp",
+        mimeType: "image/webp",
+        sizeBytes: 5,
+        savedAt: new Date().toISOString(),
+      })),
+    }));
+    const { getOfflineQueueSnapshot, retryOfflineActionIfLocalBlobExists } = await import("@/lib/offline-queue");
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "warehouse-it-offline-queue-v1",
+      JSON.stringify([
+        {
+          clientActionId: "photo-failed",
+          actionType: "UPLOAD_ASSET_PHOTO",
+          payload: { deviceId: "dev-1", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 10_000 },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: "FAILED",
+          attempts: 1,
+          lastError: "Network failed",
+          serverResult: null,
+          userId: "user-1",
+          appVersion: "0.1.0",
+          schemaVersion: 1,
+        },
+      ]),
+    );
+
+    const result = await retryOfflineActionIfLocalBlobExists("photo-failed", storage);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ status: "PENDING", lastError: null });
+  });
 });
 
 describe("offline sync server processor", () => {
@@ -264,7 +374,7 @@ describe("offline sync server processor", () => {
       createFakePhotoPrisma({ records, activityLogs, device: moveDevice({ assetTag: "QA-PHOTO-001" }) }) as never,
     );
 
-    expect(result).toMatchObject({ status: "CONFLICT", relatedDeviceId: "dev-1", relatedAssetTag: "QA-PHOTO-001" });
+    expect(result).toMatchObject({ status: "CONFLICT", relatedDeviceId: "dev-1", relatedAssetTag: "QA-PHOTO-001", message: "Local photo file is no longer available. Retake the photo." });
     expect(records[0]).toMatchObject({ actionType: "UPLOAD_ASSET_PHOTO", status: "CONFLICT", conflictCode: "INVALID_PAYLOAD", entityType: "device" });
     expect(activityLogs[0]).toMatchObject({ action: "offline.photo_upload.conflict_created", entity: "offline_sync_record" });
   });

@@ -149,7 +149,7 @@ Camera permissions are per browser/origin. If the app URL changes from `http://s
 
 ## Offline Queue Foundation
 
-Phase 71 added the foundation for future offline-capable workflows. Phase 72 enabled serialized asset moves, Phase 73 added conflict review, and Phase 74 enables asset photo uploads. The current `/offline` page stores metadata-only queued actions in localStorage, keeps queued photo files in browser IndexedDB, and syncs after the user is online and authenticated.
+Phase 71 added the foundation for future offline-capable workflows. Phase 72 enabled serialized asset moves, Phase 73 added conflict review, Phase 74 enabled asset photo uploads, and Phase 75 hardened mobile storage safety. The current `/offline` page stores metadata-only queued actions in localStorage, keeps queued photo files in browser IndexedDB, and syncs after the user is online and authenticated.
 
 Current scope:
 
@@ -159,6 +159,9 @@ Current scope:
 - Offline move payloads may include asset tag/device ID, target map anchor or text destination, area/department/station, notes, client timestamp, and last-known status/assignment/map-anchor IDs.
 - Offline photo payloads may include device ID/asset tag, file name, MIME type, file size, photo type, caption, source, compression flag, primary-photo request, client timestamp, last-known status, and route.
 - The queue is local to the browser and stores no files, PDFs, XMLs, credentials, BitLocker recovery keys, SMTP values, or other secrets in localStorage. Queued asset photo blobs are stored only in IndexedDB on the same browser/device.
+- Unsynced asset photos are browser/device-local. Do not clear browser data, switch devices, or uninstall the PWA before syncing queued photos.
+- `/offline` shows a storage safety card with queued photo blob count, approximate queued photo size, and browser storage estimate when available.
+- Clear synced removes synced local queue metadata and synced photo blobs. Cancelling a pending queued photo asks for confirmation and removes the local photo blob from that browser.
 - The server validates authentication, `inventory.write`, payload safety, current asset state, stale status/assignment/map-anchor checks, and target location/anchor before applying a move.
 - Asset photo sync uses `POST /api/offline/sync/photo` with multipart form data and reuses the same asset-photo validation/storage path as online uploads.
 - Unsupported future action types such as task creation and maintenance creation fail clearly until a later phase implements them.
@@ -190,6 +193,7 @@ How to use offline asset photos:
 3. Keep the same browser/device until sync; the photo file lives only in local IndexedDB.
 4. Open `/offline` when online and tap Sync now.
 5. If the asset was retired/disposed, permission changed, the asset cannot be found, or the local browser photo blob is gone, the sync creates a conflict instead of silently applying anything.
+6. If browser storage is cleared before sync, the app cannot recreate the local photo file. Retake the photo and cancel or mark the old conflict reviewed.
 
 Conflict review workflow:
 
@@ -200,13 +204,20 @@ Conflict review workflow:
 5. Cancel does not apply the queued action.
 6. Mark reviewed records the reviewer and note without changing inventory.
 
-Daily beta check: open `/offline/conflicts` and Data Quality's Offline Sync Health card before relying on offline move results.
+Daily beta check:
+
+1. Open `/offline`.
+2. Sync pending actions before switching devices or clearing browser data.
+3. Open `/offline/conflicts`.
+4. Check Data Quality's Offline Sync Health card.
+5. Retake any queued photo where the browser-local blob is missing.
 
 Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
 - Phase 74: Offline Photo Upload Queue completed for asset photos only.
+- Phase 75: Offline Mobile Field Test + Storage Safety Polish completed for browser-local photo storage warnings, synced blob cleanup, missing-blob failure handling, and mobile-width queue review.
 
 ## Production Readiness / Before Wider Rollout
 

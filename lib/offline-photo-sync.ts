@@ -113,7 +113,7 @@ export async function processOfflinePhotoSyncAction(input: PhotoSyncInput, actor
       action,
       actor,
       status: "CONFLICT",
-      message: "Local photo file is no longer available. Cancel and retake the photo on the original device.",
+      message: "Local photo file is no longer available. Retake the photo.",
       resultSummary: { message: "Missing local IndexedDB photo blob.", fileName: payload.fileName, mimeType: payload.mimeType, sizeBytes: payload.sizeBytes },
       ...related,
       ...entity,

@@ -278,7 +278,25 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Phase 72: Offline Scan + Move Queue completed");
       expect(document).toContain("Phase 73: Offline Conflict Review Center completed");
       expect(document).toContain("Phase 74: Offline Photo Upload Queue completed");
+      expect(document).toContain("Phase 75: Offline Mobile Field Test + Storage Safety Polish completed");
+      expect(document).toContain("browser/device-local");
+      expect(document).toContain("Do not clear browser data");
+      expect(document).toContain("Clear synced removes synced");
       expect(document).toContain("/offline/conflicts");
     }
+  });
+
+  it("keeps offline storage safety copy and photo retry guardrails visible in source", async () => {
+    const queuePanel = await fs.readFile(path.join(projectRoot, "components", "offline-queue-panel.tsx"), "utf8");
+    const conflictActions = await fs.readFile(path.join(projectRoot, "components", "offline-conflict-actions.tsx"), "utf8");
+    const dataQualityPage = await fs.readFile(path.join(projectRoot, "app", "data-quality", "page.tsx"), "utf8");
+
+    expect(queuePanel).toContain("Offline photo storage safety");
+    expect(queuePanel).toContain("Unsynced photos are stored only on this browser/device");
+    expect(queuePanel).toContain("Queued photo blobs");
+    expect(queuePanel).toContain("Local photo file is no longer available. Retake the photo before retrying.");
+    expect(conflictActions).toContain("Retry photo uploads from the Offline Queue on the same browser/device");
+    expect(dataQualityPage).toContain("Offline Sync Health");
+    expect(dataQualityPage).not.toContain("raw blob");
   });
 });

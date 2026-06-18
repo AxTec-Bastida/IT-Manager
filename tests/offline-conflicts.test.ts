@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cancelOfflineConflict, inferOfflineConflictCode, markOfflineConflictReviewed, parseSafeSummary, sanitizeOfflineConflictRecord } from "@/lib/offline-conflicts";
+import { cancelOfflineConflict, inferOfflineConflictCode, markOfflineConflictReviewed, parseSafeSummary, retryOfflineConflict, sanitizeOfflineConflictRecord } from "@/lib/offline-conflicts";
 
 const admin = { id: "admin-1", name: "Admin User", email: "admin@example.local", username: "admin", role: "ADMIN" as const, isActive: true };
 const itStaff = { ...admin, id: "it-1", role: "IT_STAFF" as const };
@@ -70,6 +70,16 @@ describe("offline conflict review helpers", () => {
     expect(activityLogs[0]).toMatchObject({ action: "offline.conflict.cancelled", entity: "offline_sync_record", entityId: record.id });
     expect(client.device).toBeUndefined();
   });
+
+  it("blocks server-only retry for photo upload conflicts that require a browser-local blob", async () => {
+    const { client, record } = fakeReviewClient({
+      actionType: "UPLOAD_ASSET_PHOTO",
+      payloadSummary: JSON.stringify({ deviceId: "dev-1", assetTag: "QA-PHOTO-001", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 10_000 }),
+      resultSummary: JSON.stringify({ message: "Local photo file is no longer available. Retake the photo." }),
+    });
+
+    await expect(retryOfflineConflict(record.id as string, admin, client as never)).rejects.toThrow("original browser/device");
+  });
 });
 
 describe("offline conflict API routes", () => {
@@ -114,7 +124,7 @@ describe("offline conflict API routes", () => {
   });
 });
 
-function fakeReviewClient() {
+function fakeReviewClient(overrides: Record<string, unknown> = {}) {
   const activityLogs: Array<Record<string, unknown>> = [];
   const record: Record<string, unknown> = {
     id: "sync-1",
@@ -136,6 +146,7 @@ function fakeReviewClient() {
     resultSummary: JSON.stringify({ message: "Asset map location changed before sync." }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     processedAt: new Date("2026-01-01T00:01:00.000Z"),
+    ...overrides,
   };
   const tx = {
     offlineSyncRecord: {
