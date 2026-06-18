@@ -239,4 +239,26 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("controlled beta is ready");
     expect(sop).toContain("not broad production V1");
   });
+
+  it("documents the Phase 70 restore drill and disaster recovery guardrails", async () => {
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+
+    for (const document of [readme, sop]) {
+      expect(document).toContain("Phase 70");
+      expect(document).toContain("C:\\Dev\\warehouse-it-inventory-restore-test-phase70");
+      expect(document).toContain("manual-20260617-212205");
+      expect(document).toContain("manual-20260617-213002");
+      expect(document).toContain("npx prisma migrate deploy");
+      expect(document).toContain("BITLOCKER_VAULT_SECRET");
+      expect(document).toContain("approved password manager");
+      expect(document).toContain("prisma migrate reset");
+      expect(document).toContain("destructive seed");
+    }
+
+    expect(readme).toContain("Disaster restore runbook");
+    expect(sop).toContain("Full Restore Drill / Disaster Recovery");
+    expect(sop).toContain("Admin reveal worked");
+    expect(sop).toContain("IT/Viewer reveal was denied");
+  });
 });

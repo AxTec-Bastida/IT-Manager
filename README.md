@@ -160,13 +160,24 @@ Ready:
 - `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, `npm test`, `npm run lint`, and `npm run build` are the required release checks.
 - Windows Task Scheduler task `Warehouse IT Inventory Jobs` runs `npm.cmd run jobs:run-due` every 15 minutes from `C:\Dev\warehouse-it-inventory`.
 
+Phase 70 restore drill result:
+
+- Full restore drill completed in `C:\Dev\warehouse-it-inventory-restore-test-phase70` using source backup `C:\Dev\warehouse-it-inventory\backups\manual-20260617-212205`.
+- Restore app ran separately on port `3015`; the live app folder, live database, live uploads, and live runtime were not overwritten.
+- Restored database accepted `npx prisma migrate status`, `npx prisma migrate deploy`, `npx prisma generate`, `npm run doctor`, and `npm run build`.
+- Runtime health was reachable at `http://127.0.0.1:3015/api/health`; degraded warnings were limited to restore-only SMTP/app-base-url configuration.
+- Restored uploads served asset photos and factura PDFs with correct content types, blocked traversal, and returned 404 for missing files.
+- BitLocker QA vault record restored and decrypted only with the matching restore `.env` `BITLOCKER_VAULT_SECRET`; IT/Viewer reveal attempts were denied.
+- Backup-from-restore succeeded at `C:\Dev\warehouse-it-inventory-restore-test-phase70\backups\manual-20260617-213002`.
+- Restore-only QA users/sessions were removed after validation; the restored copy showed 6 real users afterward.
+
 Pending / accepted limitations:
 
 - SMTP credentials are not configured unless `.env` is updated later. Manual workflows still save; email sends are skipped or degraded.
 - HTTPS/Caddy is configured for server-side testing, but local CA/browser/phone trust must be completed before relying on physical phone camera/PWA install.
 - Docker Compose support exists, but Docker Desktop/CLI is not validated on this beta machine.
 - `BITLOCKER_VAULT_SECRET` is configured locally; before real recovery keys are stored, keep the same secret in the approved password manager.
-- Full restore drill to a separate project folder remains a controlled admin exercise. At minimum, verify every backup includes database plus uploads before beta work.
+- Repeat restore drills remain controlled admin exercises. At minimum, verify every backup includes database plus uploads and that the matching `BITLOCKER_VAULT_SECRET` is available from the approved password manager.
 
 Do not do during controlled beta without explicit Admin approval:
 
@@ -189,6 +200,31 @@ Production update runbook:
 7. Run `npm run build`.
 8. Restart the app.
 9. Check `/api/health`.
+
+Disaster restore runbook:
+
+1. Stop the affected app/server.
+2. Do not overwrite the live folder first. Create a separate restore folder, for example `C:\Dev\warehouse-it-inventory-restore-test-YYYYMMDD`.
+3. Clone or copy the current code into that restore folder.
+4. Restore the matching backup contents:
+   - `prisma/dev.db`
+   - `uploads/assets`
+   - `uploads/stock`
+   - `uploads/facturas`
+   - `uploads/maps`
+5. Restore a local `.env` with the same `SESSION_SECRET` or a new session secret, the correct `DATABASE_URL`, the correct `APP_BASE_URL` for the test port, and the same `BITLOCKER_VAULT_SECRET` used when BitLocker keys were encrypted. Do not print or commit secrets.
+6. Run `npm install`.
+7. Run `npx prisma migrate status`.
+8. Run `npx prisma migrate deploy`.
+9. Run `npx prisma generate`.
+10. Run `npm run doctor`.
+11. Run `npm run build`.
+12. Start the restored app on a separate port, for example `PORT=3015 npm run start`.
+13. Check `/api/health`, `/login`, representative asset detail pages, Data Quality, reports, facturas, uploads, scheduled jobs status, and BitLocker role behavior if vault records exist.
+14. Run `npm run backup` from the restore folder and verify the backup is created under the restore folder, not the live app folder.
+15. Only after the restore copy is verified should an Admin decide whether to promote restored files back into the live folder.
+
+Never use `prisma migrate reset`, destructive seed, broad cleanup scripts, or source workbook imports as a restore shortcut.
 
 Before using this with more internal users:
 

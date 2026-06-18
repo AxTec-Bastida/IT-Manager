@@ -20,6 +20,8 @@ Current Phase 53 beta runtime decision:
 
 Final Phase 69 readiness verdict: controlled beta is ready for Axel plus one IT teammate, not broad production V1.
 
+Phase 70 restore drill verdict: full restore drill passed in a separate folder and confirmed the backup can restore database, uploads, factura files, BitLocker encrypted QA records, migrations, build output, runtime health, and backup-from-restore without overwriting the live app.
+
 Ready for beta:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
@@ -31,7 +33,7 @@ Pending before wider rollout:
 - Configure and validate SMTP with a QA recipient before sending real receipts.
 - Complete trusted HTTPS/local CA setup on the real phone before relying on live camera/PWA install.
 - Store `BITLOCKER_VAULT_SECRET` in the approved password manager before real recovery keys are entered.
-- Run a full restore drill in a separate folder before expanding to more users.
+- Repeat full restore drills periodically and before expanding to more users.
 - Validate Docker only if Docker becomes the selected runtime; do not run Docker jobs while Windows Task Scheduler is active.
 
 Do not do during beta:
@@ -184,6 +186,45 @@ Backups must include:
 - `uploads/maps`
 
 If BitLocker vault records exist, the database backup contains encrypted recovery-key payloads only. The matching `BITLOCKER_VAULT_SECRET` is not included in backups and must be stored in the company-approved password manager. Losing that secret means restored BitLocker recovery keys cannot be decrypted.
+
+## Full Restore Drill / Disaster Recovery
+
+Latest validated restore drill:
+
+- Phase: 70.
+- Source backup: `C:\Dev\warehouse-it-inventory\backups\manual-20260617-212205`.
+- Restore folder: `C:\Dev\warehouse-it-inventory-restore-test-phase70`.
+- Restore runtime: `http://127.0.0.1:3015`.
+- Restore backup produced: `C:\Dev\warehouse-it-inventory-restore-test-phase70\backups\manual-20260617-213002`.
+- `npx prisma migrate status`: database schema was up to date.
+- `npx prisma migrate deploy`: no pending migrations.
+- `npx prisma generate`: passed.
+- `npm run doctor`: passed with expected restore-only warnings for SMTP and local app base URL.
+- `npm run build`: passed.
+- `/api/health`: reachable; degraded only for restore-only SMTP/app-base-url warnings.
+- Upload serving: restored asset photos and factura PDFs opened with expected content types; missing and traversal paths returned 404.
+- BitLocker vault: encrypted QA key restored, Admin reveal worked with the matching `BITLOCKER_VAULT_SECRET`, IT/Viewer reveal was denied, and no plaintext key appeared in stored encrypted payloads.
+- Restore-only QA users/sessions were removed after validation.
+
+Restore steps for a real incident:
+
+1. Stop the affected app/server.
+2. Back up the broken/current state first if possible.
+3. Create a separate restore folder. Do not overwrite `C:\Dev\warehouse-it-inventory` until the restored copy has been validated.
+4. Restore the matching `prisma/dev.db` and upload folders from one backup set.
+5. Restore local `.env` values, including the matching `BITLOCKER_VAULT_SECRET` from the approved password manager. Never print or commit secrets.
+6. Run `npm install`.
+7. Run `npx prisma migrate status`.
+8. Run `npx prisma migrate deploy`.
+9. Run `npx prisma generate`.
+10. Run `npm run doctor`.
+11. Run `npm run build`.
+12. Start the app on a separate test port and check `/api/health`.
+13. Verify login, representative asset pages, photos, stock/factura files, reports, scheduled jobs status, and BitLocker role behavior if vault records exist.
+14. Run `npm run backup` from the restored folder and confirm the new backup is written under the restored folder.
+15. Only after Admin review should restored database/uploads be promoted back to the live app folder.
+
+Never use `prisma migrate reset`, destructive seed, workbook import, or broad cleanup scripts as a disaster recovery shortcut.
 
 ## BitLocker Vault Rule
 
