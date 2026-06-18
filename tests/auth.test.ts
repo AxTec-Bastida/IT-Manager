@@ -4,6 +4,7 @@ import { proxy } from "../proxy";
 import { canPerformAction, createSession, createSessionCookieValue, getAuthSecretStatus, getUserFromSessionToken, hashPassword, hashSessionToken, validatePasswordStrength, verifyPassword } from "@/lib/auth";
 import { handleApiError } from "@/lib/api";
 import { AuthRequiredError, ForbiddenError } from "@/lib/auth";
+import { appUrl } from "@/lib/public-url";
 
 function restoreSessionSecret(value: string | undefined) {
   if (value === undefined) delete process.env.SESSION_SECRET;
@@ -91,6 +92,11 @@ describe("auth helpers", () => {
 });
 
 describe("auth proxy and API errors", () => {
+  it("builds public auth redirect URLs from APP_BASE_URL behind a reverse proxy", () => {
+    const url = appUrl("/dashboard", "http://localhost:3000/api/auth/login", { APP_BASE_URL: "https://warehouse-it.local" } as NodeJS.ProcessEnv);
+    expect(url.toString()).toBe("https://warehouse-it.local/dashboard");
+  });
+
   it("redirects page requests without a session cookie to login", () => {
     const response = proxy(new NextRequest("http://localhost:3000/devices"));
     expect(response.status).toBe(307);

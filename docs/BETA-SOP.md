@@ -68,6 +68,17 @@ Current Phase 62 HTTPS/trusted-origin runtime:
 - Do not commit generated certificates, private keys, local CA files, `.env`, uploads, backups, or database files.
 - Keep `http://192.168.0.67:3000` only as fallback if Caddy/certificate trust needs repair.
 - Current server-side HTTPS proxy validation passed with `curl.exe -k`; local browser/phone trust still requires installing the Caddy local CA on the test device before real camera/PWA validation.
+- Caddy must forward the public host/proto headers. Phase 76 found and fixed a bad login redirect where the app sent HTTPS users to `https://localhost:3000/dashboard` instead of `https://warehouse-it.local/dashboard`.
+
+Current Phase 76 real-phone validation status:
+
+- Server-side HTTPS runtime validation passed for `https://warehouse-it.local`.
+- Authenticated HTTPS checks passed for `/dashboard`, `/scan`, `/offline`, `/offline/conflicts`, `/offline/move`, `/data-quality`, and QA asset detail.
+- `TEST_OFFLINE_NOTE`, `MOVE_ASSET`, and `UPLOAD_ASSET_PHOTO` synced successfully through the HTTPS runtime using QA asset `QA-PHONE-FIELD-001`.
+- The QA offline move changed only the QA asset location to `QA / Phone / Bench 76`.
+- The QA offline photo used a harmless generated PNG; its original and thumbnail opened from `/uploads/assets`.
+- Missing browser photo blob behavior created a reviewed conflict saying `Local photo file is no longer available. Retake the photo.` and did not create a broken photo record.
+- Physical phone model/browser, certificate trust, live camera, PWA install, and close/reopen persistence remain pending until the actual beta phone is tested.
 
 ## Migration Safety
 
@@ -101,7 +112,7 @@ For normal production updates after the Phase 54 baseline:
 
 ## Daily Use
 
-1. Log in at `http://192.168.0.67:3000/login` while the server is on the same network. If that IP changes, update `.env` and this SOP.
+1. Log in at `https://warehouse-it.local/login` while the server is on the same trusted network. Use `http://192.168.0.67:3000/login` only as a fallback if Caddy/certificate trust needs repair.
 2. Use `/scan` first when an asset label, serial label, QR, barcode, or Data Matrix is available.
 3. Search manually if camera access is blocked or the label will not scan.
 4. Open the asset detail page before changing anything.

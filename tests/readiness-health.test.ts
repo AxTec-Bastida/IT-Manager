@@ -265,6 +265,7 @@ describe("team beta ops artifacts", () => {
   it("documents the offline queue foundation boundaries", async () => {
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+    const caddyExample = await fs.readFile(path.join(projectRoot, "Caddyfile.example"), "utf8");
 
     for (const document of [readme, sop]) {
       expect(document).toContain("Offline Queue");
@@ -279,11 +280,18 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Phase 73: Offline Conflict Review Center completed");
       expect(document).toContain("Phase 74: Offline Photo Upload Queue completed");
       expect(document).toContain("Phase 75: Offline Mobile Field Test + Storage Safety Polish completed");
+      expect(document).toContain("Phase 76");
+      expect(document).toContain("QA-PHONE-FIELD-001");
+      expect(document).toContain("Local photo file is no longer available. Retake the photo.");
+      expect(document.toLowerCase()).toContain("physical phone");
       expect(document).toContain("browser/device-local");
       expect(document).toContain("Do not clear browser data");
       expect(document).toContain("Clear synced removes synced");
       expect(document).toContain("/offline/conflicts");
     }
+
+    expect(caddyExample).toContain("header_up Host {host}");
+    expect(caddyExample).toContain("header_up X-Forwarded-Proto {scheme}");
   });
 
   it("keeps offline storage safety copy and photo retry guardrails visible in source", async () => {

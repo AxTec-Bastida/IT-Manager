@@ -218,6 +218,52 @@ Roadmap:
 - Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
 - Phase 74: Offline Photo Upload Queue completed for asset photos only.
 - Phase 75: Offline Mobile Field Test + Storage Safety Polish completed for browser-local photo storage warnings, synced blob cleanup, missing-blob failure handling, and mobile-width queue review.
+- Phase 76: Real Phone / HTTPS / Camera Beta Validation completed server-side HTTPS runtime checks, fixed Caddy/login redirect behavior for `https://warehouse-it.local`, validated offline note/move/photo sync through the HTTPS API, and kept physical phone camera/PWA validation pending until the actual beta phone is tested.
+
+### Phase 76 HTTPS / Phone Validation Notes
+
+Validation date: June 18, 2026.
+
+Validated from the beta workstation:
+
+- Runtime path: `C:\Dev\warehouse-it-inventory`.
+- Preferred URL / `APP_BASE_URL`: `https://warehouse-it.local`.
+- HTTPS reverse proxy: Caddy at `C:\Tools\caddy`, proxying to `127.0.0.1:3000`.
+- `/api/health` loaded through HTTPS with only the expected SMTP warning.
+- Authenticated HTTPS page checks returned OK for `/dashboard`, `/scan`, `/offline`, `/offline/conflicts`, `/offline/move`, `/data-quality`, and the QA asset detail page.
+- `TEST_OFFLINE_NOTE` synced successfully through `POST /api/offline/sync`.
+- `MOVE_ASSET` synced successfully for QA asset `QA-PHONE-FIELD-001`, moving it to `QA / Phone / Bench 76`.
+- `UPLOAD_ASSET_PHOTO` synced successfully for `QA-PHONE-FIELD-001` using a harmless generated PNG. The original image and thumbnail served correctly from `/uploads/assets/...`.
+- Storage-loss safety was validated by syncing a photo action without its browser-local file; the server created a reviewed conflict with the message `Local photo file is no longer available. Retake the photo.` and did not create a broken `AssetPhoto`.
+- Data Quality Offline Sync Health remains the review location for failed/conflicted browser-queued actions.
+
+Bug fixed during validation:
+
+- Login through the Caddy HTTPS origin was redirecting to `https://localhost:3000/dashboard`. The login route now uses configured `APP_BASE_URL` for public redirects when available, and the Caddy example forwards the public host/proto headers.
+
+Still pending on the actual beta phone:
+
+- Physical phone model/browser result.
+- Phone certificate trust without bypassing warnings.
+- Phone login and navigation.
+- Live camera permission and rear-camera scanner behavior.
+- Scan-from-photo/file fallback.
+- Manual scan fallback.
+- PWA Add to Home Screen / installed-app launch.
+- Offline move close/reopen persistence on the phone.
+- Offline photo close/reopen persistence on the phone.
+
+Daily mobile beta checklist:
+
+1. Confirm the phone is on the trusted warehouse network and opens `https://warehouse-it.local`.
+2. Confirm the certificate is trusted; do not bypass warnings for normal beta users.
+3. Log in and open `/dashboard`, `/scan`, `/offline`, `/offline/conflicts`, `/offline/move`, `/data-quality`, and a QA asset detail page.
+4. Test manual scan first with `QA-PHONE-FIELD-001`.
+5. Test live camera scan only after HTTPS trust is clean.
+6. Queue one QA offline move, refresh, close/reopen the browser/app, reconnect, sync, and clear synced.
+7. Queue one harmless QA offline photo, refresh, close/reopen, reconnect, sync, confirm original/thumbnail open, and clear synced.
+8. Review Data Quality Offline Sync Health and `/offline/conflicts`.
+9. Do not clear browser storage while useful offline photo evidence is pending.
 
 ## Production Readiness / Before Wider Rollout
 
@@ -320,6 +366,8 @@ The current controlled beta can still run over plain HTTP at `http://192.168.0.6
 
 Recommended beta strategy: keep the app LAN-only and put Caddy in front of the existing Windows-native `npm run start` process. Caddy terminates HTTPS and reverse proxies to `127.0.0.1:3000`. Do not expose the app publicly in this phase.
 
+The reverse proxy must preserve the public host and protocol. If the app sees only `localhost:3000`, login redirects can break phone access by sending the browser to `https://localhost:3000/dashboard`.
+
 Current HTTP fallback:
 
 - Use manual scan input if live camera is blocked.
@@ -346,7 +394,11 @@ Current HTTP fallback:
 
    https://warehouse-it.local {
      tls internal
-     reverse_proxy 127.0.0.1:3000
+     reverse_proxy 127.0.0.1:3000 {
+       header_up Host {host}
+       header_up X-Forwarded-Host {host}
+       header_up X-Forwarded-Proto {scheme}
+     }
    }
    ```
 

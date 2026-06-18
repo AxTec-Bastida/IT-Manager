@@ -8,12 +8,20 @@
 
 https://warehouse-it.local {
 	tls internal
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-Proto {scheme}
+	}
 }
 
 # LAN IP alternative when you are not ready to set up a local hostname:
 #
 # https://192.168.0.67 {
 # 	tls internal
-# 	reverse_proxy 127.0.0.1:3000
+# 	reverse_proxy 127.0.0.1:3000 {
+# 		header_up Host {host}
+# 		header_up X-Forwarded-Host {host}
+# 		header_up X-Forwarded-Proto {scheme}
+# 	}
 # }
