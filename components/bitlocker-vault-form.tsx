@@ -52,7 +52,7 @@ export function BitLockerVaultForm({ deviceId, existingRecord }: { deviceId: str
       </div>
       <label className="grid gap-1 text-sm font-semibold text-slate-700">
         Recovery key
-        <input className={inputClass} name="recoveryKey" placeholder="111111-222222-333333-444444-555555-666666-777777-888888" autoComplete="off" />
+        <input className={inputClass} name="recoveryKey" placeholder="######-######-######-######-######-######-######-######" autoComplete="off" />
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-semibold text-slate-700">

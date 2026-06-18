@@ -73,9 +73,11 @@ describe("BitLocker vault helpers", () => {
     const envExample = await fs.readFile(path.join(process.cwd(), ".env.example"), "utf8");
     const exportRoute = await fs.readFile(path.join(process.cwd(), "app", "api", "export", "[type]", "route.ts"), "utf8");
     const reports = await fs.readFile(path.join(process.cwd(), "lib", "reports.ts"), "utf8");
+    const vaultForm = await fs.readFile(path.join(process.cwd(), "components", "bitlocker-vault-form.tsx"), "utf8");
 
     expect(envExample).toContain("BITLOCKER_VAULT_SECRET=");
     expect(exportRoute).not.toMatch(/recoveryKey|bitLocker/i);
     expect(reports).not.toMatch(/recoveryKey|bitLockerRecoveryKey/i);
+    expect(vaultForm).not.toContain(qaKey);
   });
 });
