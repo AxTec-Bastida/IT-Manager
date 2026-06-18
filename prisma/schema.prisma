@@ -299,6 +299,23 @@ enum JobRunStatus {
   SKIPPED
 }
 
+enum OfflineActionType {
+  TEST_OFFLINE_NOTE
+  MOVE_ASSET
+  CREATE_TASK
+  CREATE_MAINTENANCE_RECORD
+  UPLOAD_ASSET_PHOTO
+}
+
+enum OfflineSyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  CONFLICT
+  CANCELLED
+}
+
 enum EmailLogStatus {
   SENT
   FAILED
@@ -682,14 +699,14 @@ model AssetValueProfile {
 }
 
 model BitLockerRecoveryKey {
-  id                   String   @id @default(cuid())
-  deviceId             String   @unique
-  device               Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  deviceId             String    @unique
+  device               Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   recoveryKeyEncrypted String
   keyId                String?
   volumeLabel          String?
   protectorId          String?
-  source               String   @default("MANUAL")
+  source               String    @default("MANUAL")
   notes                String?
   createdByUserId      String
   createdByName        String
@@ -698,8 +715,8 @@ model BitLockerRecoveryKey {
   lastViewedAt         DateTime?
   lastViewedByUserId   String?
   lastViewedByName     String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([keyId])
   @@index([lastViewedAt])
@@ -802,47 +819,47 @@ model AssetPhoto {
 }
 
 model Factura {
-  id               String            @id @default(cuid())
-  facturaNumber    String
-  vendorName       String
-  vendorRfc        String?
-  purchaseDate     DateTime?
-  receivedDate     DateTime?
-  poNumber         String?
-  totalAmount      Float?
-  currency         String            @default("USD")
-  warrantyStartAt  DateTime?
-  warrantyEndAt    DateTime?
-  notes            String?
-  originalFilename String?
-  storedFilename   String?
-  filePath         String?
-  mimeType         String?
-  fileSize         Int?
-  xmlPath          String?
-  xmlFilename      String?
-  xmlOriginalName  String?
-  xmlMimeType      String?
-  xmlSizeBytes     Int?
-  xmlUploadedAt    DateTime?
-  xmlUuid          String?
-  xmlSerie         String?
-  xmlFolio         String?
-  xmlIssuedAt      DateTime?
-  xmlCurrency      String?
-  xmlSubtotal      Float?
-  xmlTotal         Float?
-  xmlEmisorName    String?
-  xmlEmisorRfc     String?
-  assets           Device[]
-  stockItems       StockItem[]
-  stockMovements   StockMovement[]
-  lineItems        FacturaLineItem[]
+  id                 String                     @id @default(cuid())
+  facturaNumber      String
+  vendorName         String
+  vendorRfc          String?
+  purchaseDate       DateTime?
+  receivedDate       DateTime?
+  poNumber           String?
+  totalAmount        Float?
+  currency           String                     @default("USD")
+  warrantyStartAt    DateTime?
+  warrantyEndAt      DateTime?
+  notes              String?
+  originalFilename   String?
+  storedFilename     String?
+  filePath           String?
+  mimeType           String?
+  fileSize           Int?
+  xmlPath            String?
+  xmlFilename        String?
+  xmlOriginalName    String?
+  xmlMimeType        String?
+  xmlSizeBytes       Int?
+  xmlUploadedAt      DateTime?
+  xmlUuid            String?
+  xmlSerie           String?
+  xmlFolio           String?
+  xmlIssuedAt        DateTime?
+  xmlCurrency        String?
+  xmlSubtotal        Float?
+  xmlTotal           Float?
+  xmlEmisorName      String?
+  xmlEmisorRfc       String?
+  assets             Device[]
+  stockItems         StockItem[]
+  stockMovements     StockMovement[]
+  lineItems          FacturaLineItem[]
   extractionAttempts FacturaExtractionAttempt[]
-  tasks            Task[]
-  purchaseNotes    PurchaseNote[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  tasks              Task[]
+  purchaseNotes      PurchaseNote[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
   @@index([facturaNumber])
   @@index([vendorName])
@@ -1165,22 +1182,23 @@ model Employee {
 }
 
 model AppUser {
-  id                      String           @id @default(cuid())
-  name                    String
-  email                   String           @unique
-  username                String?          @unique
-  passwordHash            String
-  role                    AppRole          @default(VIEWER)
-  isActive                Boolean          @default(true)
-  lastLoginAt             DateTime?
-  sessions                AppSession[]
-  activityLogs            ActivityLog[]
-  assignedTasks           Task[]           @relation("TaskAssignedUser")
-  uploadedAssetPhotos     AssetPhoto[]     @relation("AssetPhotoUploadedByUser")
-  uploadedStockItemPhotos StockItemPhoto[] @relation("StockItemPhotoUploadedByUser")
+  id                        String                     @id @default(cuid())
+  name                      String
+  email                     String                     @unique
+  username                  String?                    @unique
+  passwordHash              String
+  role                      AppRole                    @default(VIEWER)
+  isActive                  Boolean                    @default(true)
+  lastLoginAt               DateTime?
+  sessions                  AppSession[]
+  activityLogs              ActivityLog[]
+  assignedTasks             Task[]                     @relation("TaskAssignedUser")
+  uploadedAssetPhotos       AssetPhoto[]               @relation("AssetPhotoUploadedByUser")
+  uploadedStockItemPhotos   StockItemPhoto[]           @relation("StockItemPhotoUploadedByUser")
   facturaExtractionAttempts FacturaExtractionAttempt[]
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
+  offlineSyncRecords        OfflineSyncRecord[]
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 
   @@index([email])
   @@index([username])
@@ -1824,6 +1842,26 @@ model JobRun {
   @@index([type])
   @@index([status])
   @@index([startedAt])
+}
+
+model OfflineSyncRecord {
+  id             String            @id @default(cuid())
+  clientActionId String            @unique
+  actionType     OfflineActionType
+  status         OfflineSyncStatus
+  actorUserId    String?
+  actorUser      AppUser?          @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorName      String?
+  payloadSummary String?
+  resultSummary  String?
+  createdAt      DateTime          @default(now())
+  processedAt    DateTime?
+
+  @@index([actionType])
+  @@index([status])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@index([processedAt])
 }
 
 model EmailLog {

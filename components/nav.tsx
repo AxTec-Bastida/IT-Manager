@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, MoreHorizontal, Package, PackageCheck, PackagePlus, Radar, ReceiptText, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, MoreHorizontal, Package, PackageCheck, PackagePlus, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 
 const primaryLinks = [
@@ -35,6 +35,7 @@ const navGroups = [
       { href: "/po-tracker", label: "PO Tracker", icon: ReceiptText },
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/tools", label: "Resources", icon: ExternalLink },
+      { href: "/offline", label: "Offline Queue", icon: RotateCcw },
     ],
   },
   {

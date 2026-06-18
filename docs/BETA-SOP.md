@@ -26,6 +26,7 @@ Ready for beta:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Backups, health/doctor, scheduled jobs, auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, factura extraction/line items, asset values, decommission, and BitLocker vault.
+- Offline Queue foundation for safe QA test notes only. Real inventory-changing offline workflows are not enabled yet.
 - Daily beta checks: `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, and `/api/health`.
 
 Pending before wider rollout:
@@ -109,6 +110,29 @@ For normal production updates after the Phase 54 baseline:
 8. Use Issue Stock for quantity-based items such as keyboards, mice, cables, chargers, batteries, and printer supplies.
 9. Use Intake for new serialized assets or new stock receiving.
 10. Use Audits for small physical checks, starting with safe QA assets before real workflows.
+
+## Offline Queue Foundation
+
+Phase 71 adds `/offline` as a local action queue foundation. It is for QA validation and future workflow groundwork, not for production offline inventory changes yet.
+
+Current allowed offline action:
+
+- `TEST_OFFLINE_NOTE`, a harmless note used to prove local queue persistence, sync, status transitions, failure handling, and server audit records.
+
+Rules:
+
+- Users must still log in before sync.
+- The server validates every synced action and never trusts the local queue blindly.
+- Unsupported action types fail or conflict clearly until later phases implement them.
+- Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, photos, or sensitive notes.
+- Do not rely on offline mode for asset moves, stock issue, RMA receive, photo upload, decommission, factura extraction, admin/users/settings, imports, or BitLocker workflows.
+- Conflicts and failed syncs require manual review. The app does not auto-change inventory from offline data in this phase.
+
+Roadmap:
+
+- Phase 72: Offline Scan + Move Queue.
+- Phase 73: Offline Photo Upload Queue.
+- Phase 74: Offline Conflict Review Center.
 
 ## SMTP / Email Validation
 

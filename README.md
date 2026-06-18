@@ -147,6 +147,34 @@ To install on a phone or tablet, open the stable internal app URL, sign in, then
 
 Camera permissions are per browser/origin. If the app URL changes from `http://server:3000` to `https://inventory.company.local`, users may need to allow camera access again.
 
+## Offline Queue Foundation
+
+Phase 71 adds the foundation for future offline-capable workflows. The current `/offline` page stores small, metadata-only queued actions in the browser and syncs them to `POST /api/offline/sync` after the user is online and authenticated.
+
+Current scope:
+
+- `TEST_OFFLINE_NOTE` is the only action type that can sync successfully.
+- The queue is local to the browser and stores no files, photos, PDFs, XMLs, credentials, BitLocker recovery keys, SMTP values, or other secrets.
+- The server validates authentication, action type, payload safety, and current permissions before recording anything.
+- Unsupported future action types such as asset move, task creation, maintenance creation, and asset photo upload fail clearly until a later phase implements them.
+- Sync conflicts are informational in this phase and require review. The app does not auto-resolve conflicts or auto-change inventory while offline.
+
+Not enabled yet:
+
+- Offline asset moves.
+- Offline photo upload.
+- Offline stock issue/loan.
+- Offline decommission.
+- Offline RMA receive.
+- Offline factura extraction/import.
+- Offline BitLocker, admin/users/settings, imports, bulk intake, or sensitive workflows.
+
+Roadmap:
+
+- Phase 72: Offline Scan + Move Queue.
+- Phase 73: Offline Photo Upload Queue.
+- Phase 74: Offline Conflict Review Center.
+
 ## Production Readiness / Before Wider Rollout
 
 ### Controlled Team Beta Status
@@ -157,6 +185,7 @@ Ready:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, backups, scheduled jobs, factura extraction/line items, asset values, decommission, and BitLocker vault.
+- Offline queue foundation for safe test notes only. Real inventory-changing offline workflows are not enabled yet.
 - `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, `npm test`, `npm run lint`, and `npm run build` are the required release checks.
 - Windows Task Scheduler task `Warehouse IT Inventory Jobs` runs `npm.cmd run jobs:run-due` every 15 minutes from `C:\Dev\warehouse-it-inventory`.
 

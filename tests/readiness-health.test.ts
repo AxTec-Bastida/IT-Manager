@@ -261,4 +261,20 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("Admin reveal worked");
     expect(sop).toContain("IT/Viewer reveal was denied");
   });
+
+  it("documents the offline queue foundation boundaries", async () => {
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    const sop = await fs.readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+
+    for (const document of [readme, sop]) {
+      expect(document).toContain("Offline Queue");
+      expect(document).toContain("TEST_OFFLINE_NOTE");
+      expect(document).toContain("Real inventory-changing offline workflows are not enabled yet");
+      expect(document).toContain("server validates");
+      expect(document).toContain("BitLocker");
+      expect(document).toContain("Phase 72: Offline Scan + Move Queue");
+      expect(document).toContain("Phase 73: Offline Photo Upload Queue");
+      expect(document).toContain("Phase 74: Offline Conflict Review Center");
+    }
+  });
 });
