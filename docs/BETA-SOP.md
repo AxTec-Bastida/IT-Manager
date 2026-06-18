@@ -156,6 +156,19 @@ Backups must include:
 - `uploads/facturas`
 - `uploads/maps`
 
+If BitLocker vault records exist, the database backup contains encrypted recovery-key payloads only. The matching `BITLOCKER_VAULT_SECRET` is not included in backups and must be stored in the company-approved password manager. Losing that secret means restored BitLocker recovery keys cannot be decrypted.
+
+## BitLocker Vault Rule
+
+Use the BitLocker vault only for fake QA keys or approved production recovery keys. Never paste recovery keys into notes, tasks, ActivityLog details, emails, reports, QR labels, or exports.
+
+- `BITLOCKER_VAULT_SECRET` must be configured before creating or revealing keys.
+- Admin users can reveal keys after a deliberate click.
+- IT Staff can add/update vault records during beta but cannot reveal keys.
+- Auditor/Viewer roles must not see plaintext keys.
+- Every create/update/reveal/copy action is audited without plaintext key data.
+- Before restore testing, confirm the restored `.env` has the same vault secret used when the keys were encrypted.
+
 ## Bug Reports
 
 Include:

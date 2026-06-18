@@ -11,6 +11,7 @@ import { getAssetDisplayName, isSledAsset } from "@/lib/asset-display";
 import { isPhysicalLabelAliasType, normalizedAliasCompare } from "@/lib/label-aliases";
 import { summarizeMaintenanceReview } from "@/lib/maintenance";
 import { buildAssetValueSummary } from "@/lib/depreciation";
+import { isBitLockerEligibleCategory, validateVaultSecret } from "@/lib/bitlocker-vault";
 
 type ReviewDevice = {
   id: string;
@@ -59,6 +60,17 @@ type ReviewDevice = {
     lastCalculatedAt: Date | null;
     sourceType?: string | null;
     sourceFacturaLineItemAssetId?: string | null;
+  } | null;
+  bitLockerRecoveryKey?: {
+    id: string;
+    keyId?: string | null;
+    volumeLabel?: string | null;
+    protectorId?: string | null;
+    source?: string | null;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+    lastViewedAt?: Date | string | null;
+    lastViewedByName?: string | null;
   } | null;
 };
 
@@ -291,6 +303,26 @@ export function summarizeAssetValueQuality(devices: ReviewDevice[], now = new Da
     missingPurchaseDate,
     staleEstimate,
     reviewRows,
+  };
+}
+
+export function summarizeBitLockerQuality(devices: ReviewDevice[], secretStatus = validateVaultSecret()) {
+  const eligible = devices.filter((device) => isBitLockerEligibleCategory(device.category));
+  const activeEligible = eligible.filter((device) => !["RETIRED", "DISPOSED"].includes(device.status));
+  const withKey = eligible.filter((device) => Boolean(device.bitLockerRecoveryKey));
+  const missingKey = activeEligible.filter((device) => !device.bitLockerRecoveryKey);
+  const retiredWithKey = eligible.filter((device) => ["RETIRED", "DISPOSED"].includes(device.status) && device.bitLockerRecoveryKey);
+  const missingMetadata = withKey.filter((device) => !device.bitLockerRecoveryKey?.keyId || !device.bitLockerRecoveryKey?.protectorId || !device.bitLockerRecoveryKey?.volumeLabel);
+  return {
+    eligible,
+    withKey,
+    missingKey,
+    retiredWithKey,
+    missingMetadata,
+    secretConfigured: secretStatus.configured,
+    secretUsable: secretStatus.usable,
+    secretTooShort: secretStatus.tooShort,
+    secretWarning: withKey.length > 0 && !secretStatus.usable,
   };
 }
 
@@ -582,6 +614,19 @@ export async function getDataQualityReview() {
             sourceFacturaLineItemAssetId: true,
           },
         },
+        bitLockerRecoveryKey: {
+          select: {
+            id: true,
+            keyId: true,
+            volumeLabel: true,
+            protectorId: true,
+            source: true,
+            createdAt: true,
+            updatedAt: true,
+            lastViewedAt: true,
+            lastViewedByName: true,
+          },
+        },
         lastCleanedAt: true,
         cleaningIntervalDays: true,
         maintenanceRecords: { select: { id: true, maintenanceType: true, result: true, performedAt: true, nextDueAt: true, notes: true }, orderBy: { performedAt: "desc" }, take: 10 },
@@ -626,6 +671,7 @@ export async function getDataQualityReview() {
   const photoCompliance = summarizePhotoCompliance(devices);
   const maintenance = summarizeMaintenanceReview(devices);
   const assetValue = summarizeAssetValueQuality(devices);
+  const bitLocker = summarizeBitLockerQuality(devices);
   const facturaLineItems = summarizeFacturaLineItemQuality(facturas, devices);
   const importAudit = summarizeImportRun(latestRun, latestBackupRoot());
   const mapHealth = summarizeMapHealth(maps, mapAnchors);
@@ -682,6 +728,7 @@ export async function getDataQualityReview() {
     photoCompliance,
     maintenance,
     assetValue,
+    bitLocker,
     facturaLineItems,
     mapHealth,
     importAudit,
@@ -935,6 +982,52 @@ export async function getDataQualityExportRows(type: string) {
       assetUrl: `/devices/${asset.id}`,
       valueUrl: `/devices/${asset.id}/value`,
     }));
+  }
+  if (type === "bitlocker-vault-review") {
+    return [
+      ...review.bitLocker.missingKey.map((asset) => ({
+        reviewType: "missing-bitlocker-key",
+        assetId: asset.id,
+        assetTag: asset.assetTag,
+        assetName: asset.name,
+        category: asset.category,
+        status: asset.status,
+        keyId: "",
+        volumeLabel: "",
+        protectorId: "",
+        reason: "Eligible laptop/desktop is missing a protected BitLocker recovery key.",
+        assetUrl: `/devices/${asset.id}`,
+        vaultUrl: `/devices/${asset.id}/bitlocker/edit`,
+      })),
+      ...review.bitLocker.retiredWithKey.map((asset) => ({
+        reviewType: "retired-with-bitlocker-key",
+        assetId: asset.id,
+        assetTag: asset.assetTag,
+        assetName: asset.name,
+        category: asset.category,
+        status: asset.status,
+        keyId: asset.bitLockerRecoveryKey?.keyId ?? "",
+        volumeLabel: asset.bitLockerRecoveryKey?.volumeLabel ?? "",
+        protectorId: asset.bitLockerRecoveryKey?.protectorId ?? "",
+        reason: "Retired/disposed asset still has a protected BitLocker vault record.",
+        assetUrl: `/devices/${asset.id}`,
+        vaultUrl: `/devices/${asset.id}/bitlocker`,
+      })),
+      ...review.bitLocker.missingMetadata.map((asset) => ({
+        reviewType: "bitlocker-missing-metadata",
+        assetId: asset.id,
+        assetTag: asset.assetTag,
+        assetName: asset.name,
+        category: asset.category,
+        status: asset.status,
+        keyId: asset.bitLockerRecoveryKey?.keyId ?? "",
+        volumeLabel: asset.bitLockerRecoveryKey?.volumeLabel ?? "",
+        protectorId: asset.bitLockerRecoveryKey?.protectorId ?? "",
+        reason: "Protected key exists but key ID, volume label, or protector ID metadata is missing.",
+        assetUrl: `/devices/${asset.id}`,
+        vaultUrl: `/devices/${asset.id}/bitlocker/edit`,
+      })),
+    ];
   }
   if (type === "factura-line-item-review") {
     return [

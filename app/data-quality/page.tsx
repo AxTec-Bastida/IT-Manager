@@ -58,6 +58,7 @@ export default async function DataQualityPage() {
         <SummaryCard icon={Camera} label="Missing Photos" value={review.photoCompliance.missingRequired.length} helper="Assets missing required photo types" />
         <SummaryCard icon={Smartphone} label="Mobile Pairing" value={review.suspiciousAssignments.length} helper="Asset-like assigned values" />
         <SummaryCard icon={CircleDollarSign} label="Asset Value" value={review.assetValue.reviewRows.length} helper="Missing or stale internal estimates" />
+        <SummaryCard icon={ShieldCheck} label="BitLocker Keys" value={review.bitLocker.missingKey.length} helper="Eligible laptops/desktops missing keys" />
         <SummaryCard icon={Tags} label="Label Aliases" value={review.labelAliasReview.length} helper="Duplicate physical label codes" />
         <SummaryCard icon={Map} label="Map Anchors" value={review.mapHealth.activeAnchors.length} helper={`${review.mapHealth.manualPathMaps.length} manual path maps`} href="/map" />
         <SummaryCard icon={ClipboardCheck} label="Active Audits" value={activeAuditCount} helper="Cycle counts needing scan/review" href="/audits" />
@@ -241,6 +242,59 @@ export default async function DataQualityPage() {
           </details>
         ) : (
           <EmptyState title="Asset value review is clear" description="No missing or stale internal value estimates are currently flagged." />
+        )}
+      </ReviewSection>
+
+      <ReviewSection title="BitLocker Vault" description="Review protected recovery-key coverage. CSV exports never include decrypted recovery keys." action={<ExportLink type="bitlocker-vault-review" />}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard icon={ShieldCheck} label="Eligible assets" value={review.bitLocker.eligible.length} helper="Laptop/desktop assets" />
+          <SummaryCard icon={ShieldCheck} label="Protected keys" value={review.bitLocker.withKey.length} helper="Encrypted vault records" />
+          <SummaryCard icon={AlertTriangle} label="Missing keys" value={review.bitLocker.missingKey.length} helper="Active eligible assets" />
+          <SummaryCard icon={AlertTriangle} label="Metadata gaps" value={review.bitLocker.missingMetadata.length} helper="Missing key ID/protector/volume" />
+        </div>
+        {!review.bitLocker.secretUsable ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            BITLOCKER_VAULT_SECRET is {review.bitLocker.secretConfigured ? "too short" : "not configured"}. Create and reveal operations are blocked until the secret is available.
+          </p>
+        ) : null}
+        {review.bitLocker.missingKey.length || review.bitLocker.retiredWithKey.length || review.bitLocker.missingMetadata.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {review.bitLocker.missingKey.slice(0, 12).map((asset) => (
+              <MobileCard key={`missing-bitlocker-${asset.id}`}>
+                <p className="text-sm font-semibold text-slate-500">Missing BitLocker key</p>
+                <h3 className="text-lg font-semibold text-slate-950">{asset.assetTag || asset.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">{asset.name} / {categoryLabels[asset.category as keyof typeof categoryLabels] ?? asset.category}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/devices/${asset.id}/bitlocker/edit`}>Add key</ActionLink>
+                  <ActionLink href={`/tasks/new?title=${encodeURIComponent(`Add BitLocker key: ${asset.assetTag || asset.name}`)}&category=INVENTORY&relatedDeviceId=${asset.id}`}>Create task</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+            {review.bitLocker.missingMetadata.slice(0, 8).map((asset) => (
+              <MobileCard key={`metadata-bitlocker-${asset.id}`}>
+                <p className="text-sm font-semibold text-slate-500">BitLocker metadata gap</p>
+                <h3 className="text-lg font-semibold text-slate-950">{asset.assetTag || asset.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">Protected key exists, but key ID/protector/volume metadata is incomplete.</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/devices/${asset.id}/bitlocker`}>Open vault</ActionLink>
+                  <ActionLink href={`/devices/${asset.id}/bitlocker/edit`}>Update metadata</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+            {review.bitLocker.retiredWithKey.slice(0, 8).map((asset) => (
+              <MobileCard key={`retired-bitlocker-${asset.id}`}>
+                <p className="text-sm font-semibold text-slate-500">Retired asset with key</p>
+                <h3 className="text-lg font-semibold text-slate-950">{asset.assetTag || asset.name}</h3>
+                <p className="mt-1 text-sm text-slate-600">Status: {statusLabels[asset.status as keyof typeof statusLabels] ?? asset.status}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ActionLink href={`/devices/${asset.id}/bitlocker`}>Open vault</ActionLink>
+                  <ActionLink href={`/tasks/new?title=${encodeURIComponent(`Review retired BitLocker key: ${asset.assetTag || asset.name}`)}&category=INVENTORY&relatedDeviceId=${asset.id}`}>Create task</ActionLink>
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="BitLocker review is clear" description="Eligible laptop and desktop assets have protected keys and required metadata." />
         )}
       </ReviewSection>
 

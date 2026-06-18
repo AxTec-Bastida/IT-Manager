@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: Context) {
     const { type } = await context.params;
     const rows = await getDataQualityExportRows(type);
     if (!rows) {
-      return jsonError("Export type must be duplicate-ips, skipped-duplicates, unlinked-facturas, factura-line-item-review, missing-asset-tags, missing-serials, static-missing-ip-mac, mobile-network-violations, stock-review, stock-cleanup-review, suspicious-stock-comments, suspicious-asset-names, label-alias-review, sled-category-review, suspicious-assignments, mobile-pairing-review, device-aliases, missing-required-photos, or asset-value-review.", 400);
+      return jsonError("Export type must be duplicate-ips, skipped-duplicates, unlinked-facturas, factura-line-item-review, missing-asset-tags, missing-serials, static-missing-ip-mac, mobile-network-violations, stock-review, stock-cleanup-review, suspicious-stock-comments, suspicious-asset-names, label-alias-review, sled-category-review, suspicious-assignments, mobile-pairing-review, device-aliases, missing-required-photos, asset-value-review, or bitlocker-vault-review.", 400);
     }
 
     return new NextResponse(toCsv(rows), {

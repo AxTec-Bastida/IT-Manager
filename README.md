@@ -58,11 +58,14 @@ The default local database is:
 ```env
 DATABASE_URL="file:./dev.db"
 SESSION_SECRET=
+BITLOCKER_VAULT_SECRET=
 ```
 
 With Prisma SQLite, this resolves to `prisma/dev.db`.
 
 Set `SESSION_SECRET` or `AUTH_SECRET` to a random value of at least 32 characters before relying on login sessions. The app uses it to protect server-side session tokens. Do not commit this value.
+
+Set `BITLOCKER_VAULT_SECRET` before creating or revealing BitLocker recovery keys. Use a company-approved password manager and a random value of at least 32 characters. Losing this secret means encrypted recovery keys in restored backups cannot be decrypted. Do not commit this value.
 
 Auth setup:
 
@@ -1627,6 +1630,13 @@ Each backup includes:
 
 The manifest records the backup timestamp, app/package version, optional git commit hash, database size, upload file counts, warnings, copied paths, and success status. Missing upload folders do not fail the backup; they are recorded as warnings. A missing or empty `prisma/dev.db` fails the backup with a clear error.
 
+BitLocker vault backups:
+
+- Recovery keys are stored encrypted in `prisma/dev.db` when `BITLOCKER_VAULT_SECRET` is configured.
+- Backups do not include the vault secret. Store `BITLOCKER_VAULT_SECRET` separately in the company-approved password manager.
+- Restoring a database without the original vault secret means existing BitLocker recovery keys cannot be decrypted.
+- Secret rotation is future work and is not automatic.
+
 Optional configuration:
 
 ```bash
@@ -1664,11 +1674,12 @@ Restore is intentionally manual for now.
 7. Copy the backed-up `uploads/maps` back to `uploads/maps` if map images exist.
 8. Run `npm install` if dependencies are missing on the restored machine.
 9. Run `npx prisma generate` if Prisma client files are missing or the project was copied to a new machine.
-9. Start the app with `npm run dev` or the production start command.
-10. Open `/api/health`.
-11. Open `/dashboard`, `/devices`, and `/scan`.
-12. Verify dashboard, inventory assets, stock photos, facturas, imports, alerts, jobs, and recent activity.
-13. Open at least one asset photo, stock photo if available, and one factura attachment if available.
+10. Restore the matching `BITLOCKER_VAULT_SECRET` into `.env` if BitLocker vault records exist.
+11. Start the app with `npm run dev` or the production start command.
+12. Open `/api/health`.
+13. Open `/dashboard`, `/devices`, and `/scan`.
+14. Verify dashboard, inventory assets, stock photos, facturas, imports, alerts, jobs, and recent activity.
+15. Open at least one asset photo, stock photo if available, one factura attachment if available, and one BitLocker vault summary if vault records exist.
 
 Restore database and upload folders together whenever possible. Restoring the database without matching uploads can break asset photo, stock photo, or factura file links. Restoring uploads without the matching database can leave orphan files.
 

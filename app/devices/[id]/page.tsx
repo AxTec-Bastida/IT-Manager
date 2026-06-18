@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArchiveX, CircleDollarSign, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, RotateCcw, Route, ScanLine, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
+import { ArchiveX, CircleDollarSign, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, RotateCcw, Route, ScanLine, ShieldCheck, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -16,6 +16,7 @@ import { installActionLabel, isInstallEligibleAsset } from "@/lib/equipment-inst
 import { isMoveUsefulAsset } from "@/lib/equipment-move";
 import { assignmentResponsibleLabel } from "@/lib/assignment-views";
 import { canPerformAction, getCurrentUser } from "@/lib/auth";
+import { canManageBitLockerKey, canRevealBitLockerKey, isBitLockerEligibleCategory } from "@/lib/bitlocker-vault";
 import { buildAnchorDisplayPath } from "@/lib/map-anchors";
 import { decommissionReasonLabels } from "@/lib/decommission";
 import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel } from "@/lib/maintenance";
@@ -47,6 +48,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         sourceRelationships: { include: { targetDevice: true }, orderBy: { createdAt: "desc" } },
         targetRelationships: { include: { sourceDevice: true }, orderBy: { createdAt: "desc" } },
         decommissionRecords: { orderBy: { performedAt: "desc" } },
+        bitLockerRecoveryKey: true,
         valueProfile: {
           include: {
             sourceFacturaLineItemAsset: {
@@ -106,6 +108,9 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const valueSummary = buildAssetValueSummary(device);
   const valueCurrency = device.valueProfile?.currency ?? "MXN";
   const valueSource = lineItemValueSourceLabel(device.valueProfile ?? undefined);
+  const bitLockerEligible = isBitLockerEligibleCategory(device.category);
+  const canManageBitLocker = canManageBitLockerKey(currentUser);
+  const canRevealBitLocker = canRevealBitLockerKey(currentUser);
 
   const fields = [
     ["Asset tag", device.assetTag || "-"],
@@ -378,6 +383,45 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                   Edit internal value
                 </Link>
               ) : null}
+            </section>
+          ) : null}
+
+          {bitLockerEligible ? (
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-slate-950">BitLocker Vault</h2>
+                  <p className="mt-1 text-xs text-slate-500">Encrypted recovery-key tracking. Reveal is Admin-only.</p>
+                </div>
+                <ShieldCheck className="shrink-0 text-amber-500" size={22} />
+              </div>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Protected key</p>
+                  <p className="mt-1 font-semibold text-slate-950">{device.bitLockerRecoveryKey ? "Stored" : "Missing"}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Key ID</p>
+                  <p className="mt-1 break-words font-semibold text-slate-950">{currentUser?.role === "VIEWER" ? (device.bitLockerRecoveryKey ? "Restricted" : "-") : device.bitLockerRecoveryKey?.keyId || "-"}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs font-medium uppercase text-slate-500">Last viewed</p>
+                  <p className="mt-1 font-semibold text-slate-950">{canRevealBitLocker && device.bitLockerRecoveryKey?.lastViewedAt ? device.bitLockerRecoveryKey.lastViewedAt.toLocaleString() : device.bitLockerRecoveryKey ? "Restricted" : "-"}</p>
+                </div>
+                {device.bitLockerRecoveryKey && !canRevealBitLocker ? <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-700">A protected key exists. Contact an Admin to reveal it.</p> : null}
+              </div>
+              <div className="mt-3 grid gap-2">
+                <Link href={`/devices/${device.id}/bitlocker`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <ShieldCheck size={16} />
+                  Open vault
+                </Link>
+                {canManageBitLocker ? (
+                  <Link href={`/devices/${device.id}/bitlocker/edit`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
+                    <Edit size={16} />
+                    {device.bitLockerRecoveryKey ? "Update key" : "Add key"}
+                  </Link>
+                ) : null}
+              </div>
             </section>
           ) : null}
 

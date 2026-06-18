@@ -612,6 +612,7 @@ model Device {
   decommissionRecords           AssetDecommissionRecord[]
   valueProfile                  AssetValueProfile?
   facturaLineItemLinks          FacturaLineItemAsset[]
+  bitLockerRecoveryKey          BitLockerRecoveryKey?
   createdAt                     DateTime                     @default(now())
   updatedAt                     DateTime                     @updatedAt
 
@@ -678,6 +679,31 @@ model AssetValueProfile {
   @@index([purchaseDate])
   @@index([sourceType])
   @@index([sourceFacturaLineItemAssetId])
+}
+
+model BitLockerRecoveryKey {
+  id                   String   @id @default(cuid())
+  deviceId             String   @unique
+  device               Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  recoveryKeyEncrypted String
+  keyId                String?
+  volumeLabel          String?
+  protectorId          String?
+  source               String   @default("MANUAL")
+  notes                String?
+  createdByUserId      String
+  createdByName        String
+  updatedByUserId      String?
+  updatedByName        String?
+  lastViewedAt         DateTime?
+  lastViewedByUserId   String?
+  lastViewedByName     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([keyId])
+  @@index([lastViewedAt])
+  @@index([createdAt])
 }
 
 model DeviceAlias {

@@ -4,6 +4,7 @@ import type { PrismaClient } from "@prisma/client";
 import { getBackupHistory } from "@/lib/backups";
 import { getSanitizedMailStatus, type SanitizedMailStatus } from "@/lib/mail";
 import { getAuthSecretStatus } from "@/lib/auth";
+import { validateVaultSecret } from "@/lib/bitlocker-vault";
 
 export type HealthStatus = "ok" | "degraded" | "error";
 
@@ -20,6 +21,8 @@ export type HealthPayload = {
   emailConfigured: boolean;
   email: SanitizedMailStatus;
   authSecretConfigured: boolean;
+  bitLockerVaultSecretConfigured: boolean;
+  bitLockerVaultSecretUsable: boolean;
   currentTime: string;
   environment: string;
   scheduledJobsCount: number | null;
@@ -69,6 +72,8 @@ export async function buildHealthPayload(
   if (email.authPartial) warnings.push("SMTP auth is partially configured; set both SMTP_USER and SMTP_PASS or leave both blank for an internal relay.");
   const authSecret = getAuthSecretStatus(env);
   if (!authSecret.configured) warnings.push(authSecret.productionLike ? "Auth session secret is not configured." : "Auth session secret is not configured; development fallback is active.");
+  const bitLockerVaultSecret = validateVaultSecret(env);
+  if (bitLockerVaultSecret.tooShort) warnings.push("BITLOCKER_VAULT_SECRET is too short; BitLocker create/reveal is blocked.");
 
   const status: HealthStatus = !databaseReachable
     ? "error"
@@ -91,6 +96,8 @@ export async function buildHealthPayload(
     emailConfigured,
     email,
     authSecretConfigured: authSecret.configured,
+    bitLockerVaultSecretConfigured: bitLockerVaultSecret.configured,
+    bitLockerVaultSecretUsable: bitLockerVaultSecret.usable,
     currentTime: (options.now ?? new Date()).toISOString(),
     environment: env.NODE_ENV || "development",
     scheduledJobsCount,

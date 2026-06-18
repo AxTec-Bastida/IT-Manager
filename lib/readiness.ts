@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { getMailConfig, getSanitizedMailStatus } from "@/lib/mail";
 import { getAuthSecretStatus } from "@/lib/auth";
+import { validateVaultSecret } from "@/lib/bitlocker-vault";
 
 const execFileAsync = promisify(execFile);
 
@@ -118,7 +119,7 @@ export async function checkWritableDirectory(folderPath: string, options: { crea
   }
 }
 
-export async function collectReadinessChecks(options: { projectRoot?: string; env?: NodeJS.ProcessEnv; userCount?: number | null; migrationMetadata?: MigrationMetadataReadiness | null } = {}) {
+export async function collectReadinessChecks(options: { projectRoot?: string; env?: NodeJS.ProcessEnv; userCount?: number | null; migrationMetadata?: MigrationMetadataReadiness | null; bitLockerRecordCount?: number | null } = {}) {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
   const envPath = path.join(projectRoot, ".env");
   const env = options.env ?? { ...(await readDotEnv(envPath)), ...process.env };
@@ -167,6 +168,29 @@ export async function collectReadinessChecks(options: { projectRoot?: string; en
         : "Auth session secret is not configured.",
     suggestion: authSecret.configured ? undefined : "Set SESSION_SECRET or AUTH_SECRET to a random value of at least 32 characters before relying on login sessions.",
   });
+
+  const bitLockerSecret = validateVaultSecret(env);
+  checks.push({
+    name: "BITLOCKER_VAULT_SECRET",
+    status: bitLockerSecret.usable ? "PASS" : "WARN",
+    message: bitLockerSecret.usable
+      ? "BitLocker vault secret is configured."
+      : bitLockerSecret.tooShort
+        ? `BitLocker vault secret is set but must be at least ${bitLockerSecret.minLength} characters.`
+        : "BitLocker vault secret is not configured.",
+    suggestion: bitLockerSecret.usable
+      ? undefined
+      : "Set BITLOCKER_VAULT_SECRET to a company-managed random secret before creating or revealing recovery keys.",
+  });
+
+  if (options.bitLockerRecordCount !== undefined) {
+    checks.push({
+      name: "BitLocker vault records",
+      status: options.bitLockerRecordCount && options.bitLockerRecordCount > 0 && !bitLockerSecret.usable ? "WARN" : "PASS",
+      message: options.bitLockerRecordCount == null ? "BitLocker vault record count could not be checked." : `${options.bitLockerRecordCount} protected recovery-key record${options.bitLockerRecordCount === 1 ? "" : "s"} found.`,
+      suggestion: options.bitLockerRecordCount && options.bitLockerRecordCount > 0 && !bitLockerSecret.usable ? "Restore or configure the same BITLOCKER_VAULT_SECRET used when keys were encrypted." : undefined,
+    });
+  }
 
   if (options.userCount !== undefined) {
     checks.push({

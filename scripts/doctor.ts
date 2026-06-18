@@ -4,10 +4,11 @@ import { inspectMigrationMetadata } from "@/lib/prisma-baseline";
 
 async function main() {
   const userCount = await prisma.appUser.count().catch(() => null);
+  const bitLockerRecordCount = await prisma.bitLockerRecoveryKey.count().catch(() => null);
   const migrationMetadata = await inspectMigrationMetadata(prisma)
     .then((metadata) => ({ migrationTableExists: metadata.migrationTableExists, appliedMigrationCount: metadata.appliedMigrationNames.length }))
     .catch((error) => ({ migrationTableExists: false, appliedMigrationCount: 0, error: error instanceof Error ? error.message : "Unknown error" }));
-  const result = await collectReadinessChecks({ userCount, migrationMetadata });
+  const result = await collectReadinessChecks({ userCount, migrationMetadata, bitLockerRecordCount });
   console.log("Warehouse IT Inventory readiness check");
   console.log(`Overall: ${result.status}`);
   console.log(`Project: ${result.projectRoot}`);
