@@ -194,7 +194,7 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=
 MAIL_FROM=
-APP_BASE_URL=http://192.168.0.67:3000
+APP_BASE_URL=https://warehouse-it.local
 ```
 
 Use `SMTP_FROM` for the sender address. `MAIL_FROM` is accepted as a fallback for older local setup notes. If the company SMTP relay does not require authentication, leave both `SMTP_USER` and `SMTP_PASS` blank; otherwise set both. Do not set only one.
@@ -205,10 +205,19 @@ Validation steps:
 2. Open `/settings` as Admin.
 3. Confirm the SMTP status shows only sanitized fields: configured, host present, from present, port, secure mode, auth present, and `APP_BASE_URL`.
 4. Send a test email only to a QA recipient first.
-5. Confirm links in the email use `http://192.168.0.67:3000`, not localhost.
+5. Confirm links in the email use `https://warehouse-it.local`, not localhost.
 6. If sending fails, check SMTP host, port, secure mode, credentials, and company firewall/network rules. Common ports are `587` STARTTLS, `465` SSL, and `25` internal relay.
 
 Do not send real employee receipts until the QA test email and one safe workflow receipt have been reviewed.
+
+Phase 77 result:
+
+- Real SMTP credentials were not present in the local `.env`, so no real provider send was attempted or claimed.
+- `npm run doctor` and `/api/health` remain safe when degraded only for missing SMTP configuration.
+- `/api/email/test` returns `401` unauthenticated, `403` for Viewer, and a skipped/safe result for Admin when SMTP is missing.
+- Malformed JSON to `/api/email/test` returns a clear client error instead of a generic server error.
+- Template tests cover assignment, asset loan, and RMA bodies, and verify `APP_BASE_URL` links without requiring SMTP credentials.
+- Review `EmailLog` after QA sends. It may show recipient, subject, status, sanitized error, and message ID, but must not contain SMTP passwords, auth secrets, BitLocker vault secrets, or recovery keys.
 
 ## Keep Workflows Separate
 

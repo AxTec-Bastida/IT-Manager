@@ -177,6 +177,9 @@ describe("team beta ops artifacts", () => {
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("`SMTP_FROM` is the preferred sender setting");
     expect(readme).toContain("The SMTP password is never shown");
+    expect(readme).toContain("Phase 77 SMTP validation status");
+    expect(readme).toContain("Real SMTP provider credentials are not committed");
+    expect(readme).toContain("https://warehouse-it.local");
   });
 
   it("includes beta SOP and Windows helper scripts for the C:\\Dev runtime path", async () => {
@@ -191,6 +194,9 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("scan-from-photo");
     expect(sop).toContain("SMTP / Email Validation");
     expect(sop).toContain("SMTP_FROM");
+    expect(sop).toContain("Phase 77 result");
+    expect(sop).toContain("Real SMTP credentials were not present");
+    expect(sop).toContain("Malformed JSON to `/api/email/test` returns a clear client error");
     expect(sop).toContain("HTTPS Setup Runbook");
     expect(sop).toContain("https://warehouse-it.local");
     expect(sop).toContain("C:\\Tools\\caddy");

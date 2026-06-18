@@ -94,6 +94,8 @@ describe("email notifications", () => {
     );
     expect(email.subject).toBe("Assignment receipt ASN-1");
     expect(email.text).toContain("Jane User");
+    expect(email.text).toContain("https://inventory.example.com/assignments/assignment-1");
+    expect(email.html).toContain('href="https://inventory.example.com/assignments/assignment-1"');
     expect(email.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(email.html).not.toContain("<script>alert(1)</script>");
   });
@@ -173,5 +175,22 @@ describe("email notifications", () => {
     expect(loanRoute).toContain('requirePermission("loans.write")');
     expect(stockRoute).toContain('requirePermission("stock.write")');
     expect(rmaRoute).toContain('requirePermission("rma.write")');
+  });
+
+  it("keeps the test email route friendly for malformed JSON", async () => {
+    const projectRoot = process.cwd();
+    const testEmailRoute = await fs.readFile(path.join(projectRoot, "app", "api", "email", "test", "route.ts"), "utf8");
+
+    expect(testEmailRoute).toContain("Request body must be valid JSON.");
+    expect(testEmailRoute).toContain("ClientInputError");
+  });
+
+  it("keeps BitLocker and recovery-key data out of email template code", async () => {
+    const projectRoot = process.cwd();
+    const templateSource = await fs.readFile(path.join(projectRoot, "lib", "email-templates.ts"), "utf8");
+
+    expect(templateSource).not.toMatch(/bitlocker/i);
+    expect(templateSource).not.toMatch(/recovery\s*key/i);
+    expect(templateSource).not.toMatch(/vault/i);
   });
 });

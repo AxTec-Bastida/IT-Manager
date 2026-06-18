@@ -638,6 +638,15 @@ APP_BASE_URL=
 
 Use `/settings` to verify the sanitized SMTP status: configured yes/no, host present, from present, effective port, secure mode, auth present, and `APP_BASE_URL`. The SMTP password is never shown. Do not send real emails until credentials and recipients are intentional.
 
+Phase 77 SMTP validation status:
+
+- Current preferred beta link for email templates is `https://warehouse-it.local`.
+- Real SMTP provider credentials are not committed and were not present during the Phase 77 smoke. This is an expected blocker for a real send; do not fake success.
+- `/api/email/test` requires Admin, rejects Viewer, logs skipped attempts when SMTP is missing, and returns a clear client error for malformed JSON.
+- Automated template tests validate assignment, asset loan, and RMA email bodies without real SMTP credentials. Real template smoke should use one approved QA recipient first.
+- `EmailLog` stores status, recipient, subject, and sanitized error/message IDs only. It must not store SMTP passwords, auth secrets, BitLocker vault secrets, or recovery keys.
+- Scheduled jobs continue to create/update alerts only; automatic email sending from jobs remains disabled unless a future explicit setting is added.
+
 ### Beta Users
 
 Recommended roles:
@@ -1797,7 +1806,7 @@ Troubleshooting:
 - Authentication failed: check `SMTP_USER`, `SMTP_PASS`, port, and `SMTP_SECURE`.
 - Company SMTP blocked: check firewall/network rules and whether outbound SMTP is allowed. Common ports are `587` with STARTTLS, `465` with SSL, and `25` for an internal relay.
 - Employee has no email: enter a manual recipient in the send panel or update the employee record.
-- Links point to localhost: set `APP_BASE_URL` to the real internal app URL such as `http://192.168.0.67:3000`.
+- Links point to localhost: set `APP_BASE_URL` to the real internal app URL such as `https://warehouse-it.local`.
 - Never commit `.env` or SMTP credentials.
 
 ## Backup And Restore
