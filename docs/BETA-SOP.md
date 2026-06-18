@@ -26,7 +26,7 @@ Ready for beta:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Backups, health/doctor, scheduled jobs, auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, factura extraction/line items, asset values, decommission, and BitLocker vault.
-- Offline Queue foundation for safe QA test notes and serialized asset moves only. Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only.
+- Offline Queue foundation for safe QA test notes, serialized asset moves, and asset photo uploads only. Stock, RMA, decommission, BitLocker, factura, admin, import, bulk intake, and stock photos remain online-only.
 - Daily beta checks: `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, and `/api/health`.
 
 Pending before wider rollout:
@@ -113,21 +113,23 @@ For normal production updates after the Phase 54 baseline:
 
 ## Offline Queue Foundation
 
-Phase 71 added `/offline` as a local action queue foundation. Phase 72 enables serialized asset moves as the first real offline workflow.
+Phase 71 added `/offline` as a local action queue foundation. Phase 72 enables serialized asset moves as the first real offline workflow, and Phase 74 enables asset photo uploads.
 
 Current allowed offline actions:
 
 - `TEST_OFFLINE_NOTE`, a harmless note used to prove local queue persistence, sync, status transitions, failure handling, and server audit records.
 - `MOVE_ASSET`, a serialized asset relocation request with asset tag/device ID, destination, notes, and last-known status/assignment/map-anchor values.
+- `UPLOAD_ASSET_PHOTO`, an asset photo captured from an asset detail page. The queue stores safe metadata in localStorage and keeps the photo blob in browser IndexedDB until sync or cancellation.
 
 Rules:
 
 - Users must still log in before sync.
 - The server validates every synced action and never trusts the local queue blindly.
 - Offline asset moves require `inventory.write` at sync time and are applied only if the asset, destination, and last-known state are still safe.
+- Offline asset photo sync requires `inventory.write`, a matching local IndexedDB photo blob, a valid asset, and a supported image type/size. If the blob is gone or the asset was retired/disposed, the app creates a conflict instead of uploading.
 - Unsupported action types fail or conflict clearly until later phases implement them.
-- Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, photos, or sensitive notes.
-- Do not rely on offline mode for stock issue, RMA receive, photo upload, decommission, factura extraction, admin/users/settings, imports, bulk intake, or BitLocker workflows.
+- Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, or sensitive notes.
+- Do not rely on offline mode for stock issue, stock photo upload, RMA receive, decommission, factura extraction, admin/users/settings, imports, bulk intake, or BitLocker workflows.
 - Conflicts and failed syncs require manual review. The app does not auto-resolve conflicts or apply stale/unsafe offline moves.
 - Review failed or conflicted sync records at `/offline/conflicts`. Admin and IT Staff can retry, cancel, or mark reviewed with a note; Auditors can read sanitized records when audit access is available.
 - Data Quality shows Offline Sync Health so daily beta review can catch failed/conflicted browser-queued actions quickly.
@@ -140,11 +142,19 @@ Offline move workflow:
 4. Open `/offline/conflicts` if any sync fails or conflicts.
 5. Review conflicts before retrying. Retry runs the same server validation again; cancel does not apply the action; mark reviewed keeps the audit trail. Do not use offline mode to move real assets unless the destination is intentional and safe.
 
+Offline asset photo workflow:
+
+1. Open an asset detail page and use the Photos section.
+2. Capture or choose a photo, set the photo type/caption/primary flag, then tap Queue offline.
+3. Keep the same browser/device until sync because the photo blob lives only in that browser's IndexedDB.
+4. Return to `/offline` and tap Sync now when online.
+5. Review `/offline/conflicts` if sync reports a missing blob, missing asset, retired/disposed asset, permission problem, or invalid file.
+
 Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
-- Later phase: Offline Photo Upload Queue remains not enabled.
+- Phase 74: Offline Photo Upload Queue completed for asset photos only.
 
 ## SMTP / Email Validation
 

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 
-export function OfflineConflictActions({ recordId, mutable }: { recordId: string; mutable: boolean }) {
+export function OfflineConflictActions({ recordId, mutable, actionType }: { recordId: string; mutable: boolean; actionType?: string | null }) {
   const router = useRouter();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function OfflineConflictActions({ recordId, mutable }: { recordId: string
   if (!mutable) {
     return <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">You can read this conflict, but retry, cancel, and review actions require IT Staff or Admin access.</p>;
   }
+  const photoUploadConflict = actionType === "UPLOAD_ASSET_PHOTO";
 
   return (
     <div className="space-y-3">
@@ -56,10 +57,14 @@ export function OfflineConflictActions({ recordId, mutable }: { recordId: string
           <CheckCircle2 size={16} />
           {busy === "review" ? "Saving..." : "Mark reviewed"}
         </button>
-        <button type="button" onClick={() => post("retry")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-60">
-          <RotateCcw size={16} />
-          {busy === "retry" ? "Retrying..." : "Retry sync"}
-        </button>
+        {photoUploadConflict ? (
+          <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900 sm:col-span-1">Retry photo uploads from the Offline Queue on the same browser/device that still has the local photo.</p>
+        ) : (
+          <button type="button" onClick={() => post("retry")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-60">
+            <RotateCcw size={16} />
+            {busy === "retry" ? "Retrying..." : "Retry sync"}
+          </button>
+        )}
         <button type="button" onClick={() => post("cancel")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-800 disabled:opacity-60">
           <XCircle size={16} />
           {busy === "cancel" ? "Cancelling..." : "Cancel action"}

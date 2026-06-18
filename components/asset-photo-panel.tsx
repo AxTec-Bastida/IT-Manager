@@ -4,10 +4,13 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { AssetPhoto, AssetPhotoType } from "@prisma/client";
-import { Camera, Star, Trash2, Upload } from "lucide-react";
+import { Camera, Star, Trash2, Upload, WifiOff } from "lucide-react";
 import { CameraCapture } from "@/components/camera-capture";
 import { uploadFailureMessage } from "@/lib/camera";
 import { assetPhotoTypeLabels, assetPhotoTypeOptions } from "@/lib/constants";
+import { createClientActionId } from "@/lib/offline-actions";
+import { enqueueOfflineAction } from "@/lib/offline-queue";
+import { deleteOfflinePhotoBlob, saveOfflinePhotoBlob } from "@/lib/offline-photo-blobs";
 import { buildPhotoChecklist, requiredPhotoLabels, type PhotoComplianceAsset } from "@/lib/photo-compliance";
 
 type Props = {
@@ -60,6 +63,48 @@ export function AssetPhotoPanel({ assetId, photos, asset }: Props) {
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error && error.message ? error.message : uploadFailureMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function queuePhotoOffline() {
+    if (!selectedFile) {
+      setMessage("Take a photo or choose one from the gallery first.");
+      return;
+    }
+    const clientActionId = createClientActionId();
+    setSaving(true);
+    setMessage(null);
+    try {
+      await saveOfflinePhotoBlob(clientActionId, selectedFile);
+      const action = enqueueOfflineAction({
+        clientActionId,
+        actionType: "UPLOAD_ASSET_PHOTO",
+        payload: {
+          deviceId: assetId,
+          fileName: selectedFile.name,
+          mimeType: selectedFile.type,
+          sizeBytes: selectedFile.size,
+          photoType: selectedPhotoType,
+          caption,
+          source: photoMetadata.source,
+          compressionApplied: photoMetadata.compressionApplied,
+          isPrimary,
+          capturedAtClient: new Date().toISOString(),
+          lastKnownDeviceStatus: asset?.status ?? null,
+          clientRoute: window.location.pathname,
+        },
+      });
+      setMessage(`Photo queued for offline sync: ${action.clientActionId}. Open Offline Queue when connected.`);
+      setSelectedFile(null);
+      setPhotoMetadata({ source: "UNKNOWN", compressionApplied: false });
+      setCaption("");
+      setIsPrimary(false);
+      setResetToken((value) => value + 1);
+    } catch (error) {
+      await deleteOfflinePhotoBlob(clientActionId).catch(() => undefined);
+      setMessage(error instanceof Error ? error.message : "Could not queue photo offline.");
     } finally {
       setSaving(false);
     }
@@ -169,6 +214,10 @@ export function AssetPhotoPanel({ assetId, photos, asset }: Props) {
         <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 font-semibold text-white hover:bg-slate-800 disabled:opacity-60" disabled={saving}>
           <Upload size={17} />
           {saving ? "Uploading..." : "Upload photo"}
+        </button>
+        <button type="button" onClick={queuePhotoOffline} disabled={saving || !selectedFile} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-4 font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-60">
+          <WifiOff size={17} />
+          Queue offline
         </button>
       </form>
 

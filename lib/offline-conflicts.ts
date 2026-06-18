@@ -65,8 +65,8 @@ export const offlineConflictInfo: Record<OfflineConflictCode, { title: string; e
   },
   UNSUPPORTED_ACTION: {
     title: "Unsupported offline action",
-    explanation: "Only test notes and serialized asset moves are supported offline right now.",
-    recommendedAction: "Use the online workflow for photos, stock, RMA, decommission, BitLocker, facturas, imports, or admin actions.",
+    explanation: "Only test notes, serialized asset moves, and asset photo uploads are supported offline right now.",
+    recommendedAction: "Use the online workflow for stock, RMA, decommission, BitLocker, facturas, imports, or admin actions.",
     tone: "slate",
   },
   SERVER_VALIDATION_WARNING: {
@@ -357,6 +357,7 @@ export async function retryOfflineConflict(id: string, actor: AuthUser, client: 
   if (!record) throw new ClientInputError("Offline sync record not found.", 404);
   if (!["FAILED", "CONFLICT"].includes(record.status)) throw new ClientInputError("Only failed or conflicted offline actions can be retried.");
   if (record.resolutionStatus === "CANCELLED" || record.status === "CANCELLED") throw new ClientInputError("Cancelled offline actions cannot be retried.");
+  if (record.actionType === "UPLOAD_ASSET_PHOTO") throw new ClientInputError("Offline photo uploads must be retried from the Offline Queue on the original browser/device so the local photo file can be sent.", 422);
 
   const action = reconstructOfflineAction(record);
   await client.offlineSyncRecord.update({

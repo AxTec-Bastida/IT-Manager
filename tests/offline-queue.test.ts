@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { findSensitivePayloadIssue, summarizeOfflinePayload, summarizeQueuedOfflineAction, validateOfflineActionForQueue, validateOfflineSyncAction } from "@/lib/offline-actions";
 import { cancelOfflineAction, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue } from "@/lib/offline-queue";
 import { processOfflineSyncBatch } from "@/lib/offline-sync";
+import { processOfflinePhotoSyncAction } from "@/lib/offline-photo-sync";
 import { inferOfflineConflictCode, reconstructOfflineAction } from "@/lib/offline-conflicts";
 
 class MemoryStorage implements Storage {
@@ -76,6 +77,29 @@ describe("offline queue helpers", () => {
     });
   });
 
+  it("validates and summarizes offline asset photo payloads without storing file bytes", () => {
+    const payload = {
+      deviceId: "dev-1",
+      assetTag: "QA-PHOTO-001",
+      fileName: "overview.webp",
+      mimeType: "image/webp",
+      sizeBytes: 150_000,
+      photoType: "OVERVIEW",
+      caption: "Front label",
+    };
+
+    expect(validateOfflineActionForQueue({ actionType: "UPLOAD_ASSET_PHOTO", payload })).toMatchObject({ ok: true });
+    expect(validateOfflineSyncAction({ clientActionId: "photo-1", actionType: "UPLOAD_ASSET_PHOTO", payload })).toMatchObject({ ok: true });
+    expect(validateOfflineActionForQueue({ actionType: "UPLOAD_ASSET_PHOTO", payload: { ...payload, mimeType: "application/pdf" } })).toMatchObject({ ok: false });
+    expect(validateOfflineActionForQueue({ actionType: "UPLOAD_ASSET_PHOTO", payload: { ...payload, sizeBytes: 99_000_000 } })).toMatchObject({ ok: false });
+    expect(summarizeQueuedOfflineAction({ actionType: "UPLOAD_ASSET_PHOTO", payload })).toMatchObject({
+      title: "Photo for QA-PHOTO-001",
+      detail: "overview.webp - 147 KB",
+      note: "OVERVIEW - Front label",
+    });
+    expect(JSON.stringify(enqueueOfflineAction({ actionType: "UPLOAD_ASSET_PHOTO", payload }, new MemoryStorage()))).not.toContain("data:image");
+  });
+
   it("marks local actions from server sync results", async () => {
     const storage = new MemoryStorage();
     const action = enqueueOfflineAction({ actionType: "TEST_OFFLINE_NOTE", payload: { text: "Sync me" } }, storage);
@@ -86,6 +110,28 @@ describe("offline queue helpers", () => {
     expect(result.synced).toBe(1);
     expect(fetcher).toHaveBeenCalledWith("/api/offline/sync", expect.objectContaining({ method: "POST" }));
     expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ status: "SYNCED", serverResult: { serverId: "sync-1" } });
+  });
+
+  it("syncs asset photo actions through the multipart photo endpoint", async () => {
+    const storage = new MemoryStorage();
+    const action = enqueueOfflineAction(
+      {
+        clientActionId: "photo-action-1",
+        actionType: "UPLOAD_ASSET_PHOTO",
+        payload: { deviceId: "dev-1", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 150_000, photoType: "OVERVIEW" },
+      },
+      storage,
+    );
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("/api/offline/sync/photo");
+      expect(init?.body).toBeInstanceOf(FormData);
+      return new Response(JSON.stringify({ clientActionId: action.clientActionId, status: "CONFLICT", message: "Local photo file is no longer available." }), { status: 409 });
+    });
+
+    const result = await syncOfflineQueue(fetcher, storage);
+
+    expect(result.conflict).toBe(1);
+    expect(getOfflineQueueSnapshot(storage).items[0]).toMatchObject({ status: "CONFLICT", lastError: "Local photo file is no longer available." });
   });
 });
 
@@ -202,6 +248,38 @@ describe("offline sync server processor", () => {
   it("validates unsupported and unsafe sync actions explicitly", () => {
     expect(validateOfflineSyncAction({ clientActionId: "action-1", actionType: "CREATE_TASK", payload: { title: "Future" } })).toMatchObject({ ok: false, message: "This action type is not supported offline yet." });
     expect(validateOfflineSyncAction({ clientActionId: "action-2", actionType: "TEST_OFFLINE_NOTE", payload: { bitlockerKey: "secret" } })).toMatchObject({ ok: false });
+  });
+
+  it("records an offline photo conflict when the local browser blob is missing", async () => {
+    const records: Array<Record<string, unknown>> = [];
+    const activityLogs: Array<Record<string, unknown>> = [];
+    const result = await processOfflinePhotoSyncAction(
+      {
+        clientActionId: "photo-missing-blob",
+        actionType: "UPLOAD_ASSET_PHOTO",
+        payload: { deviceId: "dev-1", assetTag: "QA-PHOTO-001", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 150_000, photoType: "OVERVIEW" },
+        file: null,
+      },
+      actor,
+      createFakePhotoPrisma({ records, activityLogs, device: moveDevice({ assetTag: "QA-PHOTO-001" }) }) as never,
+    );
+
+    expect(result).toMatchObject({ status: "CONFLICT", relatedDeviceId: "dev-1", relatedAssetTag: "QA-PHOTO-001" });
+    expect(records[0]).toMatchObject({ actionType: "UPLOAD_ASSET_PHOTO", status: "CONFLICT", conflictCode: "INVALID_PAYLOAD", entityType: "device" });
+    expect(activityLogs[0]).toMatchObject({ action: "offline.photo_upload.conflict_created", entity: "offline_sync_record" });
+  });
+
+  it("keeps photo uploads on the multipart endpoint when JSON sync receives photo metadata", async () => {
+    const records: Array<Record<string, unknown>> = [];
+    const activityLogs: Array<Record<string, unknown>> = [];
+    const result = await processOfflineSyncBatch(
+      [{ clientActionId: "photo-json", actionType: "UPLOAD_ASSET_PHOTO", payload: { deviceId: "dev-1", fileName: "overview.webp", mimeType: "image/webp", sizeBytes: 150_000 } }],
+      actor,
+      createFakePrisma(records, activityLogs) as never,
+    );
+
+    expect(result.results[0]).toMatchObject({ status: "CONFLICT", message: expect.stringContaining("original browser/device") });
+    expect(records[0]).toMatchObject({ actionType: "UPLOAD_ASSET_PHOTO", status: "CONFLICT", conflictCode: "INVALID_PAYLOAD" });
   });
 
   it("maps user-safe offline conflict codes and reconstructs retry actions from sanitized summaries", () => {
@@ -353,5 +431,50 @@ function createFakeMovePrisma({
       findMany: vi.fn(async () => []),
     },
     $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+  };
+}
+
+function createFakePhotoPrisma({
+  records = [],
+  activityLogs = [],
+  device = moveDevice(),
+}: {
+  records?: Array<Record<string, unknown>>;
+  activityLogs?: Array<Record<string, unknown>>;
+  device?: Record<string, unknown> | null;
+}) {
+  const offlineSyncRecord = {
+    findUnique: vi.fn(async ({ where }: { where: { clientActionId: string } }) => records.find((record) => record.clientActionId === where.clientActionId) ?? null),
+    upsert: vi.fn(async ({ where, create, update }: { where: { clientActionId: string }; create: Record<string, unknown>; update: Record<string, unknown> }) => {
+      const existing = records.find((record) => record.clientActionId === where.clientActionId);
+      if (existing) {
+        Object.assign(existing, update);
+        return existing;
+      }
+      const record = { id: `sync-${records.length + 1}`, ...create };
+      records.push(record);
+      return record;
+    }),
+    update: vi.fn(async ({ where, data }: { where: { clientActionId: string }; data: Record<string, unknown> }) => {
+      const existing = records.find((record) => record.clientActionId === where.clientActionId);
+      if (!existing) throw new Error("Missing fake sync record");
+      Object.assign(existing, data);
+      return existing;
+    }),
+  };
+
+  return {
+    offlineSyncRecord,
+    device: {
+      findFirst: vi.fn(async () => device),
+      findUnique: vi.fn(async () => device),
+    },
+    activityLog: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const created = { id: `activity-${activityLogs.length + 1}`, ...data };
+        activityLogs.push(created);
+        return created;
+      }),
+    },
   };
 }

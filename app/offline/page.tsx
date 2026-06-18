@@ -23,7 +23,7 @@ export default async function OfflinePage() {
     <div className="space-y-6">
       <PageHeader
         title="Offline Queue"
-        description="Local queue for test notes and serialized asset moves. Sync applies moves only after server-side permission, asset state, and destination validation."
+        description="Local queue for test notes, serialized asset moves, and asset photo uploads. Sync applies actions only after server-side permission, asset state, and validation checks."
         action={
           <PageActions>
             <ActionLink href="/offline/conflicts" variant={openConflictCount ? "primary" : "secondary"}>

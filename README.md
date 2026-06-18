@@ -149,23 +149,26 @@ Camera permissions are per browser/origin. If the app URL changes from `http://s
 
 ## Offline Queue Foundation
 
-Phase 71 added the foundation for future offline-capable workflows. Phase 72 enables the first real offline workflow: serialized asset moves. The current `/offline` page stores small, metadata-only queued actions in the browser and syncs them to `POST /api/offline/sync` after the user is online and authenticated.
+Phase 71 added the foundation for future offline-capable workflows. Phase 72 enabled serialized asset moves, Phase 73 added conflict review, and Phase 74 enables asset photo uploads. The current `/offline` page stores metadata-only queued actions in localStorage, keeps queued photo files in browser IndexedDB, and syncs after the user is online and authenticated.
 
 Current scope:
 
 - `TEST_OFFLINE_NOTE` can sync successfully for QA validation.
 - `MOVE_ASSET` can sync successfully for serialized asset relocation only.
+- `UPLOAD_ASSET_PHOTO` can sync asset photos captured from an asset detail page. The queue stores only safe photo metadata in localStorage; the image blob stays in browser IndexedDB until sync or cancellation.
 - Offline move payloads may include asset tag/device ID, target map anchor or text destination, area/department/station, notes, client timestamp, and last-known status/assignment/map-anchor IDs.
-- The queue is local to the browser and stores no files, photos, PDFs, XMLs, credentials, BitLocker recovery keys, SMTP values, or other secrets.
+- Offline photo payloads may include device ID/asset tag, file name, MIME type, file size, photo type, caption, source, compression flag, primary-photo request, client timestamp, last-known status, and route.
+- The queue is local to the browser and stores no files, PDFs, XMLs, credentials, BitLocker recovery keys, SMTP values, or other secrets in localStorage. Queued asset photo blobs are stored only in IndexedDB on the same browser/device.
 - The server validates authentication, `inventory.write`, payload safety, current asset state, stale status/assignment/map-anchor checks, and target location/anchor before applying a move.
-- Unsupported future action types such as task creation, maintenance creation, and asset photo upload fail clearly until a later phase implements them.
+- Asset photo sync uses `POST /api/offline/sync/photo` with multipart form data and reuses the same asset-photo validation/storage path as online uploads.
+- Unsupported future action types such as task creation and maintenance creation fail clearly until a later phase implements them.
 - Sync conflicts require review. The app does not auto-resolve conflicts, and it does not auto-change inventory when the server sees stale or unsafe data.
 - `/offline/conflicts` is the Offline Conflict Review Center for Admin and IT Staff retry/cancel/review actions. Auditors can read sanitized conflict records when audit access is available.
 - Data Quality includes an Offline Sync Health card for open conflicts, failed records, recent conflicts, and the oldest open item.
 
 Still not enabled:
 
-- Offline photo upload.
+- Offline stock photo upload.
 - Offline stock issue/loan.
 - Offline decommission.
 - Offline RMA receive.
@@ -180,12 +183,20 @@ How to use offline moves:
 4. Open `/offline` when online and tap Sync now.
 5. Open `/offline/conflicts` for any failed or conflict items; retry only after the issue is understood, cancel stale work, or mark reviewed with a note.
 
+How to use offline asset photos:
+
+1. Open an asset detail page and use the Photos section.
+2. Take or choose a photo, pick photo type/caption/primary as usual, then tap Queue offline.
+3. Keep the same browser/device until sync; the photo file lives only in local IndexedDB.
+4. Open `/offline` when online and tap Sync now.
+5. If the asset was retired/disposed, permission changed, the asset cannot be found, or the local browser photo blob is gone, the sync creates a conflict instead of silently applying anything.
+
 Conflict review workflow:
 
 1. Open `/offline/conflicts`.
 2. Filter by open, failed, conflict, reviewed, cancelled, resolved, action type, asset tag, actor, or client action ID.
 3. Expand technical details only when needed; default cards show sanitized queued summaries and server result summaries.
-4. Retry runs the same server validation again and does not bypass stale checks.
+4. Retry runs the same server validation again and does not bypass stale checks. Photo upload conflicts must be retried from the same browser/device's Offline Queue while the local photo blob still exists.
 5. Cancel does not apply the queued action.
 6. Mark reviewed records the reviewer and note without changing inventory.
 
@@ -195,7 +206,7 @@ Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
-- Later phase: Offline Photo Upload Queue remains not enabled.
+- Phase 74: Offline Photo Upload Queue completed for asset photos only.
 
 ## Production Readiness / Before Wider Rollout
 
@@ -207,7 +218,7 @@ Ready:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, backups, scheduled jobs, factura extraction/line items, asset values, decommission, and BitLocker vault.
-- Offline queue foundation for safe test notes and serialized asset moves only. Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only.
+- Offline queue foundation for safe test notes, serialized asset moves, and asset photo uploads only. Stock, RMA, decommission, BitLocker, factura, admin, import, bulk intake, and stock photos remain online-only.
 - `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, `npm test`, `npm run lint`, and `npm run build` are the required release checks.
 - Windows Task Scheduler task `Warehouse IT Inventory Jobs` runs `npm.cmd run jobs:run-due` every 15 minutes from `C:\Dev\warehouse-it-inventory`.
 

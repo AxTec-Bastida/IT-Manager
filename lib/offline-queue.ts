@@ -1,4 +1,5 @@
 import { createClientActionId, offlineQueueSchemaVersion, offlineQueueStorageKey, type OfflineSyncActionResult, type QueuedOfflineAction, validateOfflineActionForQueue } from "@/lib/offline-actions";
+import { deleteOfflinePhotoBlob, deleteOfflinePhotoBlobs, getOfflinePhotoBlob } from "@/lib/offline-photo-blobs";
 
 export type OfflineQueueSnapshot = {
   items: QueuedOfflineAction[];
@@ -42,12 +43,15 @@ export function getOfflineQueueSnapshot(storage = getBrowserStorage()): OfflineQ
   };
 }
 
-export function enqueueOfflineAction(input: { actionType: QueuedOfflineAction["actionType"]; payload: Record<string, unknown>; userId?: string | null; appVersion?: string | null }, storage = getBrowserStorage()) {
+export function enqueueOfflineAction(
+  input: { actionType: QueuedOfflineAction["actionType"]; payload: Record<string, unknown>; userId?: string | null; appVersion?: string | null; clientActionId?: string | null },
+  storage = getBrowserStorage(),
+) {
   const validation = validateOfflineActionForQueue(input);
   if (!validation.ok) throw new Error(validation.message);
   const now = new Date().toISOString();
   const action: QueuedOfflineAction = {
-    clientActionId: createClientActionId(),
+    clientActionId: input.clientActionId || createClientActionId(),
     actionType: input.actionType,
     payload: input.payload,
     createdAt: now,
@@ -78,7 +82,14 @@ export function retryOfflineAction(clientActionId: string, storage = getBrowserS
 }
 
 export function clearSyncedOfflineActions(storage = getBrowserStorage()) {
-  writeOfflineQueue(readOfflineQueue(storage).filter((item) => item.status !== "SYNCED"), storage);
+  const items = readOfflineQueue(storage);
+  void deleteOfflinePhotoBlobs(items.filter((item) => item.status === "SYNCED" && item.actionType === "UPLOAD_ASSET_PHOTO").map((item) => item.clientActionId)).catch(() => undefined);
+  writeOfflineQueue(items.filter((item) => item.status !== "SYNCED"), storage);
+}
+
+export async function cancelOfflineActionAndBlob(clientActionId: string, storage = getBrowserStorage()) {
+  cancelOfflineAction(clientActionId, storage);
+  await deleteOfflinePhotoBlob(clientActionId).catch(() => undefined);
 }
 
 export async function syncOfflineQueue(fetcher: SyncFetch = fetch, storage = getBrowserStorage()) {
@@ -93,14 +104,11 @@ export async function syncOfflineQueue(fetcher: SyncFetch = fetch, storage = get
 
   let results: OfflineSyncActionResult[];
   try {
-    const response = await fetcher("/api/offline/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actions: syncable }),
-    });
-    const json = (await response.json()) as { results?: OfflineSyncActionResult[]; error?: string };
-    if (!response.ok) throw new Error(json.error || "Offline sync failed.");
-    results = Array.isArray(json.results) ? json.results : [];
+    const photoActions = syncable.filter((item) => item.actionType === "UPLOAD_ASSET_PHOTO");
+    const metadataActions = syncable.filter((item) => item.actionType !== "UPLOAD_ASSET_PHOTO");
+    const metadataResults = metadataActions.length ? await syncMetadataActions(metadataActions, fetcher) : [];
+    const photoResults = photoActions.length ? await Promise.all(photoActions.map((item) => syncOfflinePhotoAction(item, fetcher))) : [];
+    results = [...metadataResults, ...photoResults];
   } catch (error) {
     const message = error instanceof Error ? error.message : "Offline sync failed.";
     const failedItems = readOfflineQueue(storage).map((item) => (syncable.some((candidate) => candidate.clientActionId === item.clientActionId) ? { ...item, status: "FAILED" as const, updatedAt: new Date().toISOString(), lastError: message } : item));
@@ -124,11 +132,58 @@ export async function syncOfflineQueue(fetcher: SyncFetch = fetch, storage = get
     storage,
   );
 
+  const syncedPhotoActionIds = results.filter((result) => result.status === "SYNCED").map((result) => result.clientActionId);
+  if (syncedPhotoActionIds.length) {
+    await deleteOfflinePhotoBlobs(syncedPhotoActionIds).catch(() => undefined);
+  }
+
   return {
     results,
     synced: results.filter((result) => result.status === "SYNCED").length,
     failed: results.filter((result) => result.status === "FAILED").length,
     conflict: results.filter((result) => result.status === "CONFLICT").length,
+  };
+}
+
+async function syncMetadataActions(actions: QueuedOfflineAction[], fetcher: SyncFetch) {
+  const response = await fetcher("/api/offline/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actions }),
+  });
+  const json = (await response.json()) as { results?: OfflineSyncActionResult[]; error?: string };
+  if (!response.ok) throw new Error(json.error || "Offline sync failed.");
+  return Array.isArray(json.results) ? json.results : [];
+}
+
+async function syncOfflinePhotoAction(action: QueuedOfflineAction, fetcher: SyncFetch): Promise<OfflineSyncActionResult> {
+  const formData = new FormData();
+  formData.set("clientActionId", action.clientActionId);
+  formData.set("payload", JSON.stringify(action.payload));
+  formData.set("createdAt", action.createdAt);
+  formData.set("schemaVersion", String(action.schemaVersion));
+  const record = await getOfflinePhotoBlob(action.clientActionId).catch(() => null);
+  if (record?.blob) {
+    formData.set("file", record.blob, record.fileName);
+  }
+  const response = await fetcher("/api/offline/sync/photo", { method: "POST", body: formData });
+  const json = (await response.json().catch(() => ({}))) as OfflineSyncActionResult & { error?: string };
+  if (!response.ok && !json.status) {
+    return {
+      clientActionId: action.clientActionId,
+      status: "FAILED",
+      message: json.error || "Offline photo sync failed.",
+    };
+  }
+  return {
+    clientActionId: json.clientActionId || action.clientActionId,
+    status: json.status || "FAILED",
+    message: json.message || json.error || "Offline photo sync failed.",
+    serverId: json.serverId,
+    photoId: json.photoId,
+    relatedDeviceId: json.relatedDeviceId,
+    relatedAssetTag: json.relatedAssetTag,
+    conflict: json.conflict,
   };
 }
 

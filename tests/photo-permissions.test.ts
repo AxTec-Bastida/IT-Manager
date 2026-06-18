@@ -6,11 +6,13 @@ describe("photo upload API permission contracts", () => {
   it("requires inventory write permission for asset photo upload and delete actions", async () => {
     const uploadRoute = await readFile(path.join(process.cwd(), "app/api/devices/[id]/photos/route.ts"), "utf8");
     const detailRoute = await readFile(path.join(process.cwd(), "app/api/devices/[id]/photos/[photoId]/route.ts"), "utf8");
+    const helper = await readFile(path.join(process.cwd(), "lib/asset-photos.ts"), "utf8");
 
     expect(uploadRoute).toContain('requirePermission("inventory.write")');
+    expect(uploadRoute).toContain("createAssetPhotoUpload");
     expect(detailRoute).toContain('requirePermission("inventory.write")');
-    expect(uploadRoute).toContain("validateUploadFile");
-    expect(uploadRoute).toContain("generateThumbnailForUpload");
+    expect(helper).toContain("validateUploadFile");
+    expect(helper).toContain("generateThumbnailForUpload");
   });
 
   it("requires stock write permission for stock item photo upload", async () => {

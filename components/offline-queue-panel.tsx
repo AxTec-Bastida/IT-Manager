@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { summarizeQueuedOfflineAction } from "@/lib/offline-actions";
-import { cancelOfflineAction, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
+import { cancelOfflineActionAndBlob, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
+import { getOfflinePhotoBlob } from "@/lib/offline-photo-blobs";
 import { OfflineStatusIndicator } from "@/components/offline-status-indicator";
 
 type QueuedItem = OfflineQueueSnapshot["items"][number];
@@ -80,7 +81,7 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">Connection and queue status</p>
-            <p className="text-sm text-slate-600">This queue supports test notes and serialized asset moves. Photos, stock, RMA, factura, admin, and BitLocker actions stay online-only.</p>
+            <p className="text-sm text-slate-600">This queue supports test notes, serialized asset moves, and asset photo uploads. Stock, RMA, factura, admin, and BitLocker actions stay online-only.</p>
           </div>
           <OfflineStatusIndicator />
         </div>
@@ -163,11 +164,34 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
 
 function QueuedActionCard({ item }: { item: QueuedItem }) {
   const summary = summarizeQueuedOfflineAction(item);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const deviceHref = item.serverResult?.relatedDeviceId || summary.relatedDeviceId ? `/devices/${item.serverResult?.relatedDeviceId || summary.relatedDeviceId}` : null;
+
+  useEffect(() => {
+    if (item.actionType !== "UPLOAD_ASSET_PHOTO") return;
+    let active = true;
+    let objectUrl: string | null = null;
+    getOfflinePhotoBlob(item.clientActionId)
+      .then((record) => {
+        if (!active || !record?.blob) return;
+        objectUrl = URL.createObjectURL(record.blob);
+        setPhotoPreviewUrl(objectUrl);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [item.actionType, item.clientActionId]);
+
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
+          {photoPreviewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoPreviewUrl} alt="Queued offline asset photo preview" className="mb-3 aspect-video w-full max-w-sm rounded-lg border border-slate-200 object-cover" />
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={item.status} />
             <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{item.actionType}</span>
@@ -187,7 +211,7 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
         </div>
         <div className="grid gap-2 sm:min-w-40">
           {item.status === "PENDING" ? (
-            <button type="button" onClick={() => cancelOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => void cancelOfflineActionAndBlob(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
               Cancel
             </button>
           ) : null}

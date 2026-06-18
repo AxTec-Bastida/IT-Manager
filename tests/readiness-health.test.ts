@@ -270,13 +270,14 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Offline Queue");
       expect(document).toContain("TEST_OFFLINE_NOTE");
       expect(document).toContain("MOVE_ASSET");
+      expect(document).toContain("UPLOAD_ASSET_PHOTO");
       expect(document).toContain("serialized asset");
-      expect(document).toContain("Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only");
+      expect(document).toContain("Stock, RMA, decommission, BitLocker, factura, admin, import, bulk intake, and stock photos remain online-only");
       expect(document).toContain("server validates");
       expect(document).toContain("BitLocker");
       expect(document).toContain("Phase 72: Offline Scan + Move Queue completed");
       expect(document).toContain("Phase 73: Offline Conflict Review Center completed");
-      expect(document).toContain("Offline Photo Upload Queue remains not enabled");
+      expect(document).toContain("Phase 74: Offline Photo Upload Queue completed");
       expect(document).toContain("/offline/conflicts");
     }
   });

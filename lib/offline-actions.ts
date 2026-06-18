@@ -28,6 +28,7 @@ export type OfflineSyncActionResult = {
   status: Extract<OfflineQueueStatus, "SYNCED" | "FAILED" | "CONFLICT">;
   message: string;
   serverId?: string;
+  photoId?: string | null;
   relatedDeviceId?: string | null;
   relatedAssetTag?: string | null;
   conflict?: {
@@ -49,6 +50,10 @@ const maxClientActionIdLength = 96;
 const maxNoteLength = 500;
 const maxOfflineMoveTextLength = 120;
 const maxOfflineMoveNotesLength = 500;
+const maxOfflinePhotoTextLength = 120;
+const maxOfflinePhotoCaptionLength = 500;
+export const maxOfflineAssetPhotoBytes = 8 * 1024 * 1024;
+export const offlineAssetPhotoMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"] as const;
 const maxSummaryLength = 1000;
 const sensitiveKeyPattern = /(bitlocker|recovery|password|passwd|secret|token|credential|smtp|private.?key|api.?key|auth|session|cookie)/i;
 const bitLockerKeyPattern = /\b\d{6}(?:-\d{6}){7}\b/;
@@ -76,8 +81,25 @@ export type NormalizedOfflineMovePayload = {
   clientRoute: string | null;
 };
 
-export function isSupportedOfflineActionType(value: unknown): value is "TEST_OFFLINE_NOTE" | "MOVE_ASSET" {
-  return value === "TEST_OFFLINE_NOTE" || value === "MOVE_ASSET";
+export type NormalizedOfflineAssetPhotoPayload = {
+  deviceId: string | null;
+  assetTag: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  photoType: string | null;
+  caption: string | null;
+  source: string | null;
+  compressionApplied: boolean;
+  isPrimary: boolean;
+  capturedAtClient: string | null;
+  lastKnownDeviceStatus: string | null;
+  lastKnownAssignmentId: string | null;
+  clientRoute: string | null;
+};
+
+export function isSupportedOfflineActionType(value: unknown): value is "TEST_OFFLINE_NOTE" | "MOVE_ASSET" | "UPLOAD_ASSET_PHOTO" {
+  return value === "TEST_OFFLINE_NOTE" || value === "MOVE_ASSET" || value === "UPLOAD_ASSET_PHOTO";
 }
 
 export function createClientActionId(now: Date = new Date(), random = Math.random()) {
@@ -116,6 +138,26 @@ export function normalizeOfflineMovePayload(payload: unknown): NormalizedOffline
   };
 }
 
+export function normalizeOfflineAssetPhotoPayload(payload: unknown): NormalizedOfflineAssetPhotoPayload {
+  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as Record<string, unknown>) : {};
+  return {
+    deviceId: cleanMoveText(record.deviceId, 96),
+    assetTag: cleanMoveText(record.assetTag, 96),
+    fileName: cleanMoveText(record.fileName, maxOfflinePhotoTextLength),
+    mimeType: cleanMoveText(record.mimeType, 80),
+    sizeBytes: cleanNumber(record.sizeBytes),
+    photoType: cleanMoveText(record.photoType, 80),
+    caption: cleanMoveText(record.caption, maxOfflinePhotoCaptionLength),
+    source: cleanMoveText(record.source, 40),
+    compressionApplied: record.compressionApplied === true || record.compressionApplied === "true",
+    isPrimary: record.isPrimary === true || record.isPrimary === "true",
+    capturedAtClient: cleanMoveText(record.capturedAtClient, 80),
+    lastKnownDeviceStatus: cleanMoveText(record.lastKnownDeviceStatus, 80),
+    lastKnownAssignmentId: cleanMoveText(record.lastKnownAssignmentId, 96),
+    clientRoute: cleanMoveText(record.clientRoute, 200),
+  };
+}
+
 export function validateOfflineActionForQueue(input: { actionType: unknown; payload: unknown }) {
   if (!isOfflineActionType(input.actionType)) return { ok: false as const, message: "Unsupported offline action type." };
   const sensitive = findSensitivePayloadIssue(input.payload);
@@ -131,6 +173,11 @@ export function validateOfflineActionForQueue(input: { actionType: unknown; payl
       return { ok: false as const, message: "Target location, area, station, or map anchor is required for an offline move." };
     }
   }
+  if (input.actionType === "UPLOAD_ASSET_PHOTO") {
+    const photo = normalizeOfflineAssetPhotoPayload(input.payload);
+    const validation = validateOfflineAssetPhotoPayload(photo);
+    if (!validation.ok) return validation;
+  }
   return { ok: true as const };
 }
 
@@ -142,6 +189,10 @@ export function validateOfflineSyncAction(input: OfflineSyncRequestAction) {
   const sensitive = findSensitivePayloadIssue(input.payload);
   if (sensitive) return { ok: false as const, message: sensitive };
   if (!isSupportedOfflineActionType(input.actionType)) return { ok: false as const, message: "This action type is not supported offline yet." };
+  if (input.actionType === "UPLOAD_ASSET_PHOTO") {
+    const photo = normalizeOfflineAssetPhotoPayload(input.payload);
+    return validateOfflineAssetPhotoPayload(photo);
+  }
   if (input.actionType === "MOVE_ASSET") {
     const move = normalizeOfflineMovePayload(input.payload);
     if (!move.deviceId && !move.assetTag) return { ok: false as const, message: "Asset tag or device ID is required for an offline move." };
@@ -169,6 +220,16 @@ export function summarizeQueuedOfflineAction(action: Pick<QueuedOfflineAction, "
   if (action.actionType === "TEST_OFFLINE_NOTE") {
     const note = normalizeTestOfflineNotePayload(action.payload);
     return { title: "Test offline note", detail: note.text || "Queued test note", note: note.route || null, relatedAssetTag: null, relatedDeviceId: null };
+  }
+  if (action.actionType === "UPLOAD_ASSET_PHOTO") {
+    const photo = normalizeOfflineAssetPhotoPayload(action.payload);
+    return {
+      title: `Photo for ${photo.assetTag || photo.deviceId || "asset"}`,
+      detail: [photo.fileName, photo.sizeBytes ? formatBytes(photo.sizeBytes) : null].filter(Boolean).join(" - ") || "Queued asset photo",
+      note: [photo.photoType, photo.caption].filter(Boolean).join(" - ") || null,
+      relatedAssetTag: photo.assetTag,
+      relatedDeviceId: photo.deviceId,
+    };
   }
   return { title: action.actionType.replaceAll("_", " "), detail: "Future offline action", note: null, relatedAssetTag: null, relatedDeviceId: null };
 }
@@ -235,4 +296,23 @@ function cleanMoveText(value: unknown, maxLength = maxOfflineMoveTextLength) {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const text = String(value).trim();
   return text ? text.slice(0, maxLength) : null;
+}
+
+function cleanNumber(value: unknown) {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(number) ? number : null;
+}
+
+function validateOfflineAssetPhotoPayload(photo: NormalizedOfflineAssetPhotoPayload) {
+  if (!photo.deviceId && !photo.assetTag) return { ok: false as const, message: "Asset tag or device ID is required for an offline photo." };
+  if (!photo.fileName) return { ok: false as const, message: "Photo file name is required for offline photo sync." };
+  if (!photo.mimeType || !(offlineAssetPhotoMimeTypes as readonly string[]).includes(photo.mimeType)) return { ok: false as const, message: "Offline photo type must be JPEG, PNG, WebP, HEIC, or HEIF." };
+  if (!photo.sizeBytes || photo.sizeBytes <= 0) return { ok: false as const, message: "Offline photo file is empty." };
+  if (photo.sizeBytes > maxOfflineAssetPhotoBytes) return { ok: false as const, message: `Offline photo is too large. Max size is ${Math.floor(maxOfflineAssetPhotoBytes / 1024 / 1024)} MB.` };
+  return { ok: true as const };
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.ceil(bytes / 1024)} KB`;
 }

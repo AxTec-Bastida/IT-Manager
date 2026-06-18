@@ -69,6 +69,18 @@ async function processOfflineSyncAction(action: OfflineSyncRequestAction, actor:
     return processMoveAssetAction(action, actor, client);
   }
 
+  if (action.actionType === "UPLOAD_ASSET_PHOTO") {
+    return createOfflineRecordResult({
+      client,
+      action,
+      actor,
+      status: "CONFLICT",
+      message: "Offline photo sync requires the queued local photo file. Retry from the Offline Queue on the original browser/device.",
+      resultSummary: { message: "Photo upload was sent to the metadata-only sync endpoint." },
+      conflictCode: "INVALID_PAYLOAD",
+    });
+  }
+
   const note = normalizeTestOfflineNotePayload(action.payload);
   return client.$transaction(async (tx) => {
     const record = await tx.offlineSyncRecord.upsert({

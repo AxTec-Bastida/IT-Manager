@@ -39,7 +39,7 @@ export default async function OfflineConflictsPage({ searchParams }: PageProps) 
     <div className="space-y-6">
       <PageHeader
         title="Offline Conflict Review"
-        description="Review failed or conflicted offline test notes and serialized asset moves. Conflicts are server-refused actions that need a human before retrying or cancelling."
+        description="Review failed or conflicted offline test notes, serialized asset moves, and asset photo uploads. Conflicts are server-refused actions that need a human before retrying or cancelling."
         action={
           <PageActions>
             <ActionLink href="/offline">
@@ -96,6 +96,7 @@ export default async function OfflineConflictsPage({ searchParams }: PageProps) 
           <FilterLink label="Cancelled" href="/offline/conflicts?resolution=CANCELLED" active={query.resolution === "CANCELLED"} />
           <FilterLink label="Resolved" href="/offline/conflicts?resolution=RESOLVED" active={query.resolution === "RESOLVED"} />
           <FilterLink label="Moves" href="/offline/conflicts?actionType=MOVE_ASSET" active={query.actionType === "MOVE_ASSET"} />
+          <FilterLink label="Photos" href="/offline/conflicts?actionType=UPLOAD_ASSET_PHOTO" active={query.actionType === "UPLOAD_ASSET_PHOTO"} />
           <FilterLink label="Test notes" href="/offline/conflicts?actionType=TEST_OFFLINE_NOTE" active={query.actionType === "TEST_OFFLINE_NOTE"} />
           <Link href="/offline/conflicts" className="inline-flex min-h-10 items-center rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">Clear filters</Link>
         </div>
@@ -122,6 +123,8 @@ export default async function OfflineConflictsPage({ searchParams }: PageProps) 
 function OfflineConflictCard({ record, mutable }: { record: SanitizedOfflineConflictRecord; mutable: boolean }) {
   const info = offlineConflictInfo[record.conflictCode];
   const movedTo = [textValue(record.payload?.targetArea), textValue(record.payload?.targetDepartment), textValue(record.payload?.targetStation || record.payload?.targetLocationLabel)].filter(Boolean).join(" / ");
+  const isPhoto = record.actionType === "UPLOAD_ASSET_PHOTO";
+  const photoDetail = [textValue(record.payload?.fileName), textValue(record.payload?.photoType)].filter(Boolean).join(" / ");
   const assetHref = record.entityType === "device" && record.entityId ? `/devices/${record.entityId}` : null;
   const statusIcon = record.status === "FAILED" ? XCircle : record.status === "SYNCED" ? CheckCircle2 : record.status === "CANCELLED" ? XCircle : AlertTriangle;
   const StatusIcon = statusIcon;
@@ -145,7 +148,7 @@ function OfflineConflictCard({ record, mutable }: { record: SanitizedOfflineConf
 
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
             <Info label="Queued asset" value={textValue(record.payload?.assetTag) || record.entityLabel || "Unknown"} />
-            <Info label="Queued destination" value={movedTo || textValue(record.payload?.targetMapAnchorId) || "Not provided"} />
+            <Info label={isPhoto ? "Queued photo" : "Queued destination"} value={isPhoto ? photoDetail || "Photo metadata unavailable" : movedTo || textValue(record.payload?.targetMapAnchorId) || "Not provided"} />
             <Info label="Actor" value={record.actorName || "Unknown"} />
             <Info label="Processed" value={record.processedAt ? new Date(record.processedAt).toLocaleString() : "Not processed"} />
           </dl>
@@ -168,7 +171,7 @@ function OfflineConflictCard({ record, mutable }: { record: SanitizedOfflineConf
           </details>
         </div>
         <div className="w-full lg:max-w-sm">
-          <OfflineConflictActions recordId={record.id} mutable={mutable} />
+          <OfflineConflictActions recordId={record.id} mutable={mutable} actionType={record.actionType} />
         </div>
       </div>
     </MobileCard>
