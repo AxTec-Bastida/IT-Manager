@@ -397,6 +397,34 @@ Real phone validation remains pending and must not be marked complete until the 
 
 Daily mobile beta checklist remains: use QA asset `QA-PHONE-FIELD-001`, do not move real assets, do not upload real production photos, do not clear browser storage while queued photos are pending, and document exact phone/browser results before closing this blocker.
 
+### Phase 80 Actual Beta Phone Field Run Status
+
+Phase 80 workstation-side readiness passed on June 18, 2026, but the actual beta phone field run was not completed in this Codex session because no physical phone/browser results were available.
+
+Classification: **BLOCKED / NOT RUN ON PHONE**.
+
+What was confirmed from the workstation:
+
+- `https://warehouse-it.local/api/health` is reachable and degraded only because SMTP is not configured.
+- `https://warehouse-it.local/login` opens through Caddy.
+- Login redirects to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated HTTPS checks returned 200 for `/dashboard`, `/scan`, `/devices`, QA asset detail, `/offline`, `/offline/move`, `/offline/conflicts`, `/data-quality`, `/reports`, and QA asset photo/thumbnail routes.
+
+What remains to be tested on the actual phone:
+
+- Phone model, OS, browser, Wi-Fi/network, and URL tested.
+- Phone DNS resolution for `warehouse-it.local`.
+- Certificate trust with no warning.
+- Live camera scanner and rear-camera behavior.
+- Manual `QA-PHONE-FIELD-001` fallback.
+- Scan-from-photo/file fallback.
+- Add to Home Screen / PWA behavior.
+- Offline move close/reopen/reconnect sync to `QA / Phone / Bench 80`.
+- Offline photo close/reopen/reconnect sync.
+- Optional storage-loss safety test on a safe phone browser/profile.
+
+Do not mark the real-phone blocker closed until those phone results are recorded. If direct LAN HTTP is used as a fallback, document it as a fallback and keep trusted HTTPS/camera validation open.
+
 Production update runbook:
 
 1. Run `npm run backup`.

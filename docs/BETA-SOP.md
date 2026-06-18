@@ -172,6 +172,38 @@ If `warehouse-it.local` does not resolve on the phone, document whether a safe D
 
 If the certificate is not trusted, do not weaken security permanently. Document the browser warning and keep live camera/PWA validation blocked until trust is fixed.
 
+## Phase 80 Actual Beta Phone Field Run Status
+
+Phase 80 workstation-side readiness checks passed on June 18, 2026, but the actual beta phone field run was not completed in this Codex session because no physical phone/browser results were available.
+
+Final phone classification: **BLOCKED / NOT RUN ON PHONE**.
+
+Workstation checks completed:
+
+- App and Caddy were running.
+- `https://warehouse-it.local/api/health` was degraded only for missing SMTP credentials.
+- `/login` opened through Caddy.
+- Login redirected to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated HTTPS checks returned 200 for `/dashboard`, `/scan`, `/devices`, QA asset detail, `/offline`, `/offline/move`, `/offline/conflicts`, `/data-quality`, `/reports`, QA asset photo, and QA asset thumbnail.
+
+Actual phone result fields remain pending:
+
+- Phone model / OS / browser:
+- Wi-Fi/network:
+- URL tested:
+- HTTPS/cert trust result:
+- Camera scan result:
+- Manual fallback result:
+- Scan-from-photo result:
+- PWA result:
+- Offline move close/reopen result:
+- Offline photo close/reopen result:
+- Storage-loss result:
+- Mobile UI result:
+- Final phone classification: PASS / PARTIAL / FAIL, only after a real phone test.
+
+Next action: run the documented phone checklist with QA asset `QA-PHONE-FIELD-001`. If any result fails, document the exact browser error, certificate warning, camera behavior, offline persistence issue, or fallback used. Do not mark the real-phone blocker closed until the phone result fields are filled.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.
