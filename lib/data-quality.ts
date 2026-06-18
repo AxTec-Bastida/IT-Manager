@@ -12,6 +12,7 @@ import { isPhysicalLabelAliasType, normalizedAliasCompare } from "@/lib/label-al
 import { summarizeMaintenanceReview } from "@/lib/maintenance";
 import { buildAssetValueSummary } from "@/lib/depreciation";
 import { isBitLockerEligibleCategory, validateVaultSecret } from "@/lib/bitlocker-vault";
+import { getOfflineConflictHealth } from "@/lib/offline-conflicts";
 
 type ReviewDevice = {
   id: string;
@@ -679,9 +680,10 @@ export async function getDataQualityReview() {
   const duplicateAssetTags = exactDuplicateGroups(devices, "assetTag");
   const duplicateSerials = exactDuplicateGroups(devices, "serialNumber");
   const unlinkedFacturas = findUnlinkedFacturas(facturas);
-  const [activeRmaCount, devicesInRmaCount] = await Promise.all([
+  const [activeRmaCount, devicesInRmaCount, offlineSyncHealth] = await Promise.all([
     prisma.rmaCase.count({ where: { status: { in: ["SENT", "ACTIVE", "PARTIALLY_RETURNED"] } } }),
     prisma.rmaItem.count({ where: { result: "PENDING", rmaCase: { status: { in: ["SENT", "ACTIVE", "PARTIALLY_RETURNED"] } } } }),
+    getOfflineConflictHealth(),
   ]);
 
   return {
@@ -731,6 +733,7 @@ export async function getDataQualityReview() {
     bitLocker,
     facturaLineItems,
     mapHealth,
+    offlineSyncHealth,
     importAudit,
     totals: {
       assets: devices.length,

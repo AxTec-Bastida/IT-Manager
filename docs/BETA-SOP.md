@@ -129,19 +129,22 @@ Rules:
 - Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, photos, or sensitive notes.
 - Do not rely on offline mode for stock issue, RMA receive, photo upload, decommission, factura extraction, admin/users/settings, imports, bulk intake, or BitLocker workflows.
 - Conflicts and failed syncs require manual review. The app does not auto-resolve conflicts or apply stale/unsafe offline moves.
+- Review failed or conflicted sync records at `/offline/conflicts`. Admin and IT Staff can retry, cancel, or mark reviewed with a note; Auditors can read sanitized records when audit access is available.
+- Data Quality shows Offline Sync Health so daily beta review can catch failed/conflicted browser-queued actions quickly.
 
 Offline move workflow:
 
 1. Open `/offline/move`, Quick Scan, or an asset detail page.
 2. Queue the serialized asset move with a destination.
 3. Return to `/offline` and tap Sync now when online.
-4. Review conflicts before retrying. Do not use offline mode to move real assets unless the destination is intentional and safe.
+4. Open `/offline/conflicts` if any sync fails or conflicts.
+5. Review conflicts before retrying. Retry runs the same server validation again; cancel does not apply the action; mark reviewed keeps the audit trail. Do not use offline mode to move real assets unless the destination is intentional and safe.
 
 Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
-- Phase 73: Offline Photo Upload Queue.
-- Phase 74: Offline Conflict Review Center.
+- Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
+- Later phase: Offline Photo Upload Queue remains not enabled.
 
 ## SMTP / Email Validation
 

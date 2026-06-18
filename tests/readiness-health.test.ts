@@ -275,8 +275,9 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("server validates");
       expect(document).toContain("BitLocker");
       expect(document).toContain("Phase 72: Offline Scan + Move Queue completed");
-      expect(document).toContain("Phase 73: Offline Photo Upload Queue");
-      expect(document).toContain("Phase 74: Offline Conflict Review Center");
+      expect(document).toContain("Phase 73: Offline Conflict Review Center completed");
+      expect(document).toContain("Offline Photo Upload Queue remains not enabled");
+      expect(document).toContain("/offline/conflicts");
     }
   });
 });

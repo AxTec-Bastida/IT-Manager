@@ -160,6 +160,8 @@ Current scope:
 - The server validates authentication, `inventory.write`, payload safety, current asset state, stale status/assignment/map-anchor checks, and target location/anchor before applying a move.
 - Unsupported future action types such as task creation, maintenance creation, and asset photo upload fail clearly until a later phase implements them.
 - Sync conflicts require review. The app does not auto-resolve conflicts, and it does not auto-change inventory when the server sees stale or unsafe data.
+- `/offline/conflicts` is the Offline Conflict Review Center for Admin and IT Staff retry/cancel/review actions. Auditors can read sanitized conflict records when audit access is available.
+- Data Quality includes an Offline Sync Health card for open conflicts, failed records, recent conflicts, and the oldest open item.
 
 Still not enabled:
 
@@ -176,13 +178,24 @@ How to use offline moves:
 2. Enter/confirm the asset tag and destination.
 3. Queue the move locally.
 4. Open `/offline` when online and tap Sync now.
-5. Review any failed or conflict items; retry only after the issue is understood.
+5. Open `/offline/conflicts` for any failed or conflict items; retry only after the issue is understood, cancel stale work, or mark reviewed with a note.
+
+Conflict review workflow:
+
+1. Open `/offline/conflicts`.
+2. Filter by open, failed, conflict, reviewed, cancelled, resolved, action type, asset tag, actor, or client action ID.
+3. Expand technical details only when needed; default cards show sanitized queued summaries and server result summaries.
+4. Retry runs the same server validation again and does not bypass stale checks.
+5. Cancel does not apply the queued action.
+6. Mark reviewed records the reviewer and note without changing inventory.
+
+Daily beta check: open `/offline/conflicts` and Data Quality's Offline Sync Health card before relying on offline move results.
 
 Roadmap:
 
 - Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
-- Phase 73: Offline Photo Upload Queue.
-- Phase 74: Offline Conflict Review Center.
+- Phase 73: Offline Conflict Review Center completed for failed/conflicted test notes and serialized asset moves.
+- Later phase: Offline Photo Upload Queue remains not enabled.
 
 ## Production Readiness / Before Wider Rollout
 

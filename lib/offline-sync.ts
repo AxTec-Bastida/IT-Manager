@@ -77,16 +77,24 @@ async function processOfflineSyncAction(action: OfflineSyncRequestAction, actor:
         clientActionId,
         actionType: "TEST_OFFLINE_NOTE",
         status: "SYNCED",
+        resolutionStatus: "RESOLVED",
         actorUserId: actor.id,
         actorName: actor.name,
+        conflictCode: null,
+        entityType: "offline_sync_record",
+        entityLabel: "Test offline note",
         payloadSummary: summarizeOfflinePayload({ text: note.text, route: note.route, timestamp: note.timestamp }),
         resultSummary: safeJsonStringify({ message: "Test offline note synced." }),
         processedAt: new Date(),
       },
       update: {
         status: "SYNCED",
+        resolutionStatus: "RESOLVED",
         actorUserId: actor.id,
         actorName: actor.name,
+        conflictCode: null,
+        entityType: "offline_sync_record",
+        entityLabel: "Test offline note",
         payloadSummary: summarizeOfflinePayload({ text: note.text, route: note.route, timestamp: note.timestamp }),
         resultSummary: safeJsonStringify({ message: "Test offline note synced." }),
         processedAt: new Date(),
@@ -125,6 +133,10 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       resultSummary: { message: "Permission denied at sync time.", assetTag: payload.assetTag, deviceId: payload.deviceId },
       relatedDeviceId: payload.deviceId,
       relatedAssetTag: payload.assetTag,
+      conflictCode: "PERMISSION_DENIED",
+      entityType: "device",
+      entityId: payload.deviceId,
+      entityLabel: payload.assetTag,
     });
   }
 
@@ -164,10 +176,15 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       resultSummary: { message: "Asset missing at sync time.", assetTag: payload.assetTag, deviceId: payload.deviceId },
       relatedDeviceId: payload.deviceId,
       relatedAssetTag: payload.assetTag,
+      conflictCode: "ASSET_NOT_FOUND",
+      entityType: "device",
+      entityId: payload.deviceId,
+      entityLabel: payload.assetTag,
     });
   }
 
   const related = { relatedDeviceId: device.id, relatedAssetTag: device.assetTag };
+  const relatedEntity = { entityType: "device", entityId: device.id, entityLabel: device.assetTag || device.name };
   if (["RETIRED", "DISPOSED", "LOST"].includes(device.status)) {
     return createOfflineRecordResult({
       client,
@@ -177,6 +194,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: `Asset is ${device.status.replaceAll("_", " ")} and was not moved.`,
       resultSummary: { message: "Blocked retired/decommissioned asset move.", currentStatus: device.status, currentLocation: device.location, currentMapAnchorId: device.currentMapAnchorId },
       ...related,
+      ...relatedEntity,
+      conflictCode: "ASSET_RETIRED_OR_DECOMMISSIONED",
     });
   }
 
@@ -189,6 +208,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: `Asset status changed from ${payload.lastKnownDeviceStatus.replaceAll("_", " ")} to ${device.status.replaceAll("_", " ")} before sync.`,
       resultSummary: { message: "Stale status conflict.", previousStatus: payload.lastKnownDeviceStatus, currentStatus: device.status, currentLocation: device.location },
       ...related,
+      ...relatedEntity,
+      conflictCode: "STALE_LOCATION",
     });
   }
 
@@ -202,6 +223,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: "Asset assignment changed before sync. Review the move before applying it.",
       resultSummary: { message: "Stale assignment conflict.", previousAssignmentId: payload.lastKnownAssignmentId, currentAssignmentId: activeAssignmentId },
       ...related,
+      ...relatedEntity,
+      conflictCode: "STALE_ASSIGNMENT",
     });
   }
 
@@ -215,6 +238,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: "Asset map location changed before sync. Review the move before applying it.",
       resultSummary: { message: "Stale map anchor conflict.", previousMapAnchorId: payload.lastKnownMapAnchorId, currentMapAnchorId, currentLocation: device.location },
       ...related,
+      ...relatedEntity,
+      conflictCode: "STALE_LOCATION",
     });
   }
 
@@ -233,6 +258,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: "Target location anchor no longer exists or is inactive.",
       resultSummary: { message: "Invalid target map anchor.", targetMapAnchorId: payload.targetMapAnchorId },
       ...related,
+      ...relatedEntity,
+      conflictCode: "TARGET_LOCATION_NOT_FOUND",
     });
   }
 
@@ -250,7 +277,7 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
     });
   } catch (error) {
     const message = error instanceof MoveInputError ? error.message : "Offline move payload is malformed.";
-    return createOfflineRecordResult({ client, action, actor, status: "FAILED", message, resultSummary: { message }, ...related });
+    return createOfflineRecordResult({ client, action, actor, status: "FAILED", message, resultSummary: { message }, ...related, ...relatedEntity, conflictCode: "INVALID_PAYLOAD" });
   }
 
   const [devices, ranges] = await Promise.all([
@@ -282,6 +309,8 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       message: "Move needs review before it can be applied.",
       resultSummary: { message: "Blocking move warning.", warnings, currentStatus: device.status, currentLocation: device.location },
       ...related,
+      ...relatedEntity,
+      conflictCode: "SERVER_VALIDATION_WARNING",
     });
   }
 
@@ -351,8 +380,13 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
         clientActionId,
         actionType: "MOVE_ASSET",
         status: "SYNCED",
+        resolutionStatus: "RESOLVED",
         actorUserId: actor.id,
         actorName: actor.name,
+        conflictCode: null,
+        entityType: "device",
+        entityId: updated.id,
+        entityLabel: updated.assetTag || updated.name,
         payloadSummary: summarizeOfflinePayload({
           assetTag: payload.assetTag,
           deviceId: payload.deviceId,
@@ -368,8 +402,13 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
       },
       update: {
         status: "SYNCED",
+        resolutionStatus: "RESOLVED",
         actorUserId: actor.id,
         actorName: actor.name,
+        conflictCode: null,
+        entityType: "device",
+        entityId: updated.id,
+        entityLabel: updated.assetTag || updated.name,
         resultSummary: safeJsonStringify({ message: "Offline move synced.", deviceId: updated.id, assetTag: updated.assetTag, activityLogId: activity.id, location: updated.location, areaDepartment: updated.areaDepartment }),
         processedAt: new Date(),
       },
@@ -394,6 +433,10 @@ async function createOfflineRecordResult({
   resultSummary,
   relatedDeviceId,
   relatedAssetTag,
+  conflictCode,
+  entityType,
+  entityId,
+  entityLabel,
 }: {
   client: PrismaClient;
   action: OfflineSyncRequestAction;
@@ -403,28 +446,53 @@ async function createOfflineRecordResult({
   resultSummary: Record<string, unknown>;
   relatedDeviceId?: string | null;
   relatedAssetTag?: string | null;
+  conflictCode?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  entityLabel?: string | null;
 }): Promise<OfflineSyncActionResult> {
   const clientActionId = typeof action.clientActionId === "string" && action.clientActionId.trim() ? action.clientActionId.trim() : `invalid-${Date.now()}`;
   const actionType = normalizeOfflineActionType(action.actionType) ?? "TEST_OFFLINE_NOTE";
+  const resolvedConflictCode = conflictCode ?? inferConflictCode(message, resultSummary, action.actionType);
   const record = await client.offlineSyncRecord.upsert({
     where: { clientActionId },
     create: {
       clientActionId,
       actionType,
       status,
+      resolutionStatus: "OPEN",
       actorUserId: actor.id,
       actorName: actor.name,
+      conflictCode: resolvedConflictCode,
+      entityType: entityType ?? (relatedDeviceId || relatedAssetTag ? "device" : "offline_sync_record"),
+      entityId: entityId ?? relatedDeviceId ?? null,
+      entityLabel: entityLabel ?? relatedAssetTag ?? null,
       payloadSummary: summarizeOfflinePayload(action.payload),
       resultSummary: safeJsonStringify(resultSummary),
       processedAt: new Date(),
     },
     update: {
       status,
+      resolutionStatus: "OPEN",
       actorUserId: actor.id,
       actorName: actor.name,
+      conflictCode: resolvedConflictCode,
+      entityType: entityType ?? (relatedDeviceId || relatedAssetTag ? "device" : "offline_sync_record"),
+      entityId: entityId ?? relatedDeviceId ?? null,
+      entityLabel: entityLabel ?? relatedAssetTag ?? null,
       payloadSummary: summarizeOfflinePayload(action.payload),
       resultSummary: safeJsonStringify(resultSummary),
       processedAt: new Date(),
+    },
+  });
+  await client.activityLog.create({
+    data: {
+      ...makeActivityActor(actor),
+      action: status === "CONFLICT" ? "offline.conflict.created" : "offline.sync.failed",
+      entity: "offline_sync_record",
+      entityId: record.id,
+      message: `Offline ${actionType} ${status.toLowerCase()} for review.`,
+      metadata: safeJsonStringify({ clientActionId, conflictCode: resolvedConflictCode, entityType: entityType ?? null, entityId: entityId ?? relatedDeviceId ?? null, entityLabel: entityLabel ?? relatedAssetTag ?? null }),
     },
   });
 
@@ -442,4 +510,18 @@ async function createOfflineRecordResult({
 function normalizeOfflineActionType(value: unknown): OfflineActionType | null {
   if (value === "TEST_OFFLINE_NOTE" || value === "MOVE_ASSET" || value === "CREATE_TASK" || value === "CREATE_MAINTENANCE_RECORD" || value === "UPLOAD_ASSET_PHOTO") return value;
   return null;
+}
+
+function inferConflictCode(message: string, resultSummary: Record<string, unknown>, actionType: unknown) {
+  const text = `${String(actionType ?? "")} ${message} ${typeof resultSummary.message === "string" ? resultSummary.message : ""}`.toLowerCase();
+  if (text.includes("not supported offline")) return "UNSUPPORTED_ACTION";
+  if (text.includes("permission")) return "PERMISSION_DENIED";
+  if (text.includes("asset missing") || text.includes("asset could not be found")) return "ASSET_NOT_FOUND";
+  if (text.includes("retired") || text.includes("disposed") || text.includes("lost")) return "ASSET_RETIRED_OR_DECOMMISSIONED";
+  if (text.includes("target location anchor") || text.includes("invalid target map anchor")) return "TARGET_LOCATION_NOT_FOUND";
+  if (text.includes("assignment")) return "STALE_ASSIGNMENT";
+  if (text.includes("stale") || text.includes("location changed") || text.includes("status changed")) return "STALE_LOCATION";
+  if (text.includes("warning") || text.includes("needs review")) return "SERVER_VALIDATION_WARNING";
+  if (text.includes("invalid") || text.includes("malformed") || text.includes("missing") || text.includes("sensitive") || text.includes("secret") || text.includes("bitlocker")) return "INVALID_PAYLOAD";
+  return "UNKNOWN_SYNC_ERROR";
 }

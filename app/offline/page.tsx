@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { OfflineQueuePanel } from "@/components/offline-queue-panel";
+import { ActionLink, PageActions } from "@/components/ui-patterns";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,27 @@ export default async function OfflinePage() {
     orderBy: { processedAt: "desc" },
     take: 10,
   });
+  const openConflictCount = await prisma.offlineSyncRecord.count({
+    where: { status: { in: ["FAILED", "CONFLICT"] }, resolutionStatus: "OPEN" },
+  });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Offline Queue" description="Local queue for test notes and serialized asset moves. Sync applies moves only after server-side permission, asset state, and destination validation." />
+      <PageHeader
+        title="Offline Queue"
+        description="Local queue for test notes and serialized asset moves. Sync applies moves only after server-side permission, asset state, and destination validation."
+        action={
+          <PageActions>
+            <ActionLink href="/offline/conflicts" variant={openConflictCount ? "primary" : "secondary"}>
+              Review conflicts ({openConflictCount})
+            </ActionLink>
+          </PageActions>
+        }
+      />
+      <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Conflicts are actions the server refused to apply until reviewed.</p>
+        <p className="mt-1">Retry runs the same validation again; cancel and mark reviewed keep an audit trail without applying the queued action.</p>
+      </section>
       <OfflineQueuePanel userId={user.id} appVersion="0.1.0" />
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="text-base font-semibold text-slate-950">Recent server sync records</h2>

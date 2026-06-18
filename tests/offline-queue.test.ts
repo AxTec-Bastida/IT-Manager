@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { findSensitivePayloadIssue, summarizeOfflinePayload, summarizeQueuedOfflineAction, validateOfflineActionForQueue, validateOfflineSyncAction } from "@/lib/offline-actions";
 import { cancelOfflineAction, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue } from "@/lib/offline-queue";
 import { processOfflineSyncBatch } from "@/lib/offline-sync";
+import { inferOfflineConflictCode, reconstructOfflineAction } from "@/lib/offline-conflicts";
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -97,7 +98,7 @@ describe("offline sync server processor", () => {
     const result = await processOfflineSyncBatch([{ clientActionId: "action-1", actionType: "TEST_OFFLINE_NOTE", payload: { text: "Walked the queue", route: "/offline" } }], actor, fakePrisma as never);
 
     expect(result.summary).toMatchObject({ total: 1, synced: 1, failed: 0, conflict: 0 });
-    expect(records[0]).toMatchObject({ clientActionId: "action-1", status: "SYNCED", actionType: "TEST_OFFLINE_NOTE", actorUserId: "user-1" });
+    expect(records[0]).toMatchObject({ clientActionId: "action-1", status: "SYNCED", resolutionStatus: "RESOLVED", actionType: "TEST_OFFLINE_NOTE", actorUserId: "user-1" });
     expect(records[0].payloadSummary).toContain("Walked the queue");
     expect(activityLogs[0]).toMatchObject({ action: "offline.test_note.synced", entity: "offline_sync_record" });
   });
@@ -152,7 +153,7 @@ describe("offline sync server processor", () => {
 
     expect(result.summary).toMatchObject({ total: 1, synced: 1, failed: 0, conflict: 0 });
     expect(device).toMatchObject({ areaDepartment: "QA / IT", location: "Bench 2" });
-    expect(records[0]).toMatchObject({ clientActionId: "move-ok", status: "SYNCED", actionType: "MOVE_ASSET" });
+    expect(records[0]).toMatchObject({ clientActionId: "move-ok", status: "SYNCED", resolutionStatus: "RESOLVED", actionType: "MOVE_ASSET", entityType: "device", entityId: "dev-1", entityLabel: "QA-OFFLINE-MOVE-001" });
     expect(activityLogs[0]).toMatchObject({ action: "device.offline_move.synced", entity: "device", entityId: "dev-1" });
   });
 
@@ -201,6 +202,20 @@ describe("offline sync server processor", () => {
   it("validates unsupported and unsafe sync actions explicitly", () => {
     expect(validateOfflineSyncAction({ clientActionId: "action-1", actionType: "CREATE_TASK", payload: { title: "Future" } })).toMatchObject({ ok: false, message: "This action type is not supported offline yet." });
     expect(validateOfflineSyncAction({ clientActionId: "action-2", actionType: "TEST_OFFLINE_NOTE", payload: { bitlockerKey: "secret" } })).toMatchObject({ ok: false });
+  });
+
+  it("maps user-safe offline conflict codes and reconstructs retry actions from sanitized summaries", () => {
+    expect(inferOfflineConflictCode("Asset could not be found during sync.", "MOVE_ASSET")).toBe("ASSET_NOT_FOUND");
+    expect(inferOfflineConflictCode("This action type is not supported offline yet.", "CREATE_TASK")).toBe("UNSUPPORTED_ACTION");
+    expect(inferOfflineConflictCode("Asset assignment changed before sync.", "MOVE_ASSET")).toBe("STALE_ASSIGNMENT");
+
+    const retryAction = reconstructOfflineAction({
+      clientActionId: "move-retry",
+      actionType: "MOVE_ASSET",
+      payloadSummary: JSON.stringify({ assetTag: "QA-OFFLINE-MOVE-001", targetLocationLabel: "QA Bench" }),
+    } as never);
+    expect(retryAction).toMatchObject({ clientActionId: "move-retry", actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001" } });
+    expect(() => reconstructOfflineAction({ clientActionId: "secret", actionType: "TEST_OFFLINE_NOTE", payloadSummary: "[rejected sensitive payload]" } as never)).toThrow("safe payload summary is unavailable");
   });
 });
 
@@ -326,6 +341,7 @@ function createFakeMovePrisma({
 
   return {
     offlineSyncRecord,
+    activityLog: tx.activityLog,
     device: {
       findFirst: vi.fn(async () => device),
       findMany: vi.fn(async () => (device ? [device] : [])),

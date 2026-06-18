@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Camera, CircleDollarSign, ClipboardCheck, ClipboardList, Database, Download, Map, Network, Package, ReceiptText, Scale, ShieldCheck, Smartphone, Tags, Truck, Wrench } from "lucide-react";
+import { AlertTriangle, Camera, CircleDollarSign, ClipboardCheck, ClipboardList, Database, Download, Map, Network, Package, ReceiptText, RotateCcw, Scale, ShieldCheck, Smartphone, Tags, Truck, Wrench } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { DataQualityActionButton } from "@/components/data-quality-actions";
 import { PageHeader } from "@/components/page-header";
@@ -60,9 +60,31 @@ export default async function DataQualityPage() {
         <SummaryCard icon={CircleDollarSign} label="Asset Value" value={review.assetValue.reviewRows.length} helper="Missing or stale internal estimates" />
         <SummaryCard icon={ShieldCheck} label="BitLocker Keys" value={review.bitLocker.missingKey.length} helper="Eligible laptops/desktops missing keys" />
         <SummaryCard icon={Tags} label="Label Aliases" value={review.labelAliasReview.length} helper="Duplicate physical label codes" />
+        <SummaryCard icon={RotateCcw} label="Offline Sync" value={review.offlineSyncHealth.openConflicts} helper={`${review.offlineSyncHealth.failedRecords} failed records`} href="/offline/conflicts" />
         <SummaryCard icon={Map} label="Map Anchors" value={review.mapHealth.activeAnchors.length} helper={`${review.mapHealth.manualPathMaps.length} manual path maps`} href="/map" />
         <SummaryCard icon={ClipboardCheck} label="Active Audits" value={activeAuditCount} helper="Cycle counts needing scan/review" href="/audits" />
       </section>
+
+      <ReviewSection title="Offline Sync Health" description="Review failed or conflicted browser-queued offline actions. This is visibility only; conflicts are not auto-applied." action={<ActionLink href="/offline/conflicts">Open conflict review</ActionLink>}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard icon={AlertTriangle} label="Open conflicts" value={review.offlineSyncHealth.openConflicts} helper="Need review before retry/cancel" />
+          <SummaryCard icon={AlertTriangle} label="Failed records" value={review.offlineSyncHealth.failedRecords} helper="Not cancelled" />
+          <SummaryCard icon={RotateCcw} label="Last 7 days" value={review.offlineSyncHealth.conflictsLast7Days} helper="Recent failed/conflict syncs" />
+          <SummaryCard icon={ShieldCheck} label="Reviewed / resolved" value={review.offlineSyncHealth.reviewedResolved} helper="Closed review states" />
+        </div>
+        {review.offlineSyncHealth.oldestOpen ? (
+          <MobileCard className="border-amber-200 bg-amber-50">
+            <p className="text-sm font-semibold text-amber-900">Oldest open conflict</p>
+            <h3 className="mt-1 text-lg font-semibold text-slate-950">{review.offlineSyncHealth.oldestOpen.entityLabel || review.offlineSyncHealth.oldestOpen.clientActionId}</h3>
+            <p className="mt-1 text-sm text-slate-700">{review.offlineSyncHealth.oldestOpen.title} - queued {new Date(review.offlineSyncHealth.oldestOpen.createdAt).toLocaleString()}</p>
+            <div className="mt-3">
+              <ActionLink href={`/offline/conflicts?q=${encodeURIComponent(review.offlineSyncHealth.oldestOpen.clientActionId)}`}>Review conflict</ActionLink>
+            </div>
+          </MobileCard>
+        ) : (
+          <EmptyState title="No open offline conflicts" description="Offline queue sync health has no open failed/conflict records." />
+        )}
+      </ReviewSection>
 
       <ReviewSection title="Map / Location Anchors" description="Map upload and location-anchor cleanup checks. These are review-only and do not change asset locations." action={<ActionLink href="/map">Open map</ActionLink>}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

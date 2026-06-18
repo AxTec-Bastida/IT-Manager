@@ -101,9 +101,14 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
             Clear synced
           </button>
         </div>
-        <Link href="/offline/move" className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-sky-300 bg-sky-50 px-4 text-sm font-semibold text-sky-900 sm:w-auto">
-          Queue offline asset move
-        </Link>
+        <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
+          <Link href="/offline/move" className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-sky-300 bg-sky-50 px-4 text-sm font-semibold text-sky-900 sm:w-auto">
+            Queue offline asset move
+          </Link>
+          <Link href="/offline/conflicts" className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-900 sm:w-auto">
+            Review server conflicts
+          </Link>
+        </div>
         {message ? <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{message}</p> : null}
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{error}</p> : null}
       </section>

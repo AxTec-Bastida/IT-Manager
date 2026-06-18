@@ -36,6 +36,7 @@ const navGroups = [
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/tools", label: "Resources", icon: ExternalLink },
       { href: "/offline", label: "Offline Queue", icon: RotateCcw },
+      { href: "/offline/conflicts", label: "Offline Conflicts", icon: AlertTriangle },
     ],
   },
   {

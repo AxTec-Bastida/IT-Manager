@@ -316,6 +316,14 @@ enum OfflineSyncStatus {
   CANCELLED
 }
 
+enum OfflineResolutionStatus {
+  OPEN
+  REVIEWED
+  CANCELLED
+  RETRIED
+  RESOLVED
+}
+
 enum EmailLogStatus {
   SENT
   FAILED
@@ -1182,23 +1190,24 @@ model Employee {
 }
 
 model AppUser {
-  id                        String                     @id @default(cuid())
-  name                      String
-  email                     String                     @unique
-  username                  String?                    @unique
-  passwordHash              String
-  role                      AppRole                    @default(VIEWER)
-  isActive                  Boolean                    @default(true)
-  lastLoginAt               DateTime?
-  sessions                  AppSession[]
-  activityLogs              ActivityLog[]
-  assignedTasks             Task[]                     @relation("TaskAssignedUser")
-  uploadedAssetPhotos       AssetPhoto[]               @relation("AssetPhotoUploadedByUser")
-  uploadedStockItemPhotos   StockItemPhoto[]           @relation("StockItemPhotoUploadedByUser")
-  facturaExtractionAttempts FacturaExtractionAttempt[]
-  offlineSyncRecords        OfflineSyncRecord[]
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  id                         String                     @id @default(cuid())
+  name                       String
+  email                      String                     @unique
+  username                   String?                    @unique
+  passwordHash               String
+  role                       AppRole                    @default(VIEWER)
+  isActive                   Boolean                    @default(true)
+  lastLoginAt                DateTime?
+  sessions                   AppSession[]
+  activityLogs               ActivityLog[]
+  assignedTasks              Task[]                     @relation("TaskAssignedUser")
+  uploadedAssetPhotos        AssetPhoto[]               @relation("AssetPhotoUploadedByUser")
+  uploadedStockItemPhotos    StockItemPhoto[]           @relation("StockItemPhotoUploadedByUser")
+  facturaExtractionAttempts  FacturaExtractionAttempt[]
+  offlineSyncRecords         OfflineSyncRecord[]        @relation("OfflineSyncRecordActor")
+  reviewedOfflineSyncRecords OfflineSyncRecord[]        @relation("OfflineSyncRecordReviewer")
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
 
   @@index([email])
   @@index([username])
@@ -1845,21 +1854,34 @@ model JobRun {
 }
 
 model OfflineSyncRecord {
-  id             String            @id @default(cuid())
-  clientActionId String            @unique
-  actionType     OfflineActionType
-  status         OfflineSyncStatus
-  actorUserId    String?
-  actorUser      AppUser?          @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
-  actorName      String?
-  payloadSummary String?
-  resultSummary  String?
-  createdAt      DateTime          @default(now())
-  processedAt    DateTime?
+  id               String                  @id @default(cuid())
+  clientActionId   String                  @unique
+  actionType       OfflineActionType
+  status           OfflineSyncStatus
+  resolutionStatus OfflineResolutionStatus @default(OPEN)
+  actorUserId      String?
+  actorUser        AppUser?                @relation("OfflineSyncRecordActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorName        String?
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  reviewedByUser   AppUser?                @relation("OfflineSyncRecordReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  reviewNote       String?
+  conflictCode     String?
+  entityType       String?
+  entityId         String?
+  entityLabel      String?
+  payloadSummary   String?
+  resultSummary    String?
+  createdAt        DateTime                @default(now())
+  processedAt      DateTime?
 
   @@index([actionType])
   @@index([status])
+  @@index([resolutionStatus])
   @@index([actorUserId])
+  @@index([reviewedByUserId])
+  @@index([conflictCode])
+  @@index([entityType, entityId])
   @@index([createdAt])
   @@index([processedAt])
 }
