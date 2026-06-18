@@ -1,9 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, RotateCcw, Trash2, XCircle } from "lucide-react";
-import { enqueueOfflineAction, cancelOfflineAction, clearSyncedOfflineActions, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
+import { summarizeQueuedOfflineAction } from "@/lib/offline-actions";
+import { cancelOfflineAction, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
 import { OfflineStatusIndicator } from "@/components/offline-status-indicator";
+
+type QueuedItem = OfflineQueueSnapshot["items"][number];
 
 export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appVersion: string }) {
   const [snapshot, setSnapshot] = useState<OfflineQueueSnapshot>(() => getOfflineQueueSnapshot());
@@ -76,7 +80,7 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">Connection and queue status</p>
-            <p className="text-sm text-slate-600">This foundation queues only harmless test notes. Real inventory-changing offline actions are disabled until later phases.</p>
+            <p className="text-sm text-slate-600">This queue supports test notes and serialized asset moves. Photos, stock, RMA, factura, admin, and BitLocker actions stay online-only.</p>
           </div>
           <OfflineStatusIndicator />
         </div>
@@ -97,6 +101,9 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
             Clear synced
           </button>
         </div>
+        <Link href="/offline/move" className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-sky-300 bg-sky-50 px-4 text-sm font-semibold text-sky-900 sm:w-auto">
+          Queue offline asset move
+        </Link>
         {message ? <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{message}</p> : null}
         {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{error}</p> : null}
       </section>
@@ -125,32 +132,7 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
         {snapshot.items.length ? (
           <div className="space-y-3">
             {snapshot.items.map((item) => (
-              <article key={item.clientActionId} className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusBadge status={item.status} />
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{item.actionType}</span>
-                    </div>
-                    <p className="mt-2 break-all text-xs text-slate-500">{item.clientActionId}</p>
-                    <p className="mt-1 text-sm text-slate-700">{typeof item.payload.text === "string" ? item.payload.text : "Queued offline action"}</p>
-                    <p className="mt-2 text-xs text-slate-500">Created {new Date(item.createdAt).toLocaleString()} · Attempts {item.attempts}</p>
-                    {item.lastError ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-800">{item.lastError}</p> : null}
-                  </div>
-                  <div className="grid gap-2 sm:min-w-40">
-                    {item.status === "PENDING" ? (
-                      <button type="button" onClick={() => cancelOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
-                        Cancel
-                      </button>
-                    ) : null}
-                    {item.status === "FAILED" || item.status === "CONFLICT" ? (
-                      <button type="button" onClick={() => retryOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
-                        Retry
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
+              <QueuedActionCard key={item.clientActionId} item={item} />
             ))}
           </div>
         ) : (
@@ -164,13 +146,54 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
           <div className="mt-3 space-y-2">
             {recentSynced.map((item) => (
               <p key={item.clientActionId} className="text-sm text-slate-600">
-                {item.actionType} · {item.serverResult?.message || "Synced"}
+                {item.actionType} - {item.serverResult?.message || "Synced"}
               </p>
             ))}
           </div>
         </section>
       ) : null}
     </div>
+  );
+}
+
+function QueuedActionCard({ item }: { item: QueuedItem }) {
+  const summary = summarizeQueuedOfflineAction(item);
+  const deviceHref = item.serverResult?.relatedDeviceId || summary.relatedDeviceId ? `/devices/${item.serverResult?.relatedDeviceId || summary.relatedDeviceId}` : null;
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={item.status} />
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{item.actionType}</span>
+          </div>
+          <p className="mt-2 break-all text-xs text-slate-500">{item.clientActionId}</p>
+          <p className="mt-2 font-semibold text-slate-950">{summary.title}</p>
+          <p className="mt-1 text-sm text-slate-700">{summary.detail}</p>
+          {summary.note ? <p className="mt-1 line-clamp-2 text-sm text-slate-500">{summary.note}</p> : null}
+          <p className="mt-2 text-xs text-slate-500">Created {new Date(item.createdAt).toLocaleString()} - Attempts {item.attempts}</p>
+          {item.lastError ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-800">{item.lastError}</p> : null}
+          {item.serverResult?.conflict ? <p className="mt-2 rounded-lg bg-orange-50 p-2 text-xs font-medium text-orange-800">{item.serverResult.conflict.reason}</p> : null}
+          {deviceHref ? (
+            <Link href={deviceHref} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+              Open asset
+            </Link>
+          ) : null}
+        </div>
+        <div className="grid gap-2 sm:min-w-40">
+          {item.status === "PENDING" ? (
+            <button type="button" onClick={() => cancelOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+              Cancel
+            </button>
+          ) : null}
+          {item.status === "FAILED" || item.status === "CONFLICT" ? (
+            <button type="button" onClick={() => retryOfflineAction(item.clientActionId)} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+              Retry
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </article>
   );
 }
 

@@ -111,6 +111,9 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const bitLockerEligible = isBitLockerEligibleCategory(device.category);
   const canManageBitLocker = canManageBitLockerKey(currentUser);
   const canRevealBitLocker = canRevealBitLockerKey(currentUser);
+  const offlineMoveParams = new URLSearchParams({ deviceId: device.id });
+  if (device.assetTag) offlineMoveParams.set("assetTag", device.assetTag);
+  const offlineMoveHref = `/offline/move?${offlineMoveParams.toString()}`;
 
   const fields = [
     ["Asset tag", device.assetTag || "-"],
@@ -156,6 +159,12 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
               <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800">
                 <Truck size={16} />
                 Move / Relocate
+              </Link>
+            ) : null}
+            {canWriteInventory && moveUseful ? (
+              <Link href={offlineMoveHref} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100">
+                <Route size={16} />
+                Offline move
               </Link>
             ) : null}
             <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">

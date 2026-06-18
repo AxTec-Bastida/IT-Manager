@@ -26,7 +26,7 @@ Ready for beta:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Backups, health/doctor, scheduled jobs, auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, factura extraction/line items, asset values, decommission, and BitLocker vault.
-- Offline Queue foundation for safe QA test notes only. Real inventory-changing offline workflows are not enabled yet.
+- Offline Queue foundation for safe QA test notes and serialized asset moves only. Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only.
 - Daily beta checks: `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, and `/api/health`.
 
 Pending before wider rollout:
@@ -113,24 +113,33 @@ For normal production updates after the Phase 54 baseline:
 
 ## Offline Queue Foundation
 
-Phase 71 adds `/offline` as a local action queue foundation. It is for QA validation and future workflow groundwork, not for production offline inventory changes yet.
+Phase 71 added `/offline` as a local action queue foundation. Phase 72 enables serialized asset moves as the first real offline workflow.
 
-Current allowed offline action:
+Current allowed offline actions:
 
 - `TEST_OFFLINE_NOTE`, a harmless note used to prove local queue persistence, sync, status transitions, failure handling, and server audit records.
+- `MOVE_ASSET`, a serialized asset relocation request with asset tag/device ID, destination, notes, and last-known status/assignment/map-anchor values.
 
 Rules:
 
 - Users must still log in before sync.
 - The server validates every synced action and never trusts the local queue blindly.
+- Offline asset moves require `inventory.write` at sync time and are applied only if the asset, destination, and last-known state are still safe.
 - Unsupported action types fail or conflict clearly until later phases implement them.
 - Do not queue or paste BitLocker keys, passwords, SMTP values, private keys, factura files, PDFs, photos, or sensitive notes.
-- Do not rely on offline mode for asset moves, stock issue, RMA receive, photo upload, decommission, factura extraction, admin/users/settings, imports, or BitLocker workflows.
-- Conflicts and failed syncs require manual review. The app does not auto-change inventory from offline data in this phase.
+- Do not rely on offline mode for stock issue, RMA receive, photo upload, decommission, factura extraction, admin/users/settings, imports, bulk intake, or BitLocker workflows.
+- Conflicts and failed syncs require manual review. The app does not auto-resolve conflicts or apply stale/unsafe offline moves.
+
+Offline move workflow:
+
+1. Open `/offline/move`, Quick Scan, or an asset detail page.
+2. Queue the serialized asset move with a destination.
+3. Return to `/offline` and tap Sync now when online.
+4. Review conflicts before retrying. Do not use offline mode to move real assets unless the destination is intentional and safe.
 
 Roadmap:
 
-- Phase 72: Offline Scan + Move Queue.
+- Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Photo Upload Queue.
 - Phase 74: Offline Conflict Review Center.
 

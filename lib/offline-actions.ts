@@ -28,6 +28,8 @@ export type OfflineSyncActionResult = {
   status: Extract<OfflineQueueStatus, "SYNCED" | "FAILED" | "CONFLICT">;
   message: string;
   serverId?: string;
+  relatedDeviceId?: string | null;
+  relatedAssetTag?: string | null;
   conflict?: {
     reason: string;
     details?: string;
@@ -45,6 +47,8 @@ export type OfflineSyncRequestAction = {
 
 const maxClientActionIdLength = 96;
 const maxNoteLength = 500;
+const maxOfflineMoveTextLength = 120;
+const maxOfflineMoveNotesLength = 500;
 const maxSummaryLength = 1000;
 const sensitiveKeyPattern = /(bitlocker|recovery|password|passwd|secret|token|credential|smtp|private.?key|api.?key|auth|session|cookie)/i;
 const bitLockerKeyPattern = /\b\d{6}(?:-\d{6}){7}\b/;
@@ -54,8 +58,26 @@ export function isOfflineActionType(value: unknown): value is OfflineActionType 
   return typeof value === "string" && (offlineActionTypes as readonly string[]).includes(value);
 }
 
-export function isSupportedOfflineActionType(value: unknown): value is "TEST_OFFLINE_NOTE" {
-  return value === "TEST_OFFLINE_NOTE";
+export type NormalizedOfflineMovePayload = {
+  deviceId: string | null;
+  assetTag: string | null;
+  targetMapAnchorId: string | null;
+  targetLocationLabel: string | null;
+  targetArea: string | null;
+  targetDepartment: string | null;
+  targetStation: string | null;
+  notes: string | null;
+  movedAtClient: string | null;
+  lastKnownDeviceStatus: string | null;
+  lastKnownAssignmentId: string | null;
+  hasLastKnownAssignmentId: boolean;
+  lastKnownMapAnchorId: string | null;
+  hasLastKnownMapAnchorId: boolean;
+  clientRoute: string | null;
+};
+
+export function isSupportedOfflineActionType(value: unknown): value is "TEST_OFFLINE_NOTE" | "MOVE_ASSET" {
+  return value === "TEST_OFFLINE_NOTE" || value === "MOVE_ASSET";
 }
 
 export function createClientActionId(now: Date = new Date(), random = Math.random()) {
@@ -71,6 +93,29 @@ export function normalizeTestOfflineNotePayload(payload: unknown) {
   return { text, route, timestamp };
 }
 
+export function normalizeOfflineMovePayload(payload: unknown): NormalizedOfflineMovePayload {
+  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as Record<string, unknown>) : {};
+  const hasLastKnownAssignmentId = Object.prototype.hasOwnProperty.call(record, "lastKnownAssignmentId");
+  const hasLastKnownMapAnchorId = Object.prototype.hasOwnProperty.call(record, "lastKnownMapAnchorId");
+  return {
+    deviceId: cleanMoveText(record.deviceId, 96),
+    assetTag: cleanMoveText(record.assetTag, 96),
+    targetMapAnchorId: cleanMoveText(record.targetMapAnchorId ?? record.mapAnchorId, 96),
+    targetLocationLabel: cleanMoveText(record.targetLocationLabel ?? record.location, maxOfflineMoveTextLength),
+    targetArea: cleanMoveText(record.targetArea ?? record.area, maxOfflineMoveTextLength),
+    targetDepartment: cleanMoveText(record.targetDepartment ?? record.department, maxOfflineMoveTextLength),
+    targetStation: cleanMoveText(record.targetStation ?? record.station, maxOfflineMoveTextLength),
+    notes: cleanMoveText(record.notes, maxOfflineMoveNotesLength),
+    movedAtClient: cleanMoveText(record.movedAtClient, 80),
+    lastKnownDeviceStatus: cleanMoveText(record.lastKnownDeviceStatus, 80),
+    lastKnownAssignmentId: cleanMoveText(record.lastKnownAssignmentId, 96),
+    hasLastKnownAssignmentId,
+    lastKnownMapAnchorId: cleanMoveText(record.lastKnownMapAnchorId, 96),
+    hasLastKnownMapAnchorId,
+    clientRoute: cleanMoveText(record.clientRoute, 200),
+  };
+}
+
 export function validateOfflineActionForQueue(input: { actionType: unknown; payload: unknown }) {
   if (!isOfflineActionType(input.actionType)) return { ok: false as const, message: "Unsupported offline action type." };
   const sensitive = findSensitivePayloadIssue(input.payload);
@@ -78,6 +123,13 @@ export function validateOfflineActionForQueue(input: { actionType: unknown; payl
   if (input.actionType === "TEST_OFFLINE_NOTE") {
     const note = normalizeTestOfflineNotePayload(input.payload);
     if (!note.text) return { ok: false as const, message: "Test note text is required." };
+  }
+  if (input.actionType === "MOVE_ASSET") {
+    const move = normalizeOfflineMovePayload(input.payload);
+    if (!move.deviceId && !move.assetTag) return { ok: false as const, message: "Asset tag or device ID is required for an offline move." };
+    if (!move.targetMapAnchorId && !move.targetLocationLabel && !move.targetArea && !move.targetDepartment && !move.targetStation) {
+      return { ok: false as const, message: "Target location, area, station, or map anchor is required for an offline move." };
+    }
   }
   return { ok: true as const };
 }
@@ -90,9 +142,35 @@ export function validateOfflineSyncAction(input: OfflineSyncRequestAction) {
   const sensitive = findSensitivePayloadIssue(input.payload);
   if (sensitive) return { ok: false as const, message: sensitive };
   if (!isSupportedOfflineActionType(input.actionType)) return { ok: false as const, message: "This action type is not supported offline yet." };
+  if (input.actionType === "MOVE_ASSET") {
+    const move = normalizeOfflineMovePayload(input.payload);
+    if (!move.deviceId && !move.assetTag) return { ok: false as const, message: "Asset tag or device ID is required for an offline move." };
+    if (!move.targetMapAnchorId && !move.targetLocationLabel && !move.targetArea && !move.targetDepartment && !move.targetStation) {
+      return { ok: false as const, message: "Target location, area, station, or map anchor is required for an offline move." };
+    }
+    return { ok: true as const };
+  }
   const note = normalizeTestOfflineNotePayload(input.payload);
   if (!note.text) return { ok: false as const, message: "Test note text is required." };
   return { ok: true as const };
+}
+
+export function summarizeQueuedOfflineAction(action: Pick<QueuedOfflineAction, "actionType" | "payload">) {
+  if (action.actionType === "MOVE_ASSET") {
+    const move = normalizeOfflineMovePayload(action.payload);
+    return {
+      title: `Move ${move.assetTag || move.deviceId || "asset"}`,
+      detail: move.targetLocationLabel || [move.targetArea, move.targetDepartment, move.targetStation].filter(Boolean).join(" / ") || (move.targetMapAnchorId ? "Map anchor destination" : "No destination"),
+      note: move.notes,
+      relatedAssetTag: move.assetTag,
+      relatedDeviceId: move.deviceId,
+    };
+  }
+  if (action.actionType === "TEST_OFFLINE_NOTE") {
+    const note = normalizeTestOfflineNotePayload(action.payload);
+    return { title: "Test offline note", detail: note.text || "Queued test note", note: note.route || null, relatedAssetTag: null, relatedDeviceId: null };
+  }
+  return { title: action.actionType.replaceAll("_", " "), detail: "Future offline action", note: null, relatedAssetTag: null, relatedDeviceId: null };
 }
 
 export function findSensitivePayloadIssue(value: unknown): string | null {
@@ -151,4 +229,10 @@ function redactForSummary(value: unknown): unknown {
     output[key] = sensitiveKeyPattern.test(key) ? "[redacted]" : redactForSummary(child);
   }
   return output;
+}
+
+function cleanMoveText(value: unknown, maxLength = maxOfflineMoveTextLength) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  return text ? text.slice(0, maxLength) : null;
 }

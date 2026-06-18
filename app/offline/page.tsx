@@ -17,7 +17,7 @@ export default async function OfflinePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Offline Queue" description="Local action queue foundation for future offline workflows. Real inventory-changing offline actions are not enabled yet." />
+      <PageHeader title="Offline Queue" description="Local queue for test notes and serialized asset moves. Sync applies moves only after server-side permission, asset state, and destination validation." />
       <OfflineQueuePanel userId={user.id} appVersion="0.1.0" />
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="text-base font-semibold text-slate-950">Recent server sync records</h2>

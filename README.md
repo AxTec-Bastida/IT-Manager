@@ -149,19 +149,20 @@ Camera permissions are per browser/origin. If the app URL changes from `http://s
 
 ## Offline Queue Foundation
 
-Phase 71 adds the foundation for future offline-capable workflows. The current `/offline` page stores small, metadata-only queued actions in the browser and syncs them to `POST /api/offline/sync` after the user is online and authenticated.
+Phase 71 added the foundation for future offline-capable workflows. Phase 72 enables the first real offline workflow: serialized asset moves. The current `/offline` page stores small, metadata-only queued actions in the browser and syncs them to `POST /api/offline/sync` after the user is online and authenticated.
 
 Current scope:
 
-- `TEST_OFFLINE_NOTE` is the only action type that can sync successfully.
+- `TEST_OFFLINE_NOTE` can sync successfully for QA validation.
+- `MOVE_ASSET` can sync successfully for serialized asset relocation only.
+- Offline move payloads may include asset tag/device ID, target map anchor or text destination, area/department/station, notes, client timestamp, and last-known status/assignment/map-anchor IDs.
 - The queue is local to the browser and stores no files, photos, PDFs, XMLs, credentials, BitLocker recovery keys, SMTP values, or other secrets.
-- The server validates authentication, action type, payload safety, and current permissions before recording anything.
-- Unsupported future action types such as asset move, task creation, maintenance creation, and asset photo upload fail clearly until a later phase implements them.
-- Sync conflicts are informational in this phase and require review. The app does not auto-resolve conflicts or auto-change inventory while offline.
+- The server validates authentication, `inventory.write`, payload safety, current asset state, stale status/assignment/map-anchor checks, and target location/anchor before applying a move.
+- Unsupported future action types such as task creation, maintenance creation, and asset photo upload fail clearly until a later phase implements them.
+- Sync conflicts require review. The app does not auto-resolve conflicts, and it does not auto-change inventory when the server sees stale or unsafe data.
 
-Not enabled yet:
+Still not enabled:
 
-- Offline asset moves.
 - Offline photo upload.
 - Offline stock issue/loan.
 - Offline decommission.
@@ -169,9 +170,17 @@ Not enabled yet:
 - Offline factura extraction/import.
 - Offline BitLocker, admin/users/settings, imports, bulk intake, or sensitive workflows.
 
+How to use offline moves:
+
+1. Open `/offline/move`, or use the Offline move action from Quick Scan or an asset detail page.
+2. Enter/confirm the asset tag and destination.
+3. Queue the move locally.
+4. Open `/offline` when online and tap Sync now.
+5. Review any failed or conflict items; retry only after the issue is understood.
+
 Roadmap:
 
-- Phase 72: Offline Scan + Move Queue.
+- Phase 72: Offline Scan + Move Queue completed for serialized asset movement.
 - Phase 73: Offline Photo Upload Queue.
 - Phase 74: Offline Conflict Review Center.
 
@@ -185,7 +194,7 @@ Ready:
 
 - Windows-native runtime from `C:\Dev\warehouse-it-inventory`.
 - Auth/roles, inventory, scan/manual fallback, intake, assignments, loans, stock, RMA, audits, labels, maps, reports, Data Quality, backups, scheduled jobs, factura extraction/line items, asset values, decommission, and BitLocker vault.
-- Offline queue foundation for safe test notes only. Real inventory-changing offline workflows are not enabled yet.
+- Offline queue foundation for safe test notes and serialized asset moves only. Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only.
 - `npm run backup`, `npm run doctor`, `npm run jobs:run-due`, `npm test`, `npm run lint`, and `npm run build` are the required release checks.
 - Windows Task Scheduler task `Warehouse IT Inventory Jobs` runs `npm.cmd run jobs:run-due` every 15 minutes from `C:\Dev\warehouse-it-inventory`.
 

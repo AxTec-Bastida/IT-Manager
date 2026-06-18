@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findSensitivePayloadIssue, summarizeOfflinePayload, validateOfflineActionForQueue, validateOfflineSyncAction } from "@/lib/offline-actions";
+import { findSensitivePayloadIssue, summarizeOfflinePayload, summarizeQueuedOfflineAction, validateOfflineActionForQueue, validateOfflineSyncAction } from "@/lib/offline-actions";
 import { cancelOfflineAction, clearSyncedOfflineActions, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineAction, syncOfflineQueue } from "@/lib/offline-queue";
 import { processOfflineSyncBatch } from "@/lib/offline-sync";
 
@@ -64,6 +64,17 @@ describe("offline queue helpers", () => {
     expect(summarizeOfflinePayload({ recoveryKey: "111111-222222-333333-444444-555555-666666-777777-888888" })).toBe("[rejected sensitive payload]");
   });
 
+  it("validates and summarizes offline asset move payloads", () => {
+    expect(validateOfflineActionForQueue({ actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetLocationLabel: "QA Bench" } })).toMatchObject({ ok: true });
+    expect(validateOfflineActionForQueue({ actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001" } })).toMatchObject({ ok: false });
+    expect(validateOfflineSyncAction({ clientActionId: "move-1", actionType: "MOVE_ASSET", payload: { deviceId: "dev-1", targetArea: "QA", targetStation: "Bench" } })).toMatchObject({ ok: true });
+    expect(summarizeQueuedOfflineAction({ actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetArea: "QA", targetStation: "Bench", notes: "Safe test move" } })).toMatchObject({
+      title: "Move QA-OFFLINE-MOVE-001",
+      detail: "QA / Bench",
+      note: "Safe test move",
+    });
+  });
+
   it("marks local actions from server sync results", async () => {
     const storage = new MemoryStorage();
     const action = enqueueOfflineAction({ actionType: "TEST_OFFLINE_NOTE", payload: { text: "Sync me" } }, storage);
@@ -109,6 +120,72 @@ describe("offline sync server processor", () => {
     expect(result.summary).toMatchObject({ total: 3, synced: 1, failed: 1, conflict: 1 });
     expect(result.results.map((item) => item.status)).toEqual(["SYNCED", "CONFLICT", "FAILED"]);
     expect(JSON.stringify(records)).not.toContain("111111-222222-333333-444444-555555-666666-777777-888888");
+  });
+
+  it("syncs MOVE_ASSET and creates an audit trail", async () => {
+    const records: Array<Record<string, unknown>> = [];
+    const activityLogs: Array<Record<string, unknown>> = [];
+    const device = moveDevice();
+    const fakePrisma = createFakeMovePrisma({ records, activityLogs, device });
+
+    const result = await processOfflineSyncBatch(
+      [
+        {
+          clientActionId: "move-ok",
+          actionType: "MOVE_ASSET",
+          payload: {
+            assetTag: "QA-OFFLINE-MOVE-001",
+            targetArea: "QA",
+            targetDepartment: "IT",
+            targetStation: "Bench 2",
+            targetLocationLabel: "QA Bench 2",
+            notes: "Moved during offline QA",
+            lastKnownDeviceStatus: "ACTIVE",
+            lastKnownMapAnchorId: null,
+            lastKnownAssignmentId: null,
+          },
+        },
+      ],
+      actor,
+      fakePrisma as never,
+    );
+
+    expect(result.summary).toMatchObject({ total: 1, synced: 1, failed: 0, conflict: 0 });
+    expect(device).toMatchObject({ areaDepartment: "QA / IT", location: "Bench 2" });
+    expect(records[0]).toMatchObject({ clientActionId: "move-ok", status: "SYNCED", actionType: "MOVE_ASSET" });
+    expect(activityLogs[0]).toMatchObject({ action: "device.offline_move.synced", entity: "device", entityId: "dev-1" });
+  });
+
+  it("returns move conflicts without applying unsafe changes", async () => {
+    const missing = await processOfflineSyncBatch([{ clientActionId: "move-missing", actionType: "MOVE_ASSET", payload: { assetTag: "MISSING", targetLocationLabel: "QA Bench" } }], actor, createFakeMovePrisma({ device: null }) as never);
+    expect(missing.results[0]).toMatchObject({ status: "CONFLICT", message: "Asset could not be found during sync." });
+
+    const retiredDevice = moveDevice({ status: "RETIRED" });
+    const retired = await processOfflineSyncBatch([{ clientActionId: "move-retired", actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetLocationLabel: "QA Bench" } }], actor, createFakeMovePrisma({ device: retiredDevice }) as never);
+    expect(retired.results[0]).toMatchObject({ status: "CONFLICT" });
+    expect(retiredDevice.location).toBe("Old Location");
+
+    const invalidAnchor = await processOfflineSyncBatch([{ clientActionId: "move-anchor", actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetMapAnchorId: "missing-anchor" } }], actor, createFakeMovePrisma({ device: moveDevice(), mapAnchor: null }) as never);
+    expect(invalidAnchor.results[0]).toMatchObject({ status: "CONFLICT", message: "Target location anchor no longer exists or is inactive." });
+  });
+
+  it("denies MOVE_ASSET at sync time when permission is missing", async () => {
+    const viewer = { ...actor, role: "VIEWER" as const };
+    const device = moveDevice();
+    const result = await processOfflineSyncBatch([{ clientActionId: "move-denied", actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetLocationLabel: "QA Bench" } }], viewer, createFakeMovePrisma({ device }) as never);
+
+    expect(result.results[0]).toMatchObject({ status: "CONFLICT", message: "You no longer have permission to move inventory assets." });
+    expect(device.location).toBe("Old Location");
+  });
+
+  it("returns conflict when last-known move state is stale", async () => {
+    const result = await processOfflineSyncBatch(
+      [{ clientActionId: "move-stale", actionType: "MOVE_ASSET", payload: { assetTag: "QA-OFFLINE-MOVE-001", targetLocationLabel: "QA Bench", lastKnownMapAnchorId: "old-anchor" } }],
+      actor,
+      createFakeMovePrisma({ device: moveDevice({ currentMapAnchorId: "new-anchor" }) }) as never,
+    );
+
+    expect(result.results[0]).toMatchObject({ status: "CONFLICT", message: "Asset map location changed before sync. Review the move before applying it." });
   });
 
   it("treats already synced client action IDs as idempotent", async () => {
@@ -176,6 +253,89 @@ function createFakePrisma(records: Array<Record<string, unknown>>, activityLogs:
       upsert: tx.offlineSyncRecord.upsert,
     },
     activityLog: tx.activityLog,
+    $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+  };
+}
+
+function moveDevice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "dev-1",
+    name: "QA Offline Move Asset",
+    assetTag: "QA-OFFLINE-MOVE-001",
+    serialNumber: "QA-SERIAL",
+    category: "LAPTOP",
+    status: "ACTIVE",
+    condition: "GOOD",
+    location: "Old Location",
+    areaDepartment: "Old Area",
+    ipAddress: null,
+    macAddress: null,
+    vlan: null,
+    ipRangeId: null,
+    usesStaticIp: false,
+    isFixedAsset: false,
+    currentMapAnchorId: null,
+    assignmentItems: [],
+    assetLoanItems: [],
+    rmaItems: [],
+    ...overrides,
+  };
+}
+
+function createFakeMovePrisma({
+  records = [],
+  activityLogs = [],
+  device = moveDevice(),
+  mapAnchor = { id: "anchor-1", apName: "QA Anchor", locationLabel: "QA Bench", area: "QA", department: "IT", station: "Bench 2", displayPath: "QA / IT / Bench 2" },
+}: {
+  records?: Array<Record<string, unknown>>;
+  activityLogs?: Array<Record<string, unknown>>;
+  device?: Record<string, unknown> | null;
+  mapAnchor?: Record<string, unknown> | null;
+}) {
+  const offlineSyncRecord = {
+    findUnique: vi.fn(async ({ where }: { where: { clientActionId: string } }) => records.find((record) => record.clientActionId === where.clientActionId) ?? null),
+    upsert: vi.fn(async ({ where, create, update }: { where: { clientActionId: string }; create: Record<string, unknown>; update: Record<string, unknown> }) => {
+      const existing = records.find((record) => record.clientActionId === where.clientActionId);
+      if (existing) {
+        Object.assign(existing, update);
+        return existing;
+      }
+      const record = { id: `sync-${records.length + 1}`, ...create };
+      records.push(record);
+      return record;
+    }),
+  };
+  const tx = {
+    offlineSyncRecord,
+    device: {
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        if (!device) throw new Error("Missing fake device");
+        Object.assign(device, data);
+        return device;
+      }),
+    },
+    activityLog: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const created = { id: `activity-${activityLogs.length + 1}`, ...data };
+        activityLogs.push(created);
+        return created;
+      }),
+    },
+  };
+
+  return {
+    offlineSyncRecord,
+    device: {
+      findFirst: vi.fn(async () => device),
+      findMany: vi.fn(async () => (device ? [device] : [])),
+    },
+    accessPointMapLocation: {
+      findFirst: vi.fn(async () => mapAnchor),
+    },
+    ipRange: {
+      findMany: vi.fn(async () => []),
+    },
     $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
   };
 }

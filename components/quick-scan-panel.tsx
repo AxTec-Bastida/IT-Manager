@@ -108,6 +108,11 @@ const defaultQuickScanPermissions: Required<QuickScanPermissions> = {
 export function QuickScanPanel({ permissions = defaultQuickScanPermissions }: { permissions?: QuickScanPermissions }) {
   const can = { ...defaultQuickScanPermissions, ...permissions };
   const router = useRouter();
+  const online = useSyncExternalStore(
+    subscribeToConnectionChange,
+    () => (typeof navigator === "undefined" ? true : navigator.onLine),
+    () => true,
+  );
   const [scannerOpen, setScannerOpen] = useState(false);
   const [parsed, setParsed] = useState<ParsedScan | null>(null);
   const [devices, setDevices] = useState<LookupDevice[]>([]);
@@ -171,6 +176,12 @@ export function QuickScanPanel({ permissions = defaultQuickScanPermissions }: { 
   return (
     <div className="space-y-5">
       <CameraAccessNotice />
+      {!online ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-semibold">Offline - scans and asset moves can be queued.</p>
+          <p className="mt-1">Manual asset-tag entry still works. Server lookup and validation happen later when you sync from the Offline Queue.</p>
+        </div>
+      ) : null}
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <button
           type="button"
@@ -367,6 +378,12 @@ export function QuickScanPanel({ permissions = defaultQuickScanPermissions }: { 
                 <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md bg-sky-700 px-3 text-sm font-semibold text-white hover:bg-sky-800">
                   <Truck size={17} />
                   Move / Relocate
+                </Link>
+              ) : null}
+              {can.inventory && isMoveUsefulAsset(device) ? (
+                <Link href={`/offline/move?deviceId=${encodeURIComponent(device.id)}${device.assetTag ? `&assetTag=${encodeURIComponent(device.assetTag)}` : ""}`} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100">
+                  <MapPin size={17} />
+                  Offline Move
                 </Link>
               ) : null}
               {can.inventory && isInstallEligibleAsset(device) ? (
@@ -602,6 +619,15 @@ export function QuickScanPanel({ permissions = defaultQuickScanPermissions }: { 
 
 function dateText(value?: string | null) {
   return value ? new Date(value).toLocaleDateString() : "";
+}
+
+function subscribeToConnectionChange(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
 }
 
 function CameraAccessNotice() {

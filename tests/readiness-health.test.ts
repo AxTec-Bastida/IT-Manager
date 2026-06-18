@@ -269,10 +269,12 @@ describe("team beta ops artifacts", () => {
     for (const document of [readme, sop]) {
       expect(document).toContain("Offline Queue");
       expect(document).toContain("TEST_OFFLINE_NOTE");
-      expect(document).toContain("Real inventory-changing offline workflows are not enabled yet");
+      expect(document).toContain("MOVE_ASSET");
+      expect(document).toContain("serialized asset");
+      expect(document).toContain("Photos, stock, RMA, decommission, BitLocker, factura, admin, import, and bulk intake remain online-only");
       expect(document).toContain("server validates");
       expect(document).toContain("BitLocker");
-      expect(document).toContain("Phase 72: Offline Scan + Move Queue");
+      expect(document).toContain("Phase 72: Offline Scan + Move Queue completed");
       expect(document).toContain("Phase 73: Offline Photo Upload Queue");
       expect(document).toContain("Phase 74: Offline Conflict Review Center");
     }
