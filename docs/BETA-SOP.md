@@ -127,6 +127,51 @@ Final smoke test matrix:
 | HTTPS Caddy route | Ready server-side | Phase 76 | Physical phone trust still pending. |
 | Physical phone validation | Pending | Phase 76 | Requires actual beta phone/browser. |
 
+## Phase 79 Real Phone Validation Status
+
+Phase 79 workstation-side HTTPS checks passed on June 18, 2026:
+
+- Runtime path: `C:\Dev\warehouse-it-inventory`.
+- Current beta URL / `APP_BASE_URL`: `https://warehouse-it.local`.
+- Workstation LAN IP shown by Next runtime: `192.168.0.67`.
+- Caddy process is running from `C:\Tools\caddy\caddy.exe`.
+- App is running on port `3000`.
+- `/api/health` is degraded only for missing SMTP credentials.
+- `/login` opens through Caddy.
+- Login redirects to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated workstation HTTPS checks passed for `/dashboard`, `/scan`, `/devices`, QA asset detail, `/offline`, `/offline/move`, `/offline/conflicts`, `/data-quality`, `/reports`, QA asset photo, and QA asset thumbnail.
+
+Real phone validation is still pending and this blocker remains open until the actual beta phone is tested.
+
+Record these fields during the real phone test:
+
+- Phone model:
+- OS version:
+- Browser:
+- Wi-Fi/network:
+- URL tested:
+- `warehouse-it.local` resolves on phone: yes/no
+- Certificate trusted with no warning: yes/no
+- Login opens and stays on `https://warehouse-it.local`: yes/no
+- Dashboard opens after login: yes/no
+- Camera permission prompt appears: yes/no
+- Live rear-camera scan works with QA label: yes/no
+- Manual asset-tag fallback works with `QA-PHONE-FIELD-001`: yes/no
+- Scan-from-photo/file fallback works: yes/no
+- Add to Home Screen / PWA install available: yes/no
+- Installed shortcut opens and preserves session: yes/no
+- Offline move close/reopen persists and syncs to `QA / Phone / Bench 79`: yes/no
+- Offline photo close/reopen persists and syncs: yes/no
+- Original photo opens after sync: yes/no
+- Thumbnail opens after sync: yes/no
+- Storage-loss safety tested on phone: yes/no/skipped
+- Mobile UI issues observed:
+- Remaining blocker:
+
+If `warehouse-it.local` does not resolve on the phone, document whether a safe DNS/router/hosts solution exists. Use direct HTTP LAN IP only as a fallback and do not mark the trusted HTTPS/camera blocker closed.
+
+If the certificate is not trusted, do not weaken security permanently. Document the browser warning and keep live camera/PWA validation blocked until trust is fixed.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.

@@ -369,6 +369,34 @@ Emergency / disaster checklist:
 
 Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted.
 
+### Phase 79 Phone Validation Status
+
+Phase 79 workstation-side HTTPS validation passed on June 18, 2026:
+
+- Runtime path: `C:\Dev\warehouse-it-inventory`.
+- Current beta URL / `APP_BASE_URL`: `https://warehouse-it.local`.
+- Workstation LAN IP shown by Next runtime: `192.168.0.67`.
+- Caddy is running from `C:\Tools\caddy\caddy.exe` and proxies to the app on port `3000`.
+- `https://warehouse-it.local/api/health` is reachable and degraded only because SMTP is not configured.
+- `https://warehouse-it.local/login` opens.
+- Authenticated login redirects to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated workstation HTTPS checks passed for `/dashboard`, `/scan`, `/devices`, QA asset detail, `/offline`, `/offline/move`, `/offline/conflicts`, `/data-quality`, `/reports`, and the QA asset photo/thumbnail routes.
+
+Real phone validation remains pending and must not be marked complete until the actual beta phone is tested:
+
+- Phone model / OS / browser: pending.
+- Phone network and `warehouse-it.local` DNS resolution: pending.
+- Certificate trust without browser warnings: pending.
+- Live camera scan: pending.
+- Manual asset-tag fallback: pending on phone.
+- Scan-from-photo/file fallback: pending on phone.
+- PWA Add to Home Screen / installed launch: pending.
+- Offline move close/reopen/reconnect sync on phone: pending.
+- Offline photo close/reopen/reconnect sync on phone: pending.
+- Storage-loss safety on phone: skipped until safe; rely on Phase 75/76 workstation validation for now.
+
+Daily mobile beta checklist remains: use QA asset `QA-PHONE-FIELD-001`, do not move real assets, do not upload real production photos, do not clear browser storage while queued photos are pending, and document exact phone/browser results before closing this blocker.
+
 Production update runbook:
 
 1. Run `npm run backup`.
