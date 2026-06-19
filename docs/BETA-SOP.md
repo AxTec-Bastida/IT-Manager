@@ -267,6 +267,36 @@ Actual phone result fields remain pending:
 
 Next action: run the actual phone checklist with QA asset `QA-PHONE-FIELD-001`. Do not close the physical phone blocker until the phone DNS/cert/camera/PWA/offline persistence fields are filled with real phone/browser results. If HTTPS fails on the phone, document the exact DNS or certificate error and use HTTP LAN fallback only as a clearly labeled fallback.
 
+## Phase 83 SMTP Real Credentials + First QA Email Status
+
+Phase 83 workstation-side SMTP safety checks ran on June 19, 2026, but no approved real SMTP credentials were available in this Codex session.
+
+SMTP final status: **BLOCKED / WAITING ON SMTP CREDENTIALS**.
+
+Provider type: pending approved provider selection. Use only approved SMTP such as Google Workspace SMTP relay, Microsoft 365 SMTP, SendGrid, Mailgun, or an internal company SMTP relay. Do not use a personal account password unless explicitly approved.
+
+QA recipient category: pending approved QA recipient. Do not email real employees or external recipients until the recipient is intentional and approved.
+
+What was verified:
+
+- Local `.env` was not modified.
+- No SMTP credentials, passwords, or secrets were printed or committed.
+- `npm run doctor` reported only the expected missing SMTP warning.
+- `https://warehouse-it.local/api/health` returned sanitized SMTP status with no SMTP password, auth secret, BitLocker vault secret, or recovery key material.
+- `/settings` loaded for Admin and did not expose SMTP password, auth secret, BitLocker vault secret, or recovery key material.
+- Unauthenticated `POST /api/email/test` returned 401.
+- Viewer `POST /api/email/test` returned 403.
+- Admin malformed JSON to `POST /api/email/test` returned a clear 400.
+- Admin test email with missing SMTP returned 422 skipped, not a fake success.
+- A safe `EmailLog` skipped record was created for the missing-SMTP attempt and did not contain SMTP credentials, auth secrets, BitLocker vault secret, recovery keys, or stack traces.
+- Scheduled jobs ran without sending email or spamming users.
+
+First real QA email: **not sent**. No approved SMTP credentials or approved QA recipient were provided.
+
+APP_BASE_URL link expectation remains `https://warehouse-it.local`. Email template links must not use localhost, `127.0.0.1`, old LAN IPs, file paths, or OneDrive paths.
+
+Next action: configure approved SMTP credentials only in local `.env`, restart the app, rerun `npm run doctor`, and send exactly one QA test email to an approved QA recipient. Do not commit `.env` or any credentials.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.

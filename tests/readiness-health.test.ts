@@ -252,9 +252,11 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Phase 79");
       expect(document).toContain("Phase 80");
       expect(document).toContain("Phase 82");
+      expect(document).toContain("Phase 83");
       expect(document).toContain("workstation-side HTTPS");
       expect(document).toContain("Real phone validation");
       expect(document).toContain("BLOCKED / NOT RUN ON PHONE");
+      expect(document).toContain("BLOCKED / WAITING ON SMTP CREDENTIALS");
       expect(document).toContain("only after a real phone test");
       expect(document).toContain("pending");
       expect(document).toContain("QA-PHONE-FIELD-001");
@@ -278,6 +280,10 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("Final phone classification: PASS / PARTIAL / FAIL, only after a real phone test.");
     expect(readme).toContain("Phase 82 Actual Phone Field Run Status");
     expect(readme).toContain("Offline photo close/reopen/sync result");
+    expect(readme).toContain("Phase 83 SMTP Real Credentials + First QA Email Status");
+    expect(readme).toContain("Admin test email with missing SMTP returned 422 skipped");
+    expect(sop).toContain("First real QA email: **not sent**");
+    expect(sop).toContain("EmailLog");
     expect(sop).toContain("do not mark the trusted HTTPS/camera blocker closed");
   });
 
