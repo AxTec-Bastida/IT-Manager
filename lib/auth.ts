@@ -8,7 +8,8 @@ import { AuthRequiredError, ForbiddenError } from "@/lib/auth-errors";
 const scrypt = promisify(scryptCallback);
 
 export const sessionCookieName = "warehouse_session";
-const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
+export const sessionLifetimeSeconds = 12 * 60 * 60;
+export const sessionLifetimeMs = sessionLifetimeSeconds * 1000;
 const passwordKeyLength = 64;
 
 export type AuthUser = {
@@ -91,12 +92,29 @@ export function createSessionCookieValue() {
   return randomBytes(32).toString("base64url");
 }
 
-export function getSessionCookieOptions(expiresAt: Date) {
+export function getSessionExpiresAt(now: Date = new Date()) {
+  return new Date(now.getTime() + sessionLifetimeMs);
+}
+
+export function shouldUseSecureSessionCookie(env: NodeJS.ProcessEnv = process.env) {
+  const configuredBaseUrl = env.APP_BASE_URL?.trim();
+  if (configuredBaseUrl) {
+    try {
+      return new URL(configuredBaseUrl).protocol === "https:";
+    } catch {
+      // Fall back to production mode when APP_BASE_URL is malformed.
+    }
+  }
+  return env.NODE_ENV === "production";
+}
+
+export function getSessionCookieOptions(expiresAt: Date, env: NodeJS.ProcessEnv = process.env) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureSessionCookie(env),
     path: "/",
+    maxAge: sessionLifetimeSeconds,
     expires: expiresAt,
   };
 }
@@ -108,13 +126,14 @@ export async function createSession(userId: string, client: PrismaClient = prism
   }
 
   const token = createSessionCookieValue();
-  const expiresAt = new Date(Date.now() + sessionTtlMs);
+  const now = new Date();
+  const expiresAt = getSessionExpiresAt(now);
   await client.appSession.create({
     data: {
       userId,
       tokenHash: hashSessionToken(token),
       expiresAt,
-      lastSeenAt: new Date(),
+      lastSeenAt: now,
     },
   });
   return { token, expiresAt };

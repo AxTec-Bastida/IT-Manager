@@ -76,6 +76,16 @@ Auth setup:
 
 No default admin account is created. Do not use shared or weak passwords.
 
+Session behavior:
+
+- Login sessions use the `warehouse_session` HTTP-only cookie and a server-side `AppSession` record.
+- Normal session lifetime is fixed at 12 hours. The database expiration and cookie `Max-Age` are intentionally aligned.
+- When `APP_BASE_URL` starts with `https://`, the session cookie is marked `Secure`; for local HTTP development, use an HTTP `APP_BASE_URL` or leave it unset.
+- Use one URL consistently during a session. Do not switch between `https://warehouse-it.local`, `http://192.168.x.x:3000`, `localhost`, and `127.0.0.1` and expect cookies to carry across origins.
+- A browser-native username/password popup is not the app login. Treat that as proxy/browser configuration trouble, not an app password prompt.
+- Being sent back to the app login after only a few minutes is abnormal. First confirm `APP_BASE_URL`, Caddy host/proto forwarding, and browser cookie settings, then clear site cookies for the exact URL and log in again.
+- Rolling session extension is not enabled in this beta phase. The fixed 12-hour lifetime is the expected behavior; revisit rolling refresh only if the team needs longer signed-in shifts.
+
 Optional SMTP settings for manual email receipts:
 
 ```env
@@ -484,6 +494,8 @@ The current controlled beta can still run over plain HTTP at `http://192.168.0.6
 Recommended beta strategy: keep the app LAN-only and put Caddy in front of the existing Windows-native `npm run start` process. Caddy terminates HTTPS and reverse proxies to `127.0.0.1:3000`. Do not expose the app publicly in this phase.
 
 The reverse proxy must preserve the public host and protocol. If the app sees only `localhost:3000`, login redirects can break phone access by sending the browser to `https://localhost:3000/dashboard`.
+
+Login stability depends on the browser using the same public origin for the whole session. For the controlled beta, prefer `https://warehouse-it.local` everywhere. If an Admin signs in through the HTTPS hostname and later opens the LAN IP or `localhost`, that is a different browser origin and may look like a lost session. The active Caddy config should forward `Host {host}`, `X-Forwarded-Host {host}`, and `X-Forwarded-Proto {scheme}` or an explicit HTTPS value.
 
 Current HTTP fallback:
 

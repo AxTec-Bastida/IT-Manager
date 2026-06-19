@@ -172,6 +172,24 @@ If `warehouse-it.local` does not resolve on the phone, document whether a safe D
 
 If the certificate is not trusted, do not weaken security permanently. Document the browser warning and keep live camera/PWA validation blocked until trust is fixed.
 
+## Phase 81 Session Persistence Notes
+
+Expected beta login behavior:
+
+- Use `https://warehouse-it.local` consistently for the whole session.
+- Normal app login sessions last 12 hours.
+- Refreshing Dashboard, Settings, Backups, Jobs, Admin, Offline, Inventory, Reports, and Data Quality should keep the user signed in while the session is valid.
+- The session cookie is HTTP-only, `SameSite=Lax`, scoped to `/`, and marked `Secure` when `APP_BASE_URL` is HTTPS.
+- Rolling session extension is intentionally not enabled in this phase. If a shift needs longer than 12 hours, record that as a future hardening requirement.
+
+Troubleshooting:
+
+- App login page after only a few minutes: confirm `APP_BASE_URL=https://warehouse-it.local`, confirm Caddy forwards host/proto headers, then clear cookies for `warehouse-it.local` and log in again.
+- Browser-native username/password popup: treat it as proxy/browser auth trouble, not the app login.
+- Redirect to `localhost` or `127.0.0.1`: fix `APP_BASE_URL` and Caddy forwarding before continuing phone tests.
+- Switching between HTTPS hostname, LAN IP, and localhost creates separate browser origins. Cookies, camera permissions, PWA install state, and offline storage do not automatically transfer between them.
+- If browser storage/cookies are cleared on the phone, offline queued photos/actions may be affected and should be checked before field work continues.
+
 ## Phase 80 Actual Beta Phone Field Run Status
 
 Phase 80 workstation-side readiness checks passed on June 18, 2026, but the actual beta phone field run was not completed in this Codex session because no physical phone/browser results were available.
