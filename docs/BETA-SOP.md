@@ -297,6 +297,68 @@ APP_BASE_URL link expectation remains `https://warehouse-it.local`. Email templa
 
 Next action: configure approved SMTP credentials only in local `.env`, restart the app, rerun `npm run doctor`, and send exactly one QA test email to an approved QA recipient. Do not commit `.env` or any credentials.
 
+## Phase 84 Final Production V1 Go / No-Go
+
+Phase 84 final workstation-side sign-off ran on June 19, 2026.
+
+Final verdict:
+
+- Controlled Team Beta: **GO** for Axel plus one trusted IT teammate.
+- Production V1 Codebase: **READY pending external/manual blockers**.
+- Wider Rollout: **NO-GO** until the external blockers are closed and reviewed.
+
+### Final Go / No-Go Matrix
+
+| Area | Status | Evidence / Next Action |
+| --- | --- | --- |
+| Codebase | READY | Use the release gate: backup, migrations, Prisma generate, doctor, tests, lint, build, jobs, and runtime smoke. |
+| Controlled beta | GO | Limited to Axel plus one trusted IT teammate following the daily beta checklist. |
+| Wider rollout | NO-GO | Do not add more users until phone, SMTP, BitLocker secret storage, and dependency review decisions are closed. |
+| Phone validation | BLOCKED | Real physical phone DNS, trusted certificate, camera, PWA, close/reopen offline move, close/reopen offline photo, and sync results remain required. |
+| SMTP | BLOCKED | Configure approved SMTP credentials in local `.env` and send exactly one approved QA email. |
+| BitLocker secret storage | MANUAL REQUIRED | Store `BITLOCKER_VAULT_SECRET` in an approved password manager. Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted. |
+| Backup/restore | GO | Backup/restore runbook and Phase 70 restore drill evidence are available. |
+| Offline move/photo | GO for controlled beta | Offline serialized move and offline asset photo queue are allowed with current conflict and browser-storage limitations. |
+| Sessions/auth | GO | Rolling session expiry, 12-hour cookie/session behavior, and public logout redirect are documented and tested. |
+| Caddy HTTPS workstation route | GO | Use `https://warehouse-it.local` as the single beta URL; avoid mixing hostname, LAN IP, and localhost. |
+| Data Quality/reports | GO | Review/export surfaces are available for controlled beta cleanup and audit follow-up. |
+| Git/secret safety | GO | Confirm no secrets/runtime data are tracked by Git before commit/push. |
+
+### Phase 84 Release Gate
+
+Before each controlled beta update:
+
+1. Run `npm run backup`.
+2. Run `npx prisma migrate status`.
+3. Run `npx prisma migrate deploy`.
+4. Run `npx prisma generate`.
+5. Run `npm run doctor`.
+6. Run `npm test`.
+7. Run `npm run lint`.
+8. Run `npm run build`.
+9. Run `npm run jobs:run-due`.
+10. Smoke `https://warehouse-it.local/api/health`, `/login`, protected-page redirects, Admin login, `/dashboard`, `/settings`, `/scan`, `/offline`, `/offline/conflicts`, `/data-quality`, `/reports`, logout, and post-logout protected-page access.
+11. Confirm no secrets/runtime data are tracked by Git before pushing.
+
+### Phase 84 Go Rules
+
+- Controlled Team Beta is ready for Axel plus one trusted IT teammate.
+- Use `https://warehouse-it.local` as the only normal beta URL.
+- Keep QA records such as `QA-*`, `QA-PHASE-*`, and `QA Smoke Mouse` clearly labeled.
+- Do not run `prisma migrate reset`, destructive seed, broad cleanup scripts, broad importer work, or source workbook imports during beta.
+- Do not commit `.env`, SMTP credentials, `BITLOCKER_VAULT_SECRET`, BitLocker recovery keys, database files, uploads, backups, certificates, private keys, cookies, or logs.
+
+### Phase 84 No-Go Rules
+
+Do not expand beyond the controlled beta until:
+
+- Real physical phone validation is completed and documented.
+- Approved SMTP credentials are configured and one real QA email is sent.
+- `BITLOCKER_VAULT_SECRET` is stored in an approved password manager.
+- Optional `npm audit` / dependency review is reviewed for wider deployment risk.
+
+Not included in Production V1: Offline stock issue/return, service worker caching, OCR expansion, SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, broad importer work, public tunnels, or a full offline inventory database.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.

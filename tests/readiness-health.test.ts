@@ -253,6 +253,13 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Phase 80");
       expect(document).toContain("Phase 82");
       expect(document).toContain("Phase 83");
+      expect(document).toContain("Phase 84 Final Production V1 Go / No-Go");
+      expect(document).toContain("Controlled Team Beta: **GO**");
+      expect(document).toContain("Production V1 Codebase: **READY pending external/manual blockers**");
+      expect(document).toContain("Wider Rollout: **NO-GO**");
+      expect(document).toContain("Final Go / No-Go Matrix");
+      expect(document).toContain("BitLocker secret storage");
+      expect(document).toContain("MANUAL REQUIRED");
       expect(document).toContain("workstation-side HTTPS");
       expect(document).toContain("Real phone validation");
       expect(document).toContain("BLOCKED / NOT RUN ON PHONE");
@@ -285,6 +292,8 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("First real QA email: **not sent**");
     expect(sop).toContain("EmailLog");
     expect(sop).toContain("do not mark the trusted HTTPS/camera blocker closed");
+    expect(sop).toContain("Confirm no secrets/runtime data are tracked by Git");
+    expect(sop).toContain("Rolling session expiry");
   });
 
   it("documents the Phase 70 restore drill and disaster recovery guardrails", async () => {

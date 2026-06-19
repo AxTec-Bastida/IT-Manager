@@ -508,6 +508,48 @@ APP_BASE_URL link expectation remains `https://warehouse-it.local`. Email templa
 
 Next action: configure approved SMTP credentials only in local `.env`, restart the app, rerun `npm run doctor`, and send exactly one QA test email to an approved QA recipient. Do not commit `.env` or any credentials.
 
+### Phase 84 Final Production V1 Go / No-Go
+
+Phase 84 final workstation-side sign-off ran on June 19, 2026.
+
+Final verdicts:
+
+- Controlled Team Beta: **GO** for Axel plus one trusted IT teammate.
+- Production V1 Codebase: **READY pending external/manual blockers**.
+- Wider Rollout: **NO-GO** until the blockers below are closed and reviewed.
+
+Final Go / No-Go Matrix:
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Codebase | READY | Tests, lint, build, migrations, backup, jobs, and runtime smoke are the required release gate. |
+| Controlled beta | GO | Approved only for Axel plus one trusted IT teammate using the documented beta checklist. |
+| Wider rollout | NO-GO | Wait for real phone validation, approved SMTP, BitLocker secret storage, and optional dependency review. |
+| Phone validation | BLOCKED | Real physical phone DNS/certificate/camera/PWA/offline persistence results are still required. |
+| SMTP | BLOCKED | Approved SMTP provider credentials and one real QA email are still required. |
+| BitLocker secret storage | MANUAL REQUIRED | Store `BITLOCKER_VAULT_SECRET` in an approved password manager before relying on vault continuity. |
+| Backup/restore | GO | Backup and restore drill are documented; backups must include database and uploads. |
+| Offline move/photo | GO for controlled beta | Offline serialized moves and asset photo queue are allowed with the documented conflict limits. |
+| Sessions/auth | GO | Rolling session expiry and HTTPS logout redirect behavior are documented and tested. |
+| Caddy HTTPS workstation route | GO | Workstation-side `https://warehouse-it.local` route is the preferred beta path. |
+| Data Quality/reports | GO | Existing review/export surfaces are available for beta operations. |
+| Git/secret safety | GO | Confirm no secrets/runtime data are tracked by Git before each push. |
+
+Ready for Production V1 controlled beta:
+
+- Auth/roles, inventory, assignments, stock, loans, RMA, audits, labels, reports, backups, scheduled jobs, email plumbing, BitLocker vault, offline serialized move, and offline asset photo queue.
+- Daily beta checklist, emergency / disaster checklist, migration safety, restore runbook, and single-URL session guidance.
+- Workstation-side HTTPS smoke using `https://warehouse-it.local`, with protected pages requiring login and logout returning to the public login URL.
+
+Still blocked before wider rollout:
+
+- Real physical phone validation on the actual beta phone/browser.
+- Real SMTP provider credentials plus exactly one approved QA email.
+- `BITLOCKER_VAULT_SECRET` stored in an approved password manager with recovery instructions.
+- Optional `npm audit` / dependency review before wider production deployment.
+
+Do not include in Production V1: Offline stock issue/return, service worker caching, OCR expansion, SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, broad importer work, public tunnels, or destructive database reset paths.
+
 Production update runbook:
 
 1. Run `npm run backup`.
