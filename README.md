@@ -435,6 +435,51 @@ What remains to be tested on the actual phone:
 
 Do not mark the real-phone blocker closed until those phone results are recorded. If direct LAN HTTP is used as a fallback, document it as a fallback and keep trusted HTTPS/camera validation open.
 
+### Phase 82 Actual Phone Field Run Status
+
+Phase 82 workstation-side checks passed on June 19, 2026, but the actual phone field run was **not completed** because no physical phone/browser results were provided in this Codex session.
+
+Classification: **BLOCKED / NOT RUN ON PHONE**.
+
+Workstation checks completed:
+
+- Runtime path: `C:\Dev\warehouse-it-inventory`.
+- Current beta URL: `https://warehouse-it.local`.
+- Latest commit before Phase 82 docs: `8f59e88 Stabilize session persistence`.
+- Caddy was running from `C:\Tools\caddy\caddy.exe`.
+- App was restarted and listened on port `3000`.
+- `https://warehouse-it.local/api/health` returned 200 and was degraded only because SMTP is not configured.
+- `https://warehouse-it.local/login` opened.
+- Unauthenticated `/dashboard` redirected to login.
+- Temporary Admin login redirected to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated `/dashboard` returned 200.
+- Temporary QA user/session/login activity was deleted after the smoke check.
+
+Actual phone result fields remain pending:
+
+- Phone model:
+- OS version:
+- Browser:
+- Network/Wi-Fi:
+- Workstation LAN IP:
+- URL tested:
+- HTTP or HTTPS:
+- Same network as workstation:
+- DNS result for `warehouse-it.local`:
+- Certificate trusted with no warning:
+- Login/session works after refresh:
+- Camera scan result:
+- Manual `QA-PHONE-FIELD-001` fallback:
+- Scan-from-photo/file fallback:
+- PWA / Add to Home Screen result:
+- Offline move close/reopen/sync result for `QA / Phone / Bench 82`:
+- Offline photo close/reopen/sync result:
+- Storage-loss safety result:
+- Mobile layout result:
+- Final classification: PASS / PARTIAL / FAIL, only after a real phone test.
+
+Next action: run the actual phone checklist with QA asset `QA-PHONE-FIELD-001`. Do not close the physical phone blocker until those fields are filled with real phone/browser results.
+
 Production update runbook:
 
 1. Run `npm run backup`.

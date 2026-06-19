@@ -251,9 +251,11 @@ describe("team beta ops artifacts", () => {
       expect(document).toContain("Losing `BITLOCKER_VAULT_SECRET` means existing encrypted BitLocker keys cannot be decrypted");
       expect(document).toContain("Phase 79");
       expect(document).toContain("Phase 80");
+      expect(document).toContain("Phase 82");
       expect(document).toContain("workstation-side HTTPS");
       expect(document).toContain("Real phone validation");
       expect(document).toContain("BLOCKED / NOT RUN ON PHONE");
+      expect(document).toContain("only after a real phone test");
       expect(document).toContain("pending");
       expect(document).toContain("QA-PHONE-FIELD-001");
       expect(document).toContain("QA-*");
@@ -272,7 +274,10 @@ describe("team beta ops artifacts", () => {
     expect(sop).toContain("Phone model:");
     expect(sop).toContain("Offline move close/reopen persists and syncs to `QA / Phone / Bench 79`");
     expect(sop).toContain("Offline move close/reopen result:");
+    expect(sop).toContain("Offline move close/reopen/sync result for `QA / Phone / Bench 82`");
     expect(sop).toContain("Final phone classification: PASS / PARTIAL / FAIL, only after a real phone test.");
+    expect(readme).toContain("Phase 82 Actual Phone Field Run Status");
+    expect(readme).toContain("Offline photo close/reopen/sync result");
     expect(sop).toContain("do not mark the trusted HTTPS/camera blocker closed");
   });
 

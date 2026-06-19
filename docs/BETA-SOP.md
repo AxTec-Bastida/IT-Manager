@@ -222,6 +222,51 @@ Actual phone result fields remain pending:
 
 Next action: run the documented phone checklist with QA asset `QA-PHONE-FIELD-001`. If any result fails, document the exact browser error, certificate warning, camera behavior, offline persistence issue, or fallback used. Do not mark the real-phone blocker closed until the phone result fields are filled.
 
+## Phase 82 Actual Phone Field Run Status
+
+Phase 82 workstation-side checks passed on June 19, 2026, but the actual phone field run was **not completed** because no physical phone/browser results were provided in this Codex session.
+
+Final phone classification: **BLOCKED / NOT RUN ON PHONE**.
+
+Workstation checks completed:
+
+- Runtime path: `C:\Dev\warehouse-it-inventory`.
+- Current beta URL: `https://warehouse-it.local`.
+- Caddy was running from `C:\Tools\caddy\caddy.exe`.
+- App was restarted and listened on port `3000`.
+- `https://warehouse-it.local/api/health` returned 200 and was degraded only for missing SMTP credentials.
+- `/login` opened through Caddy.
+- Unauthenticated `/dashboard` redirected to login.
+- Temporary Admin login redirected to `https://warehouse-it.local/dashboard`, not localhost or `127.0.0.1`.
+- Authenticated `/dashboard` returned 200.
+- Temporary QA user/session/login activity was deleted after the workstation smoke check.
+
+Actual phone result fields remain pending:
+
+- Phone model:
+- OS version:
+- Browser:
+- Network/Wi-Fi:
+- Workstation LAN IP:
+- URL tested:
+- HTTP or HTTPS:
+- Same network as workstation:
+- DNS result for `warehouse-it.local`:
+- Certificate trusted with no warning:
+- Login/session works after refresh:
+- Page navigation smoke:
+- Camera scan result:
+- Manual `QA-PHONE-FIELD-001` fallback:
+- Scan-from-photo/file fallback:
+- PWA / Add to Home Screen result:
+- Offline move close/reopen/sync result for `QA / Phone / Bench 82`:
+- Offline photo close/reopen/sync result:
+- Storage-loss safety result:
+- Mobile layout result:
+- Final phone classification: PASS / PARTIAL / FAIL, only after a real phone test.
+
+Next action: run the actual phone checklist with QA asset `QA-PHONE-FIELD-001`. Do not close the physical phone blocker until the phone DNS/cert/camera/PWA/offline persistence fields are filled with real phone/browser results. If HTTPS fails on the phone, document the exact DNS or certificate error and use HTTP LAN fallback only as a clearly labeled fallback.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.
