@@ -175,6 +175,7 @@ export default async function DashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {attentionCards.map((card) => {
             const Icon = card.icon;
+            const needsAction = card.value > 0;
             return (
               <Link key={card.label} href={card.href} className={`rounded-lg border p-4 hover:shadow-sm ${card.tone}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -182,7 +183,12 @@ export default async function DashboardPage() {
                     <p className="text-sm font-semibold text-slate-700">{card.label}</p>
                     <p className="mt-1 text-sm text-slate-500">{card.helper}</p>
                   </div>
-                  <Icon className="text-slate-500" size={20} />
+                  <span className="flex flex-col items-end gap-2">
+                    <Icon className={needsAction ? "text-amber-700" : "text-emerald-700"} size={20} />
+                    <Badge tone={needsAction ? (card.label === "Missing Assets" || card.label === "Tasks Due" && overdueTasks ? "danger" : "warning") : "success"}>
+                      {needsAction ? "Review" : "Healthy"}
+                    </Badge>
+                  </span>
                 </div>
                 <p className="mt-4 text-4xl font-semibold text-slate-950">{card.value}</p>
               </Link>

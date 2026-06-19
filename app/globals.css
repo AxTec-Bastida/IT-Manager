@@ -3,6 +3,36 @@
 :root {
   --background: #f1f5f9;
   --foreground: #0f172a;
+  --status-neutral-bg: #f8fafc;
+  --status-neutral-text: #334155;
+  --status-neutral-ring: #cbd5e1;
+  --status-success-bg: #ecfdf5;
+  --status-success-text: #047857;
+  --status-success-ring: #a7f3d0;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #92400e;
+  --status-warning-ring: #fde68a;
+  --status-danger-bg: #fff1f2;
+  --status-danger-text: #be123c;
+  --status-danger-ring: #fecdd3;
+  --status-info-bg: #eff6ff;
+  --status-info-text: #1d4ed8;
+  --status-info-ring: #bfdbfe;
+  --status-offline-bg: #f5f3ff;
+  --status-offline-text: #6d28d9;
+  --status-offline-ring: #ddd6fe;
+  --status-conflict-bg: #fff7ed;
+  --status-conflict-text: #c2410c;
+  --status-conflict-ring: #fed7aa;
+  --status-admin-bg: #fdf2f8;
+  --status-admin-text: #be185d;
+  --status-admin-ring: #fbcfe8;
+  --status-maintenance-bg: #fefce8;
+  --status-maintenance-text: #854d0e;
+  --status-maintenance-ring: #fef08a;
+  --status-inventory-bg: #ecfeff;
+  --status-inventory-text: #0e7490;
+  --status-inventory-ring: #a5f3fc;
 }
 
 @theme inline {
@@ -29,6 +59,14 @@ textarea {
     border-color 150ms ease,
     color 150ms ease,
     opacity 150ms ease;
+}
+
+html {
+  text-size-adjust: 100%;
+}
+
+* {
+  min-width: 0;
 }
 
 input,
@@ -60,8 +98,8 @@ details > summary::-webkit-details-marker {
 }
 
 :focus-visible {
-  outline: 2px solid #0f172a;
-  outline-offset: 2px;
+  outline: 3px solid #0f172a;
+  outline-offset: 3px;
 }
 
 @layer components {
@@ -74,15 +112,23 @@ details > summary::-webkit-details-marker {
   }
 
   .tap-button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .tap-button-primary {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .tap-button-secondary {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .tap-button-danger {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-800 hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-900 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset;
   }
 }
 

@@ -41,31 +41,34 @@ export function OfflineConflictActions({ recordId, mutable, actionType }: { reco
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-semibold text-slate-700" htmlFor={`offline-conflict-note-${recordId}`}>
-        Review note
-      </label>
-      <textarea
-        id={`offline-conflict-note-${recordId}`}
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        rows={3}
-        placeholder="Optional note for review or cancellation"
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-      />
-      <div className="grid gap-2 sm:grid-cols-3">
-        <button type="button" onClick={() => post("review")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-60">
+      <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <summary className="min-h-10 cursor-pointer list-none text-sm font-semibold text-slate-800">Add optional review note</summary>
+        <label className="mt-3 block text-sm font-semibold text-slate-700" htmlFor={`offline-conflict-note-${recordId}`}>
+          Review note
+        </label>
+        <textarea
+          id={`offline-conflict-note-${recordId}`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={3}
+          placeholder="Optional note for review or cancellation"
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        />
+      </details>
+      <div className="grid gap-2">
+        <button type="button" onClick={() => post("review")} disabled={Boolean(busy)} className="tap-button-secondary rounded-lg">
           <CheckCircle2 size={16} />
           {busy === "review" ? "Saving..." : "Mark reviewed"}
         </button>
         {photoUploadConflict ? (
-          <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900 sm:col-span-1">Retry photo uploads from the Offline Queue on the same browser/device that still has the local photo.</p>
+          <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-semibold text-sky-900">Retry photo uploads from the Offline Queue on the same browser/device that still has the local photo.</p>
         ) : (
-          <button type="button" onClick={() => post("retry")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={() => post("retry")} disabled={Boolean(busy)} className="tap-button-primary rounded-lg">
             <RotateCcw size={16} />
             {busy === "retry" ? "Retrying..." : "Retry sync"}
           </button>
         )}
-        <button type="button" onClick={() => post("cancel")} disabled={Boolean(busy)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-800 disabled:opacity-60">
+        <button type="button" onClick={() => post("cancel")} disabled={Boolean(busy)} className="tap-button-danger rounded-lg">
           <XCircle size={16} />
           {busy === "cancel" ? "Cancelling..." : "Cancel action"}
         </button>

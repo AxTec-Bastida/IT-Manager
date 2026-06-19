@@ -359,6 +359,37 @@ Do not expand beyond the controlled beta until:
 
 Not included in Production V1: Offline stock issue/return, service worker caching, OCR expansion, SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, broad importer work, public tunnels, or a full offline inventory database.
 
+## Phase 85 UI / UX Visual Polish + Accessibility
+
+Phase 85 is a design and accessibility hardening pass only. It does not change business logic, data models, offline action types, import behavior, OCR, SNMP, UniFi, Zebra printing, or production rollout status.
+
+Status color meanings:
+
+| Meaning | Use |
+| --- | --- |
+| Neutral/default | Ordinary metadata, inactive records, or low-priority labels. |
+| Success/synced | Healthy state, completed sync, safe pass, or successful action. |
+| Warning/offline/pending | Queued offline work, due soon, review soon, or non-blocking attention. |
+| Danger/conflict | Failed action, destructive action, missing/lost item, blocked state, or conflict. |
+| Info/inventory/maintenance/admin | Contextual labels for inventory, maintenance, security/admin, or explanatory system state. |
+
+Mobile UX expectations:
+
+- Keep pages card-first on phones with large tap targets.
+- Keep filters and technical details collapsible where possible.
+- Avoid horizontal overflow at 320px, clipped buttons, and dense desktop tables as the primary mobile experience.
+- Use visible status text with color; do not rely on color alone.
+- Use clear CTAs: Save, Sync now, Create, Upload, Queue offline, Retry sync, Cancel queued action.
+- Empty states should explain what happened, what to do next, and whether retry is safe.
+- Icon-only controls need accessible labels through visible text, `aria-label`, `title`, or an associated label.
+
+Offline UX notes:
+
+- Pending, failed, conflict, synced, and total local counts should be easy to scan.
+- Conflict reasons and next safe steps should be visible before technical details.
+- Technical payloads remain hidden behind disclosure controls.
+- Photo conflicts must keep the user-safe wording: `Local photo file is no longer available. Retake the photo before retrying.`
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.

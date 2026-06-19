@@ -7,6 +7,7 @@ import { summarizeQueuedOfflineAction } from "@/lib/offline-actions";
 import { cancelOfflineActionAndBlob, clearSyncedOfflineActionsAndBlobs, enqueueOfflineAction, getOfflineQueueSnapshot, retryOfflineActionIfLocalBlobExists, syncOfflineQueue, type OfflineQueueSnapshot } from "@/lib/offline-queue";
 import { getOfflinePhotoBlob, listOfflinePhotoBlobMetadata } from "@/lib/offline-photo-blobs";
 import { OfflineStatusIndicator } from "@/components/offline-status-indicator";
+import { Badge, type BadgeTone } from "@/components/badge";
 
 type QueuedItem = OfflineQueueSnapshot["items"][number];
 type StorageInfo = {
@@ -121,18 +122,18 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
           <OfflineStatusIndicator />
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-          <SummaryCard label="Pending" value={snapshot.pendingCount + snapshot.syncingCount} />
-          <SummaryCard label="Failed" value={snapshot.failedCount} />
-          <SummaryCard label="Conflicts" value={snapshot.conflictCount} />
-          <SummaryCard label="Synced" value={snapshot.syncedCount} />
-          <SummaryCard label="Total local" value={snapshot.items.length} />
+          <SummaryCard label="Pending" value={snapshot.pendingCount + snapshot.syncingCount} tone={(snapshot.pendingCount + snapshot.syncingCount) > 0 ? "offline" : "neutral"} />
+          <SummaryCard label="Failed" value={snapshot.failedCount} tone={snapshot.failedCount ? "danger" : "neutral"} />
+          <SummaryCard label="Conflicts" value={snapshot.conflictCount} tone={snapshot.conflictCount ? "conflict" : "neutral"} />
+          <SummaryCard label="Synced" value={snapshot.syncedCount} tone={snapshot.syncedCount ? "success" : "neutral"} />
+          <SummaryCard label="Total local" value={snapshot.items.length} tone="info" />
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={syncNow} disabled={syncing} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={syncNow} disabled={syncing} className="tap-button-primary rounded-lg">
             <RotateCcw size={17} />
             {syncing ? "Syncing..." : "Sync now"}
           </button>
-          <button type="button" onClick={clearSynced} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700">
+          <button type="button" onClick={clearSynced} className="tap-button-secondary rounded-lg">
             <Trash2 size={17} />
             Clear synced
           </button>
@@ -179,7 +180,10 @@ export function OfflineQueuePanel({ userId, appVersion }: { userId: string; appV
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">No local queued actions in this browser.</div>
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+            <p className="font-semibold text-slate-950">No offline actions are waiting on this browser.</p>
+            <p className="mt-1">Queue an asset move or photo only when you need to keep working without a stable connection. Online workflows are still safer when Wi-Fi is available.</p>
+          </div>
         )}
       </section>
 
@@ -264,20 +268,20 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
           ) : null}
           {actionMessage ? <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-800">{actionMessage}</p> : null}
           {deviceHref ? (
-            <Link href={deviceHref} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
+            <Link href={deviceHref} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">
               Open asset
             </Link>
           ) : null}
         </div>
         <div className="grid gap-2 sm:min-w-40">
           {item.status === "PENDING" ? (
-            <button type="button" onClick={() => void cancelAction()} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
-              Cancel
+            <button type="button" onClick={() => void cancelAction()} className="tap-button-danger rounded-lg">
+              Cancel queued action
             </button>
           ) : null}
           {item.status === "FAILED" || item.status === "CONFLICT" ? (
-            <button type="button" onClick={() => void retryAction()} disabled={item.actionType === "UPLOAD_ASSET_PHOTO" && photoBlobAvailable === false} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 disabled:opacity-60">
-              Retry
+            <button type="button" onClick={() => void retryAction()} disabled={item.actionType === "UPLOAD_ASSET_PHOTO" && photoBlobAvailable === false} className="tap-button-secondary rounded-lg">
+              Retry sync
             </button>
           ) : null}
         </div>
@@ -286,11 +290,11 @@ function QueuedActionCard({ item }: { item: QueuedItem }) {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function SummaryCard({ label, value, tone }: { label: string; value: number; tone: BadgeTone }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
       <p className="text-2xl font-semibold text-slate-950">{value}</p>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <Badge tone={tone} className="mt-1">{label}</Badge>
     </div>
   );
 }
@@ -314,20 +318,20 @@ function StorageSafetyCard({ info }: { info: StorageInfo }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const config =
+  const config: { icon: typeof CheckCircle2; tone: BadgeTone; label: string } =
     status === "SYNCED"
-      ? { icon: CheckCircle2, className: "bg-emerald-50 text-emerald-800", label: "Synced" }
+      ? { icon: CheckCircle2, tone: "synced", label: "Synced" }
       : status === "FAILED"
-        ? { icon: XCircle, className: "bg-red-50 text-red-800", label: "Failed" }
+        ? { icon: XCircle, tone: "danger", label: "Failed" }
         : status === "CONFLICT"
-          ? { icon: AlertTriangle, className: "bg-amber-50 text-amber-800", label: "Conflict" }
-          : { icon: Clock, className: "bg-sky-50 text-sky-800", label: status === "SYNCING" ? "Syncing" : status === "CANCELLED" ? "Cancelled" : "Pending" };
+          ? { icon: AlertTriangle, tone: "conflict", label: "Conflict" }
+          : { icon: Clock, tone: status === "CANCELLED" ? "neutral" : "offline", label: status === "SYNCING" ? "Syncing" : status === "CANCELLED" ? "Cancelled" : "Pending" };
   const Icon = config.icon;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${config.className}`}>
+    <Badge tone={config.tone}>
       <Icon size={13} />
       {config.label}
-    </span>
+    </Badge>
   );
 }
 

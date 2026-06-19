@@ -133,18 +133,18 @@ function OfflineConflictCard({ record, mutable }: { record: SanitizedOfflineConf
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className={record.status === "FAILED" ? "bg-red-50 text-red-800 ring-red-200" : record.status === "CONFLICT" ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-slate-50 text-slate-700 ring-slate-200"}>
+            <Badge tone={record.status === "FAILED" ? "danger" : record.status === "CONFLICT" ? "conflict" : "neutral"}>
               <StatusIcon size={13} className="mr-1" />
               {record.status}
             </Badge>
-            <Badge className="bg-slate-50 text-slate-700 ring-slate-200">{record.resolutionStatus}</Badge>
-            <Badge className="bg-sky-50 text-sky-800 ring-sky-200">{record.actionType}</Badge>
-            <Badge className="bg-white text-slate-700 ring-slate-200">{record.conflictCode}</Badge>
+            <Badge tone={record.resolutionStatus === "OPEN" ? "warning" : "success"}>{record.resolutionStatus}</Badge>
+            <Badge tone="offline">{record.actionType}</Badge>
+            <Badge tone="info">{record.conflictCode}</Badge>
           </div>
           <h3 className="mt-3 text-lg font-semibold text-slate-950">{record.entityLabel || record.payload?.assetTag?.toString() || record.clientActionId}</h3>
           <p className="mt-1 text-sm font-medium text-slate-700">{record.conflictTitle}</p>
           <p className="mt-1 text-sm text-slate-600">{record.explanation}</p>
-          <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{record.recommendedAction}</p>
+          <p className="mt-2 rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm font-medium text-sky-950">Next safe step: {record.recommendedAction}</p>
 
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
             <Info label="Queued asset" value={textValue(record.payload?.assetTag) || record.entityLabel || "Unknown"} />
@@ -179,11 +179,12 @@ function OfflineConflictCard({ record, mutable }: { record: SanitizedOfflineConf
 }
 
 function HealthCard({ label, value, tone }: { label: string; value: number; tone: "amber" | "red" | "emerald" | "slate" }) {
-  const className = tone === "amber" ? "border-amber-200 bg-amber-50" : tone === "red" ? "border-red-200 bg-red-50" : tone === "emerald" ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white";
+  const className = tone === "amber" ? "border-amber-200 bg-amber-50" : tone === "red" ? "border-rose-200 bg-rose-50" : tone === "emerald" ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white";
+  const badgeTone = tone === "amber" ? "warning" : tone === "red" ? "danger" : tone === "emerald" ? "success" : "neutral";
   return (
     <div className={`rounded-lg border p-4 shadow-sm ${className}`}>
       <p className="text-3xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm font-medium text-slate-600">{label}</p>
+      <Badge tone={badgeTone} className="mt-2">{label}</Badge>
     </div>
   );
 }

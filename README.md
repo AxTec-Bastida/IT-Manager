@@ -550,6 +550,29 @@ Still blocked before wider rollout:
 
 Do not include in Production V1: Offline stock issue/return, service worker caching, OCR expansion, SNMP printer/scale polling, UniFi API integration, direct Zebra printer sending, broad importer work, public tunnels, or destructive database reset paths.
 
+### Phase 85 UI / UX Visual Polish + Accessibility
+
+Phase 85 keeps business logic frozen and improves the controlled beta UI language.
+
+Status color meanings:
+
+- Neutral/default: ordinary metadata or inactive records.
+- Success/synced: healthy state, completed sync, available confirmation, or safe pass.
+- Warning/offline/pending: review soon, queued offline work, due soon, or non-blocking attention.
+- Danger/conflict: failed action, destructive action, missing/lost item, conflict, or blocked state.
+- Info/inventory/maintenance/admin: contextual labels for inventory, maintenance, security/admin, or explanatory system state.
+
+UI expectations:
+
+- Do not rely on color alone; badges and cards must include text labels such as Healthy, Review, Pending, Conflict, Failed, or Synced.
+- Primary actions are explicit: Save, Sync now, Create, Upload, Queue offline.
+- Destructive or risky actions use danger styling and clear labels such as Cancel queued action.
+- Empty states explain what happened and what to do next.
+- Mobile layouts should remain card-first with large tap targets and no horizontal overflow at 320px.
+- Icon-only controls need accessible names through visible text, `aria-label`, or equivalent labeling.
+
+Phase 85 intentionally did not add workflows, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, database model changes, or business-rule changes.
+
 Production update runbook:
 
 1. Run `npm run backup`.
