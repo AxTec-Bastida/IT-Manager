@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, MoreHorizontal, Package, PackageCheck, PackagePlus, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, MoreHorizontal, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 
 const primaryLinks = [
@@ -54,6 +54,7 @@ const navGroups = [
     label: "Admin",
     links: [
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/admin/ui-preview", label: "UI Preview Lab", icon: Palette },
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/import/legacy-sheet", label: "Legacy Import", icon: FileSpreadsheet },
       { href: "/data-quality", label: "Data Quality", icon: ShieldCheck },

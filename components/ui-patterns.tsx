@@ -1,6 +1,28 @@
 import Link from "next/link";
 import { clsx } from "clsx";
 
+export type ActionVariant = "primary" | "secondary" | "subtle" | "danger" | "warning" | "success" | "ghost";
+
+export function actionButtonClass(variant: ActionVariant = "secondary", className?: string) {
+  return clsx(
+    "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60",
+    variant === "primary"
+      ? "bg-slate-950 text-white hover:bg-slate-800"
+      : variant === "danger"
+        ? "border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 focus-visible:outline-rose-900"
+        : variant === "warning"
+          ? "border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 focus-visible:outline-amber-900"
+          : variant === "success"
+            ? "border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 focus-visible:outline-emerald-900"
+            : variant === "subtle"
+              ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              : variant === "ghost"
+                ? "text-slate-700 hover:bg-slate-100"
+                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100",
+    className,
+  );
+}
+
 export function SectionCard({
   children,
   className,
@@ -51,24 +73,63 @@ export function ActionLink({
 }: {
   href: string;
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: ActionVariant;
   className?: string;
 }) {
   return (
     <Link
       href={href}
-      className={clsx(
-        "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950",
-        variant === "primary"
-          ? "bg-slate-950 text-white hover:bg-slate-800"
-          : variant === "danger"
-            ? "border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100"
-            : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100",
-        className,
-      )}
+      className={actionButtonClass(variant, className)}
     >
       {children}
     </Link>
+  );
+}
+
+export function MetricCard({
+  label,
+  value,
+  helper,
+  className,
+}: {
+  label: string;
+  value: string | number;
+  helper?: string;
+  className?: string;
+}) {
+  return (
+    <div className={clsx("rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70", className)}>
+      <p className="text-3xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
+      {helper ? <p className="mt-1 text-sm text-slate-500">{helper}</p> : null}
+    </div>
+  );
+}
+
+export function AlertPanel({
+  title,
+  children,
+  tone = "info",
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  tone?: "info" | "success" | "warning" | "danger";
+  className?: string;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+      : tone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-950"
+        : tone === "danger"
+          ? "border-rose-200 bg-rose-50 text-rose-950"
+          : "border-sky-200 bg-sky-50 text-sky-950";
+  return (
+    <div className={clsx("rounded-lg border p-4", toneClass, className)} role={tone === "danger" ? "alert" : "status"}>
+      <p className="font-semibold">{title}</p>
+      <div className="mt-1 text-sm">{children}</div>
+    </div>
   );
 }
 

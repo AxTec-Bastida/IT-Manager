@@ -573,6 +573,37 @@ UI expectations:
 
 Phase 85 intentionally did not add workflows, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, database model changes, or business-rule changes.
 
+### Phase 86 Design System and UI Preview Lab
+
+Phase 86 adds an internal admin-only UI Preview Lab at `/admin/ui-preview`. It is a static visual review page for common app patterns and does not mutate data, upload files, send email, require real inventory, or depend on warehouse network access.
+
+Preview Lab sections:
+
+- Color/status tokens
+- Buttons
+- Badges
+- Cards and empty states
+- Alerts
+- Forms
+- Desktop table and mobile card patterns
+- Offline queue examples
+- Offline conflict examples
+- Asset status and danger-zone examples
+- Mobile layout stress sample
+
+Component usage rules:
+
+- Use semantic status tones: neutral, success, warning, danger, info, pending, synced, conflict, offline, admin/security, maintenance, and inventory.
+- Color is not the only status signal. Use text labels with color, such as Healthy, Review, Pending, Synced, Failed, Conflict, Overdue, or Restricted.
+- Use `ActionLink` or `actionButtonClass` for common actions. Prefer primary, secondary, subtle, success, warning, danger, or ghost instead of one-off button colors.
+- Use `SectionCard`, `MobileCard`, `MetricCard`, `AlertPanel`, and `EmptyState` for repeated surfaces when practical.
+- Keep empty states actionable: tell the user what happened and what to do next.
+- Danger actions must use explicit labels such as Cancel queued action, Delete photo, Retire asset, or Decommission asset.
+- Mobile layouts must remain card-first, tap-safe, and free of horizontal overflow at 320px.
+- Icon-only controls must have visible text, `aria-label`, `title`, or an associated label.
+
+Phase 86 intentionally did not add business workflows, database models, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, SMTP, BitLocker, phone-validation work, or production rollout changes.
+
 Production update runbook:
 
 1. Run `npm run backup`.

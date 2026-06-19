@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { SettingsForm } from "@/components/settings-form";
 import { ImportExportPanel } from "@/components/import-export-panel";
-import { ActionLink } from "@/components/ui-patterns";
+import { ActionLink, PageActions } from "@/components/ui-patterns";
 import { TestEmailButton } from "@/components/test-email-button";
 import { getMailConfig, getSanitizedMailStatus } from "@/lib/mail";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
@@ -18,7 +18,16 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Configure defaults and scanner safety controls for this site." action={<ActionLink href="/backups">Backups</ActionLink>} />
+      <PageHeader
+        title="Settings"
+        description="Configure defaults and scanner safety controls for this site."
+        action={
+          <PageActions>
+            <ActionLink href="/admin/ui-preview" variant="subtle">UI Preview Lab</ActionLink>
+            <ActionLink href="/backups">Backups</ActionLink>
+          </PageActions>
+        }
+      />
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="font-semibold text-slate-950">Email</h2>
         <p className="mt-1 text-sm text-slate-500">SMTP credentials stay in environment variables and are never shown here.</p>

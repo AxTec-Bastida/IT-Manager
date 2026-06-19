@@ -390,6 +390,31 @@ Offline UX notes:
 - Technical payloads remain hidden behind disclosure controls.
 - Photo conflicts must keep the user-safe wording: `Local photo file is no longer available. Retake the photo before retrying.`
 
+## Phase 86 Design System and UI Preview Lab
+
+The UI Preview Lab is available to Admin users at `/admin/ui-preview`.
+
+Purpose:
+
+- Review common visual patterns without using real production data.
+- Check status colors, badges, buttons, cards, alerts, forms, offline queue examples, conflict cards, empty states, and danger actions in one place.
+- Test phone widths such as 430px, 390px, 360px, and 320px without needing SMTP, camera, warehouse Wi-Fi, or production inventory.
+
+Safety rules:
+
+- The UI Preview Lab is static sample UI only.
+- It must not create records, upload files, send email, sync offline actions, reveal secrets, or change settings.
+- It stays Admin-only and should not appear as a normal daily warehouse workflow.
+
+Design-system rules:
+
+- Use semantic tones: neutral, success, warning, danger, info, pending, synced, conflict, offline, admin/security, maintenance, and inventory.
+- Color is not the only status signal. Every badge, alert, and card state needs text such as Healthy, Review, Pending, Conflict, Failed, Synced, Overdue, or Restricted.
+- Use shared button variants for repeated actions: primary, secondary, subtle, success, warning, danger, and ghost.
+- Use shared surfaces when practical: SectionCard, MobileCard, MetricCard, AlertPanel, and EmptyState.
+- Keep mobile cards readable, wrap long asset tags, and avoid horizontal overflow at 320px.
+- Keep technical details behind disclosure controls unless the user needs them immediately.
+
 Do not do during beta:
 
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.
