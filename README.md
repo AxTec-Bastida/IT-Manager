@@ -535,6 +535,27 @@ Final Go / No-Go Matrix:
 | Data Quality/reports | GO | Existing review/export surfaces are available for beta operations. |
 | Git/secret safety | GO | Confirm no secrets/runtime data are tracked by Git before each push. |
 
+### Phase 87 Performance / Slow Page Audit
+
+Phase 87 measured the production build from `C:\Dev\warehouse-it-inventory` against the controlled beta SQLite data. The app stayed functional, and the highest-risk API payloads were tightened without changing business workflows.
+
+Performance fixes:
+
+- `/api/devices` is now bounded and paginated by default. `limit` is capped at 100, the default page size is 50, and the response includes pagination metadata instead of returning the full inventory.
+- `/api/data-quality` now returns a compact health/summary payload by default. Use `/api/data-quality?detail=preview` for a capped preview of the review object, `/api/data-quality?detail=full` only for deliberate debugging, and the existing CSV export routes for full review exports.
+- Guardrail tests cover the bounded device API and summary-first data-quality API behavior.
+
+Measured after the fix:
+
+- `/api/devices?limit=50`: about 18 KB, roughly 29 ms median in local production timing.
+- `/api/data-quality`: about 1 KB, roughly 31 ms median in local production timing.
+- `/api/data-quality?detail=preview`: intentionally heavier because it still computes the full Data Quality review before summarizing it.
+
+Known acceptable heavier pages:
+
+- `/devices`, `/inventory/[view]`, `/dashboard`, and `/data-quality` still compute whole-inventory signals such as duplicate IPs, missing photos, review reasons, maintenance cues, and dashboard totals. They are acceptable for controlled beta with roughly 3,300 assets, but future broad rollout should consider server-side aggregate helpers for these views.
+- CSV exports and full-detail review endpoints are expected to be heavier and should be treated as deliberate admin/audit actions, not polling endpoints.
+
 Ready for Production V1 controlled beta:
 
 - Auth/roles, inventory, assignments, stock, loans, RMA, audits, labels, reports, backups, scheduled jobs, email plumbing, BitLocker vault, offline serialized move, and offline asset photo queue.

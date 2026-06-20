@@ -745,6 +745,58 @@ export async function getDataQualityReview() {
   };
 }
 
+export function summarizeDataQualityReviewForApi(review: unknown, previewLimit = 20) {
+  const summarized = summarizeForApi(review, previewLimit) as Record<string, unknown>;
+  return {
+    payloadMode: "summary",
+    previewLimit,
+    fullDetailUrl: "/api/data-quality?detail=full",
+    ...summarized,
+  };
+}
+
+function summarizeForApi(value: unknown, previewLimit: number): unknown {
+  if (Array.isArray(value)) {
+    return {
+      count: value.length,
+      preview: value.slice(0, previewLimit).map((item) => summarizeForApi(item, Math.min(previewLimit, 5))),
+    };
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, nestedValue]) => [key, summarizeForApi(nestedValue, previewLimit)]));
+}
+
+export async function getDataQualityApiSummary() {
+  const [assetCount, facturaCount, stockItemCount, activeRmaCount, devicesInRmaCount, latestRun, offlineSyncHealth] = await Promise.all([
+    prisma.device.count(),
+    prisma.factura.count(),
+    prisma.stockItem.count(),
+    prisma.rmaCase.count({ where: { status: { in: ["SENT", "ACTIVE", "PARTIALLY_RETURNED"] } } }),
+    prisma.rmaItem.count({ where: { result: "PENDING", rmaCase: { status: { in: ["SENT", "ACTIVE", "PARTIALLY_RETURNED"] } } } }),
+    prisma.importRun.findFirst({ orderBy: { startedAt: "desc" }, select: { id: true, fileName: true, status: true, startedAt: true, finishedAt: true } }),
+    getOfflineConflictHealth(),
+  ]);
+
+  return {
+    payloadMode: "summary",
+    generatedAt: new Date().toISOString(),
+    fullDetailUrl: "/api/data-quality?detail=full",
+    previewDetailUrl: "/api/data-quality?detail=preview",
+    totals: {
+      assets: assetCount,
+      facturas: facturaCount,
+      stockItems: stockItemCount,
+      activeRmas: activeRmaCount,
+      devicesInRma: devicesInRmaCount,
+    },
+    latestImportRun: latestRun,
+    offlineSyncHealth,
+    note: "Default API response is intentionally compact for page health checks. Use CSV exports or detail=preview/full for heavier review data.",
+  };
+}
+
 export async function getDataQualityExportRows(type: string) {
   const review = await getDataQualityReview();
   if (type === "duplicate-ips") {

@@ -17,6 +17,7 @@ import {
   summarizeMobileAssets,
   summarizeStaticAssets,
   summarizeStockReview,
+  summarizeDataQualityReviewForApi,
   summarizeFacturaLineItemQuality,
 } from "@/lib/data-quality";
 
@@ -139,6 +140,39 @@ describe("data quality review helpers", () => {
     expect(stock.quantityZero).toHaveLength(1);
     expect(stock.missingSku).toHaveLength(1);
     expect(stock.linkedToFacturas).toHaveLength(1);
+  });
+
+  it("summarizes data quality API payloads instead of returning export-sized arrays by default", () => {
+    const summary = summarizeDataQualityReviewForApi(
+      {
+        generatedAt: "2026-06-19T00:00:00.000Z",
+        duplicateIps: [
+          { ipAddress: "192.168.1.10", assets: [{ id: "a" }, { id: "b" }, { id: "c" }] },
+          { ipAddress: "192.168.1.11", assets: [{ id: "d" }] },
+          { ipAddress: "192.168.1.12", assets: [{ id: "e" }] },
+        ],
+        photoCompliance: {
+          missingRequired: Array.from({ length: 4 }, (_, index) => ({ id: `asset-${index}` })),
+        },
+      },
+      2,
+    ) as {
+      payloadMode: string;
+      previewLimit: number;
+      fullDetailUrl: string;
+      duplicateIps: { count: number; preview: Array<{ assets: { count: number; preview: unknown[] } }> };
+      photoCompliance: { missingRequired: { count: number; preview: unknown[] } };
+    };
+
+    expect(summary.payloadMode).toBe("summary");
+    expect(summary.previewLimit).toBe(2);
+    expect(summary.fullDetailUrl).toBe("/api/data-quality?detail=full");
+    expect(summary.duplicateIps.count).toBe(3);
+    expect(summary.duplicateIps.preview).toHaveLength(2);
+    expect(summary.duplicateIps.preview[0].assets.count).toBe(3);
+    expect(summary.duplicateIps.preview[0].assets.preview).toHaveLength(2);
+    expect(summary.photoCompliance.missingRequired.count).toBe(4);
+    expect(summary.photoCompliance.missingRequired.preview).toHaveLength(2);
   });
 
   it("flags comment-like imported stock rows without flagging real stock", () => {

@@ -324,6 +324,28 @@ Final verdict:
 | Data Quality/reports | GO | Review/export surfaces are available for controlled beta cleanup and audit follow-up. |
 | Git/secret safety | GO | Confirm no secrets/runtime data are tracked by Git before commit/push. |
 
+## Phase 87 Performance Notes
+
+Phase 87 ran a production-build slow page/API audit on the controlled beta data.
+
+Performance fixes now in place:
+
+- `/api/devices` is bounded and paginated. Default page size is 50, `limit` is capped at 100, and responses include pagination metadata.
+- `/api/data-quality` is summary-first by default. It returns compact totals/health data for fast checks.
+- Use `/api/data-quality?detail=preview` only when a capped review preview is needed.
+- Use `/api/data-quality?detail=full` only for intentional debugging. Do not use it as a polling or dashboard endpoint.
+- Full CSV exports remain available from the Data Quality page and are the correct path for audit/export workflows.
+
+Measured after the fix:
+
+- `/api/devices?limit=50`: about 18 KB and roughly 29 ms median locally.
+- `/api/data-quality`: about 1 KB and roughly 31 ms median locally.
+
+Known heavier pages for controlled beta:
+
+- `/devices`, `/inventory/[view]`, `/dashboard`, and `/data-quality` still compute whole-inventory review signals. This is acceptable for the current controlled beta data size, but broad rollout should revisit server-side aggregate helpers if those pages become painful.
+- Avoid refreshing heavy review pages repeatedly on a weak network. Use focused category pages and CSV exports for deeper work.
+
 ### Phase 84 Release Gate
 
 Before each controlled beta update:
