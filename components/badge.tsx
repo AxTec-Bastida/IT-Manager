@@ -41,7 +41,7 @@ export function Badge({
   tone?: BadgeTone;
 }) {
   return (
-    <span className={clsx("status-badge", badgeToneClass[tone], className)}>
+    <span className={clsx("status-badge max-w-full break-words", badgeToneClass[tone], className)}>
       {children}
     </span>
   );

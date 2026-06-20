@@ -44,7 +44,7 @@ export default async function OfflinePage() {
           {recentRecords.map((record) => (
             <div key={record.id} className="py-3 text-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <p className="font-medium text-slate-950">{record.actionType} · {record.status}</p>
+                <p className="font-medium text-slate-950">{record.actionType} / {record.status}</p>
                 <p className="text-xs text-slate-500">{record.processedAt?.toLocaleString() || record.createdAt.toLocaleString()}</p>
               </div>
               <p className="mt-1 break-all text-xs text-slate-500">{record.clientActionId}</p>

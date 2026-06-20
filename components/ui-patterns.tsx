@@ -5,7 +5,7 @@ export type ActionVariant = "primary" | "secondary" | "subtle" | "danger" | "war
 
 export function actionButtonClass(variant: ActionVariant = "secondary", className?: string) {
   return clsx(
-    "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-md px-4 text-center text-sm font-semibold transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:shrink-0",
     variant === "primary"
       ? "bg-slate-950 text-white hover:bg-slate-800"
       : variant === "danger"
@@ -62,7 +62,7 @@ export function EmptyState({
 }
 
 export function PageActions({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={clsx("grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end", className)}>{children}</div>;
+  return <div className={clsx("grid min-w-0 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end", className)}>{children}</div>;
 }
 
 export function ActionLink({

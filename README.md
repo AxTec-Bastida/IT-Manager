@@ -625,6 +625,34 @@ Component usage rules:
 
 Phase 86 intentionally did not add business workflows, database models, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, SMTP, BitLocker, phone-validation work, or production rollout changes.
 
+### Phase 88 Real Visual QA / Screenshot Polish
+
+Phase 88 was a visual stabilization pass only. It did not add workflows, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, SMTP, BitLocker behavior, database model changes, or production phone validation.
+
+Validated with a temporary authenticated local session and read-only route smoke:
+
+- `/dashboard`
+- `/scan`
+- `/devices`
+- QA asset detail page
+- `/offline`
+- `/offline/conflicts`
+- `/offline/move`
+- `/data-quality`
+- `/reports`
+- `/settings`
+- `/admin/ui-preview`
+- Optional pages: `/stock`, `/maintenance`, `/facturas`, `/admin/users`, `/admin/bitlocker`, `/backups`, and `/jobs`
+
+The embedded browser screenshot pass was blocked by the known local `127.0.0.1:3000` redirect-loop/browser-state issue, so this pass used authenticated HTTP route smoke plus source/layout review instead of claiming screenshot coverage.
+
+Polish applied:
+
+- Shared action buttons now protect icon sizing and wrap long labels more safely on narrow screens.
+- Page headers now tolerate long titles without forcing horizontal overflow.
+- Status badges can wrap long labels instead of stretching cards.
+- Offline sync record text uses an ASCII-safe separator to avoid mojibake in terminal/browser rendering.
+
 Production update runbook:
 
 1. Run `npm run backup`.

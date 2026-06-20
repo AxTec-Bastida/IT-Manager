@@ -442,6 +442,23 @@ Do not do during beta:
 - Do not run `prisma migrate reset`, destructive seed, broad import, broad cleanup, OCR expansion, SNMP polling, UniFi work, direct Zebra sending, or public tunnels.
 - Do not commit `.env`, SMTP credentials, `BITLOCKER_VAULT_SECRET`, BitLocker recovery keys, database files, uploads, backups, certificates, private keys, or logs.
 
+## Phase 88 Real Visual QA / Screenshot Polish
+
+Phase 88 was a visual/layout/readability pass only. No workflows, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, SMTP, BitLocker behavior, database models, or production phone-validation work were added.
+
+Validation approach:
+
+- A temporary authenticated local session was used for read-only route smoke and then deleted.
+- Required pages returned 200: `/dashboard`, `/scan`, `/devices`, QA asset detail, `/offline`, `/offline/conflicts`, `/offline/move`, `/data-quality`, `/reports`, `/settings`, and `/admin/ui-preview`.
+- Optional pages also returned 200: `/stock`, `/maintenance`, `/facturas`, `/admin/users`, `/admin/bitlocker`, `/backups`, and `/jobs`.
+- The embedded browser screenshot pass was blocked by the known local `127.0.0.1:3000` redirect-loop/browser-state issue. Do not treat Phase 88 as real screenshot evidence on the beta phone.
+
+Polish applied:
+
+- Shared action buttons now preserve icon sizing and wrap long labels more safely.
+- Page headers and status badges are more resilient to long text at phone widths.
+- Offline sync record rows use an ASCII-safe separator to avoid mojibake.
+
 QA records:
 
 - `QA-*` assets, `QA-PHASE-*` facturas, and `QA Smoke Mouse` are controlled test evidence. Keep them clearly labeled and do not count them as production assets in manual reviews.
