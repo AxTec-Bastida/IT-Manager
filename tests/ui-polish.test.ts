@@ -78,4 +78,31 @@ describe("Phase 85 UI polish guardrails", () => {
     expect(offlinePage).toContain("{record.actionType} / {record.status}");
     expect(offlinePage).not.toContain("Â");
   });
+  it("keeps Phase 89 final interface polish bounded, reusable, and phone-first", async () => {
+    const layout = await readFile(path.join(projectRoot, "app", "layout.tsx"), "utf8");
+    const nav = await readFile(path.join(projectRoot, "components", "nav.tsx"), "utf8");
+    const uiPatterns = await readFile(path.join(projectRoot, "components", "ui-patterns.tsx"), "utf8");
+    const preview = await readFile(path.join(projectRoot, "app", "admin", "ui-preview", "page.tsx"), "utf8");
+    const readme = await readFile(path.join(projectRoot, "README.md"), "utf8");
+    const sop = await readFile(path.join(projectRoot, "docs", "BETA-SOP.md"), "utf8");
+
+    expect(layout).toContain("max-w-[1680px]");
+    expect(uiPatterns).toContain("export function PolishedCard");
+    expect(uiPatterns).toContain("export function ActionGrid");
+    expect(uiPatterns).toContain("export function KeyValueGrid");
+    expect(uiPatterns).toContain("break-words text-lg font-semibold");
+    expect(uiPatterns).toContain("grid min-w-0 gap-2 sm:grid-cols-2");
+    expect(preview).toContain("Phase 89 Shell Polish");
+    expect(preview).toContain("48px minimum button height");
+    expect(nav).toContain("`${user.name} / ${user.role}`");
+    expect(nav).not.toContain("`${user.name} · ${user.role}`");
+    for (const document of [readme, sop]) {
+      expect(document).toContain("Phase 89 Full Interface Polish Mega-Pass");
+      expect(document).toContain("bounded application shell");
+      expect(document).toContain("PolishedCard");
+      expect(document).toContain("ActionGrid");
+      expect(document).toContain("KeyValueGrid");
+      expect(document).toContain("phone-first");
+    }
+  });
 });

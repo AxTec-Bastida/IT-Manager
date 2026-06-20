@@ -167,7 +167,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
-              <p className="text-xs text-slate-500">{user ? `${user.name} · ${user.role}` : "Inventory Tracker"}</p>
+              <p className="text-xs text-slate-500">{user ? `${user.name} / ${user.role}` : "Inventory Tracker"}</p>
             </div>
           </div>
           <Link
@@ -190,7 +190,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-950">{siteName}</p>
-            <p className="text-xs text-slate-500">{user ? `${user.name} · ${user.role}` : "IT Inventory"}</p>
+            <p className="text-xs text-slate-500">{user ? `${user.name} / ${user.role}` : "IT Inventory"}</p>
           </div>
         </div>
         <nav className="space-y-4 overflow-y-auto px-2 pb-4">

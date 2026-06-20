@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock, LockKeyhole, Package, ShieldAlert, 
 import { Badge, type BadgeTone } from "@/components/badge";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { PageHeader } from "@/components/page-header";
-import { ActionLink, AlertPanel, EmptyState, MetricCard, MobileCard, PageActions, SectionCard, actionButtonClass, type ActionVariant } from "@/components/ui-patterns";
+import { ActionGrid, ActionLink, AlertPanel, EmptyState, KeyValueGrid, MetricCard, MobileCard, PageActions, PolishedCard, SectionCard, actionButtonClass, type ActionVariant } from "@/components/ui-patterns";
 import { hasPageRole } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +86,41 @@ export default async function UiPreviewPage() {
       <AlertPanel title="Preview-only safety" tone="info">
         Use this lab to review visual patterns at phone widths, desktop widths, and during accessibility passes. Every sample includes text labels so color is never the only status signal.
       </AlertPanel>
+
+      <PreviewSection title="Phase 89 Shell Polish" description="Final beta polish patterns for bounded page width, calm cards, action wrapping, and scan-first phone layouts.">
+        <div className="grid gap-3 lg:grid-cols-2">
+          <PolishedCard
+            eyebrow="Operational card"
+            title="Warehouse-ready card header"
+            description="Titles wrap, helper text stays readable, and actions stack on phones before becoming a compact row on desktop."
+            action={
+              <ActionGrid className="lg:justify-end">
+                <ActionLink href="/scan" variant="primary">Scan label</ActionLink>
+                <ActionLink href="/devices">Open inventory</ActionLink>
+              </ActionGrid>
+            }
+          >
+            <KeyValueGrid
+              items={[
+                { label: "Route", value: "/scan", helper: "Primary phone workflow" },
+                { label: "Tap target", value: "48px minimum button height", helper: "Large enough for warehouse use" },
+                { label: "Sensitive data", value: "Not displayed", helper: "No secrets in visual QA samples" },
+              ]}
+            />
+          </PolishedCard>
+          <PolishedCard
+            eyebrow="Daily use"
+            title="Clean action density"
+            description="Primary work stays obvious without filling every card with every possible action."
+          >
+            <ActionGrid>
+              <button type="button" className={actionButtonClass("primary")}>Open record</button>
+              <button type="button" className={actionButtonClass("secondary")}>Create task</button>
+              <button type="button" className={actionButtonClass("subtle")}>More actions</button>
+            </ActionGrid>
+          </PolishedCard>
+        </div>
+      </PreviewSection>
 
       <PreviewSection title="Color / Status Tokens" description="Semantic tones used across operational cards, badges, and alerts. Names describe meaning, not raw color.">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

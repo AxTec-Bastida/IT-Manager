@@ -2793,3 +2793,17 @@ Use `/reports` for phone-first operational summaries without turning the app int
 Each report page shows summary cards and bounded recent or priority rows. CSV exports are available from `/api/reports/[type]/export`, for example `/api/reports/inventory/export`, `/api/reports/stock/export`, or `/api/reports/asset-values/export`.
 
 Reports require sign-in and respect existing role permissions. Audit reports use `audits.read`, task reports use `tasks.read`, and other operational summaries use `inventory.read`. Reports Lite intentionally does not include charting, scheduled emailed reports, full analytics, sensitive notes, credentials, BitLocker data, or invoice OCR.
+
+## Phase 89 Full Interface Polish Mega-Pass
+
+Phase 89 was the final broad UI polish pass before Team Beta usage. The pass stayed UI-only and did not add new workflows, models, offline action types, service worker caching, OCR, SNMP, UniFi, Zebra printing, SMTP behavior, BitLocker behavior, auth/session changes, or database resets.
+
+What changed:
+
+- The application shell now uses a bounded application shell so wide desktop screens do not stretch operational pages into awkward full-width layouts.
+- Shared UI helpers were expanded with `PolishedCard`, `ActionGrid`, and `KeyValueGrid` for consistent phone-first card headers, action wrapping, and readable metadata blocks.
+- The UI Preview Lab includes Phase 89 shell polish samples for 48px tap targets, stacked mobile actions, safe key/value summaries, and non-sensitive visual QA content.
+- Navigation user labels use plain ASCII separators for cleaner rendering across browsers and devices.
+- Tests cover the final polish guardrails so future changes keep the app bounded, reusable, and phone-first.
+
+Phase 89 intentionally kept daily workflow behavior stable. Any future visual work should reuse these shared helpers first, avoid raw wide tables on phones, and keep sensitive values out of screenshots, labels, docs, logs, and previews.

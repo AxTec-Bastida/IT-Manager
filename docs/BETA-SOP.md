@@ -860,3 +860,17 @@ After beta week:
 - Review issues.
 - Decide next fixes.
 - Expand usage only after the top issues are handled.
+
+## Phase 89 Full Interface Polish Mega-Pass
+
+Phase 89 is the final large visual polish pass for the Team Beta build. It keeps the app phone-first and avoids changing business behavior.
+
+Review notes:
+
+- Use the bounded application shell on desktop and phone-first cards on mobile.
+- Prefer shared `PolishedCard`, `ActionGrid`, and `KeyValueGrid` patterns for new UI cleanup.
+- Keep main actions large, obvious, and stacked on phones before becoming compact on desktop.
+- Keep compliance and admin detail progressive so daily warehouse workflows do not feel crowded.
+- Do not include secrets, recovery keys, SMTP values, real credentials, sensitive notes, or confidential screenshots in QA artifacts.
+
+Phase 89 did not add service worker caching, OCR, SNMP, UniFi, Zebra printing, BitLocker changes, auth/session changes, new offline action types, or new business workflows.

@@ -79,7 +79,7 @@ async function LayoutShell({ children }: { children: React.ReactNode }) {
       <body className="min-h-full bg-slate-100 text-slate-950">
         <div className="min-h-screen lg:flex">
           <AppNav siteName={settings.siteName} user={currentUser ? { name: currentUser.name, role: currentUser.role } : null} />
-          <main className="w-full min-w-0 px-4 pb-32 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:py-8">{children}</main>
+          <main className="mx-auto w-full max-w-[1680px] min-w-0 px-4 pb-32 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:py-8">{children}</main>
         </div>
       </body>
     </html>

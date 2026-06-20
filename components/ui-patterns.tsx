@@ -33,6 +33,68 @@ export function SectionCard({
   return <section className={clsx("rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70", className)}>{children}</section>;
 }
 
+export function PolishedCard({
+  title,
+  description,
+  eyebrow,
+  action,
+  children,
+  className,
+}: {
+  title?: string;
+  description?: string;
+  eyebrow?: string;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={clsx("rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70", className)}>
+      {title || description || eyebrow || action ? (
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            {eyebrow ? <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{eyebrow}</p> : null}
+            {title ? <h2 className="mt-1 break-words text-lg font-semibold text-slate-950">{title}</h2> : null}
+            {description ? <p className="mt-1 max-w-3xl text-sm text-slate-600">{description}</p> : null}
+          </div>
+          {action ? <div className="grid min-w-0 gap-2 sm:flex sm:flex-wrap sm:justify-end [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto">{action}</div> : null}
+        </div>
+      ) : null}
+      {children ? <div className={clsx(title || description || eyebrow || action ? "mt-4" : undefined)}>{children}</div> : null}
+    </section>
+  );
+}
+
+export function ActionGrid({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={clsx("grid min-w-0 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap", className)}>{children}</div>;
+}
+
+export function KeyValueGrid({
+  items,
+  className,
+}: {
+  items: Array<{ label: string; value: React.ReactNode; helper?: React.ReactNode }>;
+  className?: string;
+}) {
+  return (
+    <dl className={clsx("grid gap-3 sm:grid-cols-2 xl:grid-cols-3", className)}>
+      {items.map((item) => (
+        <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</dt>
+          <dd className="mt-1 break-words text-sm font-semibold text-slate-950">{item.value}</dd>
+          {item.helper ? <dd className="mt-1 break-words text-xs text-slate-500">{item.helper}</dd> : null}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function MobileCard({
   children,
   className,
