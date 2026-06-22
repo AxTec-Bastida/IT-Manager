@@ -102,6 +102,16 @@ details > summary::-webkit-details-marker {
   outline-offset: 3px;
 }
 
+@keyframes mobile-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
 @layer components {
   .field-label {
     @apply space-y-1 text-sm font-medium text-slate-700;

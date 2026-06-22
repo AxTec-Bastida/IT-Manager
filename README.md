@@ -2807,3 +2807,9 @@ What changed:
 - Tests cover the final polish guardrails so future changes keep the app bounded, reusable, and phone-first.
 
 Phase 89 intentionally kept daily workflow behavior stable. Any future visual work should reuse these shared helpers first, avoid raw wide tables on phones, and keep sensitive values out of screenshots, labels, docs, logs, and previews.
+
+### Hotfix Phase 89B Mobile Sidebar Drawer
+
+Mobile navigation now uses an off-canvas drawer instead of a bottom sheet or visible sidebar. On narrow screens, the drawer is hidden by default, opens from the mobile header or bottom `Menu` button, shows a backdrop, closes on backdrop tap, closes on Escape, and closes after tapping a nav link. Desktop keeps the normal visible sidebar and the same route/permission logic.
+
+Beta QA should check 320px, 360px, 390px, and 430px widths for no horizontal overflow, readable nav labels, scrollable drawer content, and content using the full width when the drawer is closed.

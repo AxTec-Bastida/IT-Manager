@@ -16,11 +16,13 @@ describe("phase 41 mobile shell UI contracts", () => {
     expect(chipButtonClass(false, true)).toContain("text-slate-400");
   });
 
-  it("mobile More navigation has explicit close and expanded state controls", () => {
+  it("mobile navigation drawer has explicit open, close, and expanded state controls", () => {
     const navSource = readFileSync(path.join(projectRoot, "components", "nav.tsx"), "utf8");
 
-    expect(navSource).toContain("aria-expanded={moreOpen}");
-    expect(navSource).toContain("setMoreOpen(false)");
+    expect(navSource).toContain("aria-label=\"Open navigation\"");
+    expect(navSource).toContain("aria-expanded={drawerOpen}");
+    expect(navSource).toContain("id=\"mobile-sidebar-drawer\"");
+    expect(navSource).toContain("setDrawerOpen(false)");
     expect(navSource).toContain("Close navigation menu");
     expect(navSource).toContain('role="dialog"');
     expect(navSource).toContain("document.body.style.overflow");

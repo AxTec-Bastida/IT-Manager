@@ -81,6 +81,7 @@ describe("Phase 85 UI polish guardrails", () => {
   it("keeps Phase 89 final interface polish bounded, reusable, and phone-first", async () => {
     const layout = await readFile(path.join(projectRoot, "app", "layout.tsx"), "utf8");
     const nav = await readFile(path.join(projectRoot, "components", "nav.tsx"), "utf8");
+    const globals = await readFile(path.join(projectRoot, "app", "globals.css"), "utf8");
     const uiPatterns = await readFile(path.join(projectRoot, "components", "ui-patterns.tsx"), "utf8");
     const preview = await readFile(path.join(projectRoot, "app", "admin", "ui-preview", "page.tsx"), "utf8");
     const readme = await readFile(path.join(projectRoot, "README.md"), "utf8");
@@ -95,6 +96,13 @@ describe("Phase 85 UI polish guardrails", () => {
     expect(preview).toContain("Phase 89 Shell Polish");
     expect(preview).toContain("48px minimum button height");
     expect(nav).toContain("`${user.name} / ${user.role}`");
+    expect(nav).toContain("function NavMenuContent");
+    expect(nav).toContain("aria-label=\"Open navigation\"");
+    expect(nav).toContain("id=\"mobile-sidebar-drawer\"");
+    expect(nav).toContain("role=\"dialog\"");
+    expect(nav).toContain("setDrawerOpen(false)");
+    expect(nav).toContain("canSeeAdminLink");
+    expect(globals).toContain("@keyframes mobile-drawer-in");
     expect(nav).not.toContain("`${user.name} · ${user.role}`");
     for (const document of [readme, sop]) {
       expect(document).toContain("Phase 89 Full Interface Polish Mega-Pass");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, MoreHorizontal, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, Menu, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, X, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 
 const primaryLinks = [
@@ -119,30 +119,76 @@ function NavLink({ link, pathname, compact = false, onNavigate }: { link: { href
   );
 }
 
+function NavMenuContent({
+  groups,
+  pathname,
+  user,
+  compact = false,
+  onNavigate,
+}: {
+  groups: ReturnType<typeof visibleGroups>;
+  pathname: string;
+  user: NavUser;
+  compact?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        {primaryLinks.map((link) => (
+          <NavLink key={link.href} link={link} pathname={pathname} compact={compact} onNavigate={onNavigate} />
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {groups.map((group) => {
+          const groupActive = group.links.some((link) => isActive(pathname, link.href));
+          return (
+            <details key={group.label} className="group rounded-lg" open={groupActive || compact || undefined}>
+              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-md px-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100">
+                {group.label}
+                <ChevronDown className="transition group-open:rotate-180" size={15} />
+              </summary>
+              <div className="mt-1 space-y-1">
+                {group.links.map((link) => (
+                  <NavLink key={link.href} link={link} pathname={pathname} compact={compact} onNavigate={onNavigate} />
+                ))}
+              </div>
+            </details>
+          );
+        })}
+        {user ? (
+          <NavLink link={{ href: "/logout", label: "Sign out", icon: LogOut }} pathname={pathname} compact={compact} onNavigate={onNavigate} />
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) {
   const pathname = usePathname();
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setMoreOpen(false), 0);
+    const timeout = window.setTimeout(() => setDrawerOpen(false), 0);
     return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   useEffect(() => {
-    if (!moreOpen) return;
+    if (!drawerOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setMoreOpen(false);
+      if (event.key === "Escape") setDrawerOpen(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [moreOpen]);
+  }, [drawerOpen]);
 
   if (pathname === "/login" || pathname === "/setup-admin") return null;
 
@@ -161,8 +207,18 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
     <>
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="mobile-sidebar-drawer"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white min-[360px]:flex">
               <Warehouse size={20} />
             </div>
             <div className="min-w-0">
@@ -194,35 +250,46 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           </div>
         </div>
         <nav className="space-y-4 overflow-y-auto px-2 pb-4">
-          <div className="space-y-1">
-            {primaryLinks.map((link) => (
-              <NavLink key={link.href} link={link} pathname={pathname} />
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            {groups.map((group) => {
-              const groupActive = group.links.some((link) => isActive(pathname, link.href));
-              return (
-                <details key={group.label} className="group rounded-lg" open={groupActive || undefined}>
-                  <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-md px-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100">
-                    {group.label}
-                    <ChevronDown className="transition group-open:rotate-180" size={15} />
-                  </summary>
-                  <div className="mt-1 space-y-1">
-                    {group.links.map((link) => (
-                      <NavLink key={link.href} link={link} pathname={pathname} />
-                    ))}
-                  </div>
-                </details>
-              );
-            })}
-            {user ? (
-              <NavLink link={{ href: "/logout", label: "Sign out", icon: LogOut }} pathname={pathname} />
-            ) : null}
-          </div>
+          <NavMenuContent groups={groups} pathname={pathname} user={user} />
         </nav>
       </aside>
+
+      {drawerOpen ? (
+        <>
+          <button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden" onClick={() => setDrawerOpen(false)} />
+          <aside
+            id="mobile-sidebar-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,calc(100vw-2rem))] max-w-full animate-[mobile-drawer-in_180ms_ease-out] flex-col border-r border-slate-200 bg-white shadow-2xl lg:hidden"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
+                  <Warehouse size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
+                  <p className="truncate text-xs text-slate-500">Navigation</p>
+                </div>
+              </div>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-700 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-28 pt-3">
+              <NavMenuContent groups={groups} pathname={pathname} user={user} compact onNavigate={() => setDrawerOpen(false)} />
+            </nav>
+          </aside>
+        </>
+      ) : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(0.35rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div className="grid grid-cols-[repeat(5,minmax(0,1fr))] gap-1">
@@ -246,58 +313,18 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           <div className="contents">
             <button
               type="button"
-              onClick={() => setMoreOpen((value) => !value)}
-              aria-expanded={moreOpen}
-              aria-controls="mobile-more-menu"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="mobile-sidebar-drawer"
               className={clsx(
                 "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950",
-                moreOpen || moreActive ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100",
+                drawerOpen || moreActive ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100",
               )}
             >
-              <MoreHorizontal size={19} />
-              More
+              <Menu size={19} />
+              Menu
             </button>
-            {moreOpen ? (
-              <>
-                <button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[1px]" onClick={() => setMoreOpen(false)} />
-                <div id="mobile-more-menu" role="dialog" aria-modal="true" aria-label="More navigation" className="fixed inset-x-2 bottom-20 z-50 max-h-[72vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-2xl">
-                  <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">More tools</p>
-                      <p className="text-xs text-slate-500">Less-used modules and admin areas</p>
-                    </div>
-                    <button ref={closeButtonRef} type="button" onClick={() => setMoreOpen(false)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">
-                      Close
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Start here</p>
-                      <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-                        <NavLink link={primaryLinks.find((link) => link.href === "/dashboard")!} pathname={pathname} compact onNavigate={() => setMoreOpen(false)} />
-                        <NavLink link={primaryLinks.find((link) => link.href === "/alerts")!} pathname={pathname} compact onNavigate={() => setMoreOpen(false)} />
-                        <NavLink link={primaryLinks.find((link) => link.href === "/workspace")!} pathname={pathname} compact onNavigate={() => setMoreOpen(false)} />
-                      </div>
-                    </div>
-                    {groups.map((group) => {
-                      const links = group.links.filter((link) => !mobileLinks.some((mobile) => mobile.href === link.href));
-                      if (!links.length) return null;
-                      return (
-                        <div key={group.label}>
-                          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{group.label}</p>
-                          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-                            {links.map((link) => (
-                              <NavLink key={link.href} link={link} pathname={pathname} compact onNavigate={() => setMoreOpen(false)} />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {user ? <NavLink link={{ href: "/logout", label: "Sign out", icon: LogOut }} pathname={pathname} compact onNavigate={() => setMoreOpen(false)} /> : null}
-                  </div>
-                </div>
-              </>
-            ) : null}
           </div>
         </div>
       </nav>

@@ -874,3 +874,15 @@ Review notes:
 - Do not include secrets, recovery keys, SMTP values, real credentials, sensitive notes, or confidential screenshots in QA artifacts.
 
 Phase 89 did not add service worker caching, OCR, SNMP, UniFi, Zebra printing, BitLocker changes, auth/session changes, new offline action types, or new business workflows.
+
+### Hotfix Phase 89B Mobile Sidebar Drawer
+
+Mobile navigation should be tested as an off-canvas drawer:
+
+- At 320px, 360px, 390px, and 430px, the page content should fill the screen when the drawer is closed.
+- The mobile header and bottom `Menu` button should open the navigation drawer.
+- The drawer should slide in from the left, show a backdrop, and keep the menu scrollable.
+- Tapping the backdrop, tapping a nav link, pressing Escape, or tapping the close button should close it.
+- Desktop and wide tablet layouts should keep the normal visible sidebar.
+
+This hotfix does not change roles, permissions, routes, auth, database models, or workflows.
