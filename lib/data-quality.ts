@@ -413,7 +413,8 @@ export function isCommentLikeLegacyStockRow(input: {
   const startsLikeComment = suspiciousStockStarts.some((pattern) => name.startsWith(pattern));
   const exactComment = suspiciousStockContains.some((pattern) => name === pattern || name.startsWith(`${pattern} `));
   if (!startsLikeComment && !exactComment) return false;
-  return !input.quantity && !input.sku && !input.vendorName && !input.storageLocation && !input.serialNumber && !input.facturaNumber;
+  const hasPositiveQuantity = typeof input.quantity === "number" && input.quantity > 0;
+  return !hasPositiveQuantity && !input.sku && !input.serialNumber && !input.facturaNumber;
 }
 
 export function detectSuspiciousAssetNames(devices: ReviewDevice[]) {

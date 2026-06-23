@@ -900,13 +900,10 @@ function isCommentLikeStockImportRow(input: { name: string; quantity: number | n
   const startsLikeComment = ["comentarios", "falta crear", "pendiente", "crear", "revisar", "todo", "need to create", "missing create", "to create"].some((pattern) => normalized.startsWith(pattern));
   if (!startsLikeComment) return false;
   const hasMeaningfulMappedValue = Boolean(
-    input.quantity ||
+    (input.quantity && input.quantity > 0) ||
       cleanText(input.fields.assetTag) ||
       cleanText(input.fields.serialNumber) ||
-      cleanText(input.fields.vendor) ||
-      cleanText(input.fields.invoice) ||
-      cleanText(input.fields.location) ||
-      cleanText(input.fields.area),
+      cleanText(input.fields.invoice),
   );
   return !hasMeaningfulMappedValue;
 }
