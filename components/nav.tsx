@@ -239,7 +239,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
         </div>
       </header>
 
-      <aside className="hidden border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
+      <aside className="hidden border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:flex-col lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 px-4 py-4">
           <div className="flex size-10 items-center justify-center rounded-lg bg-slate-950 text-white">
             <Warehouse size={20} />
@@ -249,7 +249,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
             <p className="text-xs text-slate-500">{user ? `${user.name} / ${user.role}` : "IT Inventory"}</p>
           </div>
         </div>
-        <nav className="space-y-4 overflow-y-auto px-2 pb-4">
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 pb-4">
           <NavMenuContent groups={groups} pathname={pathname} user={user} />
         </nav>
       </aside>
