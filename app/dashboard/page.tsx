@@ -76,11 +76,11 @@ export default async function DashboardPage() {
   ];
 
   const attentionCards = [
-    { label: "Open Alerts", value: openAlerts, helper: openAlerts ? "Needs review" : "No open alerts", icon: AlertTriangle, href: "/alerts", tone: openAlerts ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white" },
-    { label: "Maintenance Due", value: maintenanceDue, helper: maintenanceDue ? "Printer or device work due" : "Maintenance is clear", icon: Wrench, href: "/alerts?source=PRINTER", tone: maintenanceDue ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white" },
-    { label: "Low Stock", value: lowStockItems.length, helper: lowStockItems.length ? "Items at or below minimum" : "Stock looks okay", icon: Package, href: "/stock?lowOnly=true", tone: lowStockItems.length ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white" },
-    { label: "Missing Assets", value: missingAssets, helper: missingAssets ? "Check map and recent sightings" : "No missing assets", icon: SearchX, href: "/missing", tone: missingAssets ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white" },
-    { label: "Tasks Due", value: overdueTasks + tasksDueToday, helper: overdueTasks ? `${overdueTasks} overdue` : tasksDueToday ? "Due today" : "No tasks due today", icon: ListChecks, href: overdueTasks ? "/tasks?overdue=true" : "/tasks?dueToday=true", tone: overdueTasks ? "border-rose-200 bg-rose-50" : tasksDueToday ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white" },
+    { label: "Open Alerts", value: openAlerts, helper: openAlerts ? "Needs review" : "No open alerts", icon: AlertTriangle, href: "/alerts", tone: openAlerts ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-400/70" : "border-slate-200 bg-white hover:border-emerald-500/30" },
+    { label: "Maintenance Due", value: maintenanceDue, helper: maintenanceDue ? "Printer or device work due" : "Maintenance is clear", icon: Wrench, href: "/alerts?source=PRINTER", tone: maintenanceDue ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-400/70" : "border-slate-200 bg-white hover:border-emerald-500/30" },
+    { label: "Low Stock", value: lowStockItems.length, helper: lowStockItems.length ? "Items at or below minimum" : "Stock looks okay", icon: Package, href: "/stock?lowOnly=true", tone: lowStockItems.length ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-400/70" : "border-slate-200 bg-white hover:border-emerald-500/30" },
+    { label: "Missing Assets", value: missingAssets, helper: missingAssets ? "Check map and recent sightings" : "No missing assets", icon: SearchX, href: "/missing", tone: missingAssets ? "border-rose-200/70 bg-rose-50/30 hover:border-rose-400/70" : "border-slate-200 bg-white hover:border-emerald-500/30" },
+    { label: "Tasks Due", value: overdueTasks + tasksDueToday, helper: overdueTasks ? `${overdueTasks} overdue` : tasksDueToday ? "Due today" : "No tasks due today", icon: ListChecks, href: overdueTasks ? "/tasks?overdue=true" : "/tasks?dueToday=true", tone: overdueTasks ? "border-rose-200/70 bg-rose-50/30 hover:border-rose-400/70" : tasksDueToday ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-400/70" : "border-slate-200 bg-white hover:border-emerald-500/30" },
   ];
 
   const inventoryCards = [
@@ -145,12 +145,14 @@ export default async function DashboardPage() {
               <Link
                 key={action.title}
                 href={action.href}
-                className={`flex min-h-24 items-start gap-3 rounded-lg border p-4 transition hover:shadow-sm ${
-                  action.primary ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950"
+                className={`flex min-h-24 items-start gap-3 rounded-lg border p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+                  action.primary 
+                    ? "border-slate-950 bg-gradient-to-br from-[#0B0F19] to-[#1E293B] text-white hover:from-[#111827] hover:to-[#334155] shadow-sm" 
+                    : "border-slate-200 bg-white text-slate-950 hover:border-blue-500/30"
                 }`}
               >
                 <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${action.primary ? "bg-white/15" : "bg-slate-100 text-slate-700"}`}>
-                  <Icon size={20} />
+                  <Icon size={20} className={action.primary ? "text-orange-400" : ""} />
                 </span>
                 <span className="min-w-0">
                   <span className="block font-semibold">{action.title}</span>
@@ -177,7 +179,7 @@ export default async function DashboardPage() {
             const Icon = card.icon;
             const needsAction = card.value > 0;
             return (
-              <Link key={card.label} href={card.href} className={`rounded-lg border p-4 hover:shadow-sm ${card.tone}`}>
+              <Link key={card.label} href={card.href} className={`rounded-lg border p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${card.tone}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-700">{card.label}</p>
@@ -206,7 +208,7 @@ export default async function DashboardPage() {
           {inventoryCards.map((card) => {
             const Icon = card.icon;
             return (
-              <Link key={card.label} href={card.href} className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-sm">
+              <Link key={card.label} href={card.href} className="rounded-lg border border-slate-200/80 bg-white p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-300">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-700">{card.label}</p>
@@ -236,7 +238,7 @@ export default async function DashboardPage() {
           {workspaceCards.map((card) => {
             const Icon = card.icon;
             return (
-              <Link key={card.label} href={card.href} className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-sm">
+              <Link key={card.label} href={card.href} className="rounded-lg border border-slate-200/80 bg-white p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-slate-300">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-700">{card.label}</p>

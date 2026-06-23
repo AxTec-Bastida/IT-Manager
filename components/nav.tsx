@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, Menu, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Warehouse, Wrench, X, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, Menu, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 
 const primaryLinks = [
@@ -110,10 +110,16 @@ function NavLink({ link, pathname, compact = false, onNavigate }: { link: { href
       className={clsx(
         "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950",
         compact && "min-h-12 rounded-lg font-semibold",
-        active ? "bg-slate-950 text-white shadow-sm" : compact ? "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+        active
+          ? compact
+            ? "bg-slate-950 text-white shadow-sm"
+            : "bg-slate-800/50 text-white border-l-2 border-orange-500 pl-[10px] shadow-[inset_1px_0_0_rgba(255,255,255,0.05)]"
+          : compact
+            ? "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+            : "text-slate-400 hover:bg-slate-900/40 hover:text-white"
       )}
     >
-      <Icon size={compact ? 17 : 16} />
+      <Icon size={compact ? 17 : 16} className={clsx(active && !compact && "text-orange-500")} />
       <span className="min-w-0 truncate">{link.label}</span>
     </Link>
   );
@@ -145,7 +151,12 @@ function NavMenuContent({
           const groupActive = group.links.some((link) => isActive(pathname, link.href));
           return (
             <details key={group.label} className="group rounded-lg" open={groupActive || compact || undefined}>
-              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-md px-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100">
+              <summary className={clsx(
+                "flex min-h-10 cursor-pointer list-none items-center justify-between rounded-md px-3 text-xs font-semibold uppercase tracking-wide transition-colors",
+                compact
+                  ? "text-slate-500 hover:bg-slate-100"
+                  : "text-slate-500 hover:bg-slate-900/30 hover:text-slate-300"
+              )}>
                 {group.label}
                 <ChevronDown className="transition group-open:rotate-180" size={15} />
               </summary>
@@ -162,6 +173,35 @@ function NavMenuContent({
         ) : null}
       </div>
     </>
+  );
+}
+
+export function GGlobalLogo({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="ggGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3B82F6" />
+          <stop offset="50%" stopColor="#4F46E5" />
+          <stop offset="100%" stopColor="#FF4500" />
+        </linearGradient>
+        <linearGradient id="activeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#FF4500" />
+          <stop offset="100%" stopColor="#FF7A00" />
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="42" stroke="url(#ggGrad)" strokeWidth="4" strokeDasharray="4 4" opacity="0.25" />
+      <path d="M50 8 A42 42 0 0 0 50 92" stroke="url(#ggGrad)" strokeWidth="3" strokeDasharray="3 3" opacity="0.2" />
+      <path d="M8 50 A42 42 0 0 0 92 50" stroke="url(#ggGrad)" strokeWidth="3" strokeDasharray="3 3" opacity="0.2" />
+      <path 
+        d="M78 30 C70 18, 50 15, 34 25 C18 35, 12 55, 22 72 C32 88, 55 92, 70 82 C82 74, 88 58, 82 44 L66 48 C70 56, 66 68, 58 74 C50 80, 36 78, 28 68 C20 58, 24 44, 34 38 C44 32, 56 34, 62 42 L48 42 L48 56 L88 56 L88 20 L78 30 Z" 
+        fill="url(#ggGrad)" 
+      />
+      <path 
+        d="M62 25 L88 12 L70 38 L84 40 L45 85 L58 52 L42 50 Z" 
+        fill="url(#activeGrad)" 
+      />
+    </svg>
   );
 }
 
@@ -218,8 +258,8 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
             >
               <Menu size={20} />
             </button>
-            <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white min-[360px]:flex">
-              <Warehouse size={20} />
+            <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 border border-slate-800 shadow-sm min-[360px]:flex">
+              <GGlobalLogo className="size-7" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
@@ -229,8 +269,8 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           <Link
             href="/scan"
             className={clsx(
-              "inline-flex min-h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold",
-              pathname === "/scan" ? "bg-emerald-700 text-white" : "bg-slate-950 text-white",
+              "inline-flex min-h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white",
+              pathname === "/scan" ? "bg-emerald-700" : "bg-slate-950",
             )}
           >
             <ScanLine size={17} />
@@ -239,17 +279,17 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
         </div>
       </header>
 
-      <aside className="hidden border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:flex-col lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-slate-950 text-white">
-            <Warehouse size={20} />
+      <aside className="hidden border-r border-slate-900 bg-[#0B0F19] lg:sticky lg:top-0 lg:flex lg:flex-col lg:h-screen lg:w-64">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-900/60 shadow-sm">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900/50 border border-slate-800/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <GGlobalLogo className="size-7" />
           </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-950">{siteName}</p>
-            <p className="text-xs text-slate-500">{user ? `${user.name} / ${user.role}` : "IT Inventory"}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white truncate tracking-wide">{siteName}</p>
+            <p className="text-xs text-slate-400 truncate">{user ? `${user.name} / ${user.role}` : "IT Inventory"}</p>
           </div>
         </div>
-        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 pb-4">
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-4">
           <NavMenuContent groups={groups} pathname={pathname} user={user} />
         </nav>
       </aside>
@@ -266,8 +306,8 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           >
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
-                  <Warehouse size={20} />
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 border border-slate-800">
+                  <GGlobalLogo className="size-7" />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
