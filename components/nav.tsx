@@ -181,13 +181,13 @@ export function GGlobalLogo({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="ggGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#3B82F6" />
-          <stop offset="50%" stopColor="#4F46E5" />
-          <stop offset="100%" stopColor="#FF4500" />
+          <stop offset="0%" stopColor="#60A5FA" />
+          <stop offset="50%" stopColor="#818CF8" />
+          <stop offset="100%" stopColor="#FF5C35" />
         </linearGradient>
         <linearGradient id="activeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FF4500" />
-          <stop offset="100%" stopColor="#FF7A00" />
+          <stop offset="0%" stopColor="#FF5C35" />
+          <stop offset="100%" stopColor="#FFA500" />
         </linearGradient>
       </defs>
       <circle cx="50" cy="50" r="42" stroke="url(#ggGrad)" strokeWidth="4" strokeDasharray="4 4" opacity="0.25" />
@@ -259,7 +259,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
               <Menu size={20} />
             </button>
             <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 border border-slate-800 shadow-sm min-[360px]:flex">
-              <GGlobalLogo className="size-7" />
+              <GGlobalLogo className="size-8" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
@@ -282,7 +282,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
       <aside className="hidden border-r border-slate-900 bg-[#0B0F19] lg:sticky lg:top-0 lg:flex lg:flex-col lg:h-screen lg:w-64">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-900/60 shadow-sm">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900/50 border border-slate-800/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <GGlobalLogo className="size-7" />
+            <GGlobalLogo className="size-8" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-white truncate tracking-wide">{siteName}</p>
@@ -307,7 +307,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 border border-slate-800">
-                  <GGlobalLogo className="size-7" />
+                  <GGlobalLogo className="size-8" />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-950">{siteName}</p>
