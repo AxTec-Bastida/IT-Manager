@@ -2,21 +2,34 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import type { Device, DeviceCategory, Employee, Factura, IpRange, LocationZone } from "@prisma/client";
+import type { Device, DeviceCategory, Employee, Factura, IpRange, LocationZone, DeviceRelationship } from "@prisma/client";
 import { Save } from "lucide-react";
 import { ScanFieldButton } from "@/components/camera-scanner";
 import { categoryLabels, categoryOptions, conditionLabels, conditionOptions, statusLabels, statusOptions } from "@/lib/constants";
+import { isSledAsset } from "@/lib/asset-display";
 
 type DeviceFormProps = {
-  device?: Device | null;
+  device?: (Device & {
+    sourceRelationships?: DeviceRelationship[];
+    targetRelationships?: DeviceRelationship[];
+  }) | null;
   ranges: IpRange[];
   employees?: Employee[];
   facturas?: Factura[];
   zones?: LocationZone[];
   defaults?: { vlan: number; category: DeviceCategory };
+  devices?: Array<{
+    id: string;
+    name: string;
+    assetTag: string | null;
+    serialNumber: string | null;
+    category: DeviceCategory;
+    brand: string | null;
+    model: string | null;
+  }>;
 };
 
-export function DeviceForm({ device, ranges, employees = [], facturas = [], zones = [], defaults }: DeviceFormProps) {
+export function DeviceForm({ device, ranges, employees = [], facturas = [], zones = [], defaults, devices = [] }: DeviceFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +38,29 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
   const [ipAddress, setIpAddress] = useState(device?.ipAddress ?? searchParams.get("ipAddress") ?? "");
   const [macAddress, setMacAddress] = useState(device?.macAddress ?? searchParams.get("macAddress") ?? "");
   const [serialNumber, setSerialNumber] = useState(device?.serialNumber ?? searchParams.get("serialNumber") ?? "");
+  const [category, setCategory] = useState<DeviceCategory>(device?.category ?? defaults?.category ?? "OTHER");
+
+  const isSled = category === "OTHER" && (isSledAsset({ name, category, brand: "", model: "", assetTag: "" }) || name.toLowerCase().includes("sled"));
+  const showPairingField = (category === "PHONE" || isSled) && devices.length > 0;
+  const filteredPairOptions = showPairingField
+    ? devices.filter((d) => {
+        if (d.id === device?.id) return false;
+        if (category === "PHONE") {
+          return isSledAsset(d);
+        } else {
+          return d.category === "PHONE";
+        }
+      })
+    : [];
+
+  const activePair = device
+    ? [...(device.sourceRelationships ?? []), ...(device.targetRelationships ?? [])].find(
+        (rel) => ["IPOD_SLED_PAIR", "IPHONE_SLED_PAIR"].includes(rel.relationshipType)
+      )
+    : null;
+  const initialPairedId = activePair
+    ? (activePair.sourceDeviceId === device?.id ? activePair.targetDeviceId : activePair.sourceDeviceId)
+    : "";
 
   async function onSubmit(formData: FormData) {
     setSaving(true);
@@ -75,16 +111,35 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
 
           <label className={labelClass}>
             Category
-            <select className={inputClass} name="category" defaultValue={device?.category ?? defaults?.category ?? "OTHER"}>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
-                  {categoryLabels[category]}
+            <select className={inputClass} name="category" value={category} onChange={(e) => setCategory(e.target.value as DeviceCategory)}>
+              {categoryOptions.map((catOption) => (
+                <option key={catOption} value={catOption}>
+                  {categoryLabels[catOption]}
                 </option>
               ))}
             </select>
           </label>
         </div>
       </fieldset>
+
+      {showPairingField ? (
+        <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+          <legend className="px-2 text-sm font-semibold text-slate-950">Mobile / Sled pairing</legend>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <label className={labelClass}>
+              {category === "PHONE" ? "Paired Sled (exclusive for iPod/iPhone/Sleds)" : "Paired iPhone/iPod (exclusive for iPod/iPhone/Sleds)"}
+              <select className={inputClass} name="pairedDeviceId" defaultValue={initialPairedId}>
+                <option value="">No paired device (Unpaired)</option>
+                {filteredPairOptions.map((pair) => (
+                  <option key={pair.id} value={pair.id}>
+                    {pair.name} {pair.assetTag ? `(${pair.assetTag})` : pair.serialNumber ? `(S/N: ${pair.serialNumber})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </fieldset>
+      ) : null}
 
       <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
         <legend className="px-2 text-sm font-semibold text-slate-950">Status / condition</legend>

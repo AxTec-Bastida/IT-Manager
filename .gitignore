@@ -81,3 +81,7 @@ warehouse-it-inventory-restore-test/
 # Local cleanup reports / imported samples
 /cleanup-*.json
 /Import-samples/
+
+# Local scratch/admin one-offs - DO NOT COMMIT
+/scratch/*
+!/scratch/test-smtp.ts

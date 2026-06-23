@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { TemporaryBorrower } from "@prisma/client";
-import { Save } from "lucide-react";
+import { Save, ScanLine } from "lucide-react";
 
 type Props = {
   borrower?: TemporaryBorrower | null;
@@ -20,7 +20,12 @@ export function TemporaryBorrowerForm({ borrower, defaultName = "" }: Props) {
   async function onSubmit(formData: FormData) {
     setSaving(true);
     setError(null);
-    const payload = { ...Object.fromEntries(formData.entries()), active: formData.get("active") === "on" };
+    const payload = {
+      ...Object.fromEntries(formData.entries()),
+      active: formData.get("active") === "on",
+      // Clearing needsReview when the form is explicitly saved
+      needsReview: false,
+    };
     const response = await fetch(borrower ? `/api/temporary-borrowers/${borrower.id}` : "/api/temporary-borrowers", {
       method: borrower ? "PATCH" : "POST",
       headers: { "content-type": "application/json" },
@@ -47,7 +52,7 @@ export function TemporaryBorrowerForm({ borrower, defaultName = "" }: Props) {
             <input className={inputClass} name="tempId" defaultValue={borrower?.tempId ?? ""} placeholder="Auto-generated if blank" />
           </label>
           <label className={labelClass}>
-            Name
+            Name <span className="text-rose-500">*</span>
             <input className={inputClass} name="name" defaultValue={borrower?.name ?? defaultName} required placeholder="Contractor or visitor name" />
           </label>
           <label className={labelClass}>
@@ -84,6 +89,29 @@ export function TemporaryBorrowerForm({ borrower, defaultName = "" }: Props) {
           </label>
         </div>
       </section>
+
+      {/* Badge ID section - shown when editing a walk-up borrower or always for reference */}
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex items-center gap-2">
+          <ScanLine size={16} className="text-slate-500" />
+          <h2 className="font-semibold text-slate-950">Badge / Scan ID</h2>
+          <span className="ml-auto text-xs text-slate-400">Optional</span>
+        </div>
+        <p className="mt-1 text-sm text-slate-500">The raw value scanned from the borrower&apos;s badge or ID card. Used to look up this profile instantly during checkout.</p>
+        <div className="mt-3">
+          <label className={labelClass}>
+            Badge ID
+            <input
+              className={`${inputClass} font-mono`}
+              name="badgeId"
+              defaultValue={borrower?.badgeId ?? ""}
+              placeholder="e.g. EMP-0042 or barcode value"
+              autoComplete="off"
+            />
+          </label>
+        </div>
+      </section>
+
       <button className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-60 sm:w-auto" disabled={saving}>
         <Save size={16} />
         {saving ? "Saving..." : "Save borrower"}

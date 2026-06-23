@@ -2,30 +2,25 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { AssignmentTarget, Device, Employee } from "@prisma/client";
-import { ClipboardCheck, ClipboardList, PackageCheck, Search } from "lucide-react";
+import { ClipboardCheck, ClipboardList, PackageCheck, X } from "lucide-react";
 import { SignaturePad } from "@/components/signature-pad";
 import { categoryLabels, conditionLabels, statusLabels } from "@/lib/constants";
+import { ScanAutocomplete } from "@/components/scan-autocomplete";
 
 export function AssignmentForm({ employees, assets, targets = [] }: { employees: Employee[]; assets: Device[]; targets?: AssignmentTarget[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    employees.find((e) => e.id === searchParams.get("employeeId")) ?? null
+  );
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(searchParams.get("assetId") ? [searchParams.get("assetId")!] : []);
+  const [filteredAssets] = useState<Device[]>(assets);
   const [targetMode, setTargetMode] = useState<"EMPLOYEE" | "TEAM" | "AREA" | "STATION">((searchParams.get("targetType") as "EMPLOYEE" | "TEAM" | "AREA" | "STATION") || "EMPLOYEE");
   const [targetPath, setTargetPath] = useState(searchParams.get("targetPath") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const filteredAssets = useMemo(() => {
-    const q = query.toLowerCase();
-    return assets.filter((asset) =>
-      !q || [asset.assetTag, asset.name, asset.serialNumber, asset.macAddress, asset.ipAddress, asset.model]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(q)),
-    );
-  }, [assets, query]);
 
   function toggleAsset(id: string) {
     setSelectedAssetIds((current) => (current.includes(id) ? current.filter((assetId) => assetId !== id) : [...current, id]));
@@ -94,14 +89,32 @@ export function AssignmentForm({ employees, assets, targets = [] }: { employees:
           ))}
         </div>
         {targetMode === "EMPLOYEE" ? (
-          <select name="employeeId" defaultValue={searchParams.get("employeeId") ?? ""} className="mt-3 min-h-14 w-full rounded-md border border-slate-300 px-3 text-base sm:min-h-12 sm:text-sm">
-            <option value="">Select employee</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.fullName} {employee.employeeId ? `(${employee.employeeId})` : ""}
-              </option>
-            ))}
-          </select>
+          <div className="mt-3">
+            <ScanAutocomplete
+              show={["employees"]}
+              placeholder="Type employee name or ID..."
+              inputClassName="min-h-12 py-2"
+              onSelect={(s) => {
+                if (s.kind === "employee") {
+                  const emp = employees.find((e) => e.id === s.id) ?? null;
+                  setSelectedEmployee(emp);
+                }
+              }}
+            />
+            {selectedEmployee && (
+              <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{selectedEmployee.fullName}</p>
+                  <p className="text-xs text-slate-500">{[selectedEmployee.employeeId, selectedEmployee.department].filter(Boolean).join(" / ")}</p>
+                </div>
+                <button type="button" onClick={() => setSelectedEmployee(null)} className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                  <X size={14} />
+                </button>
+                <input type="hidden" name="employeeId" value={selectedEmployee.id} />
+              </div>
+            )}
+            {!selectedEmployee && <input type="hidden" name="employeeId" value="" />}
+          </div>
         ) : (
           <div className="mt-3 space-y-3">
             <label className="block text-sm font-medium text-slate-700">
@@ -128,10 +141,17 @@ export function AssignmentForm({ employees, assets, targets = [] }: { employees:
 
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="font-semibold text-slate-950">2. Assets</h2>
-        <label className="relative mt-3 block">
-          <Search className="absolute left-3 top-3.5 text-slate-400" size={16} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search asset tag, serial, name, IP, MAC, model" className="min-h-14 w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-base sm:min-h-12 sm:text-sm" />
-        </label>
+        <ScanAutocomplete
+          show={["devices"]}
+          placeholder="Search asset tag, serial, name, IP, MAC, model"
+          inputClassName="min-h-12 py-2"
+          className="mt-3"
+          onSelect={(s) => {
+            if (s.kind === "device" && !selectedAssetIds.includes(s.id)) {
+              setSelectedAssetIds((cur) => [...cur, s.id]);
+            }
+          }}
+        />
         <div className="mt-3 grid max-h-96 gap-2 overflow-auto">
           {filteredAssets.map((asset) => {
             const selected = selectedAssetIds.includes(asset.id);
@@ -149,7 +169,7 @@ export function AssignmentForm({ employees, assets, targets = [] }: { employees:
                   </div>
                   <span>{statusLabels[asset.status]}</span>
                 </div>
-                <p className="mt-1 text-xs opacity-80">{categoryLabels[asset.category]} • {conditionLabels[asset.condition]}</p>
+                <p className="mt-1 text-xs opacity-80">{categoryLabels[asset.category]} / {conditionLabels[asset.condition]}</p>
               </button>
             );
           })}

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Employee, StockItem, TemporaryBorrower } from "@prisma/client";
-import { Camera, PackageCheck, Search, UserPlus } from "lucide-react";
+import { Camera, PackageCheck, UserPlus } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { CameraScanner } from "@/components/camera-scanner";
 import { stockCategoryLabels, stockIssueTypeLabels } from "@/lib/constants";
+import { ScanAutocomplete } from "@/components/scan-autocomplete";
 
 type EmployeeWithIssues = Employee & { stockIssues?: Array<{ id: string; stockItem: { name: string }; quantity: number; returnedQuantity: number; expectedReturnAt: string | Date | null }> };
 type BorrowerWithIssues = TemporaryBorrower & { stockIssues?: Array<{ id: string; stockItem: { name: string }; quantity: number; returnedQuantity: number; expectedReturnAt: string | Date | null }> };
@@ -132,20 +133,26 @@ export function StockIssueWorkflow({ employees, temporaryBorrowers, stockItems, 
             Scan borrower
           </button>
         </div>
-        <form
-          className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = String(new FormData(event.currentTarget).get("borrowerScan") ?? "");
-            lookup(value, "borrower");
+        <ScanAutocomplete
+          show={["employees", "temporaryBorrowers"]}
+          placeholder="Type employee name, ID, or temp borrower..."
+          inputClassName="min-h-14 text-base"
+          className="mt-4"
+          onSelect={(s) => {
+            if (s.kind === "employee") {
+              setBorrowerKind("employee");
+              setEmployeeId(s.id);
+              setTemporaryBorrowerId("");
+              setMessage(`Borrower selected: ${s.fullName}.`);
+            } else if (s.kind === "temporary") {
+              setBorrowerKind("temporary");
+              setTemporaryBorrowerId(s.id);
+              setEmployeeId("");
+              setMessage(`Temp borrower selected: ${s.name}.`);
+            }
           }}
-        >
-          <input name="borrowerScan" className="min-h-14 rounded-md border border-slate-300 px-3 text-base" placeholder="Scan or type employee/temp ID" />
-          <button className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 font-semibold text-slate-700">
-            <Search size={16} />
-            Find
-          </button>
-        </form>
+          onSubmit={(value) => lookup(value, "borrower")}
+        />
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className="space-y-1 text-sm font-medium text-slate-700">
             Borrower type
@@ -192,20 +199,19 @@ export function StockIssueWorkflow({ employees, temporaryBorrowers, stockItems, 
             Scan stock
           </button>
         </div>
-        <form
-          className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = String(new FormData(event.currentTarget).get("stockScan") ?? "");
-            lookup(value, "stock");
+        <ScanAutocomplete
+          show={["devices"]}
+          placeholder="Type stock item name, SKU, or scan barcode..."
+          inputClassName="min-h-14 text-base"
+          className="mt-4"
+          onSelect={(s) => {
+            if (s.kind === "device") {
+              setStockItemId(s.id);
+              setMessage(`Stock selected: ${s.name}.`);
+            }
           }}
-        >
-          <input name="stockScan" className="min-h-14 rounded-md border border-slate-300 px-3 text-base" placeholder="Keyboard, STOCK:KEYBOARD, SKU" />
-          <button className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 font-semibold text-slate-700">
-            <Search size={16} />
-            Find
-          </button>
-        </form>
+          onSubmit={(value) => lookup(value, "stock")}
+        />
         <label className="mt-4 block space-y-1 text-sm font-medium text-slate-700">
           Stock item
           <select className="min-h-14 w-full rounded-md border border-slate-300 px-3 text-base" value={stockItemId} onChange={(event) => setStockItemId(event.target.value)}>
@@ -277,7 +283,7 @@ function BorrowerCard({ employee, borrower }: { employee: EmployeeWithIssues | n
     <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
       <p className="text-xs font-medium uppercase text-slate-500">Selected borrower</p>
       <p className="mt-1 text-lg font-semibold text-slate-950">{employee?.fullName || borrower?.name}</p>
-      <p className="text-slate-600">{employee?.employeeId || borrower?.tempId || "No ID"} • {employee?.department || borrower?.department || borrower?.area || "No department"}</p>
+      <p className="text-slate-600">{employee?.employeeId || borrower?.tempId || "No ID"} / {employee?.department || borrower?.department || borrower?.area || "No department"}</p>
       <p className="mt-2 text-slate-600">{activeIssues.length} active stock loan{activeIssues.length === 1 ? "" : "s"}.</p>
     </div>
   );
@@ -290,7 +296,7 @@ function StockCard({ item, quantity, lowAfter }: { item: StockItem; quantity: nu
         <div>
           <p className="text-xs font-medium uppercase text-slate-500">Selected stock</p>
           <p className="mt-1 text-lg font-semibold text-slate-950">{item.name}</p>
-          <p className="text-slate-600">{item.sku || item.barcodeValue || "No code"} • {stockCategoryLabels[item.category]}</p>
+          <p className="text-slate-600">{item.sku || item.barcodeValue || "No code"} / {stockCategoryLabels[item.category]}</p>
         </div>
         {item.quantityOnHand <= item.minimumQuantity ? <Badge className="bg-rose-100 text-rose-800 ring-rose-200">Low</Badge> : <Badge className="bg-emerald-100 text-emerald-800 ring-emerald-200">OK</Badge>}
       </div>

@@ -165,7 +165,14 @@ export async function POST(request: NextRequest) {
     ? await prisma.temporaryBorrower.findMany({
         where: {
           active: true,
-          OR: terms.flatMap((term) => [{ tempId: term }, { tempId: { contains: term } }, { name: { contains: term } }, { email: { contains: term } }]),
+          OR: terms.flatMap((term) => [
+            { tempId: term },
+            { tempId: { contains: term } },
+            { name: { contains: term } },
+            { email: { contains: term } },
+            { badgeId: term },
+            { badgeId: { contains: term } },
+          ]),
         },
         include: {
           stockIssues: { where: { status: { in: ["ACTIVE", "PARTIALLY_RETURNED"] } }, include: { stockItem: true }, orderBy: { issuedAt: "desc" }, take: 5 },

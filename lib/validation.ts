@@ -22,6 +22,7 @@ import {
   AssetLoanReturnCondition,
 } from "@prisma/client";
 import { z } from "zod";
+import { chargerStatusValues } from "./device-pairing";
 import { validateIPv4, validateIpRange } from "./ip";
 
 const ipv4 = z.string().trim().refine((value) => validateIPv4(value).ok, {
@@ -32,6 +33,10 @@ const optionalText = z.string().trim().optional().nullable().transform((value) =
 const optionalDate = z.string().optional().nullable().transform((value) => (value ? new Date(value) : null));
 const optionalNumber = z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().nullable());
 const optionalInt = z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().int().nullable());
+const optionalChargerStatus = z.preprocess(
+  (value) => (value === "" || value == null ? undefined : value),
+  z.enum(chargerStatusValues).optional(),
+);
 const percent = optionalInt.refine((value) => value == null || (value >= 0 && value <= 100), "Enter a value from 0 to 100.");
 const optionalIpv4 = z
   .string()
@@ -88,6 +93,9 @@ export const deviceSchema = z.object({
   movementAlertsEnabled: z.coerce.boolean().default(false),
   allowedZoneDistance: z.coerce.number().int().min(0).max(10).default(0),
   ipRangeId: optionalText,
+  pairedDeviceId: optionalText,
+  chargerStatus: optionalChargerStatus,
+  chargerNotes: optionalText,
 });
 
 export const assetValueProfileSchema = z.object({
@@ -253,6 +261,8 @@ export const stockMovementSchema = z.object({
 export const temporaryBorrowerSchema = z.object({
   tempId: optionalText,
   name: z.string().trim().min(1, "Borrower name is required."),
+  badgeId: optionalText,
+  needsReview: z.coerce.boolean().default(false),
   department: optionalText,
   area: optionalText,
   supervisorName: optionalText,

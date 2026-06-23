@@ -1,13 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { CheckCircle2, ExternalLink, Package, PackageCheck, RotateCcw, Search, UserPlus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { CheckCircle2, ExternalLink, Laptop, Package, PackageCheck, RotateCcw, Search, ScanLine, User, UserPlus, Users, X, Zap } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { categoryLabels, conditionLabels, statusLabels, statusTone } from "@/lib/constants";
 import { canAddQuickCheckoutAsset, expectedReturnDate, hasAssignedAssetWarning, quickCheckoutAssetWarning } from "@/lib/quick-checkout";
 import { chipButtonClass } from "@/lib/ui-classes";
+
+type SuggestionEmployee = { kind: "employee"; id: string; fullName: string; employeeId?: string | null; department?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[] };
+type SuggestionTemp = { kind: "temporary"; id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[] };
+type SuggestionDevice = { kind: "device" } & QuickAsset;
+type Suggestion = SuggestionEmployee | SuggestionTemp | SuggestionDevice;
 
 type Borrower =
   | {
@@ -29,6 +34,7 @@ type Borrower =
       openHref: string;
       activeAssetLoans?: number;
       activeStockLoans?: number;
+      needsReview?: boolean;
     };
 
 type QuickAsset = {
@@ -81,6 +87,70 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
   const [serializedSuggestions, setSerializedSuggestions] = useState<QuickAsset[]>([]);
   const [stockWorkflowQuery, setStockWorkflowQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  // Walk-up badge scan state
+  const [walkUpScan, setWalkUpScan] = useState<string | null>(null);
+  const [creatingWalkUp, setCreatingWalkUp] = useState(false);
+  // Autocomplete typeahead
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const query = scanValue.trim();
+    if (!query || query.length < 2) {
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/scan-lookup", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ value: query }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const results: Suggestion[] = [
+          ...(data.employees ?? []).slice(0, 4).map((e: SuggestionEmployee) => ({ ...e, kind: "employee" as const })),
+          ...(data.temporaryBorrowers ?? []).slice(0, 4).map((t: SuggestionTemp) => ({ ...t, kind: "temporary" as const })),
+          ...(data.devices ?? []).slice(0, 5).map((d: QuickAsset) => ({ ...d, kind: "device" as const })),
+        ];
+        setSuggestions(results);
+        setSuggestionIndex(-1);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        // silently ignore typeahead errors
+      }
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [scanValue]);
+
+  function closeSuggestions() {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setSuggestionIndex(-1);
+  }
+
+  function pickSuggestion(s: Suggestion) {
+    closeSuggestions();
+    setScanValue("");
+    if (s.kind === "employee") {
+      setBorrower(employeeToBorrower(s));
+      setMessage("Employee selected. Scan asset.");
+    } else if (s.kind === "temporary") {
+      setBorrower(temporaryToBorrower(s));
+      setMessage("Temporary borrower selected. Scan asset.");
+    } else {
+      const device = normalizeAsset(s, scanValue);
+      const result = canAddQuickCheckoutAsset(device, assets.map((a) => a.id));
+      if (!result.ok) { setError(result.message); return; }
+      setAssets((cur) => [...cur, device]);
+      setMessage(borrower ? "Asset added. Scan another or create the loan." : "Asset selected. Scan borrower.");
+    }
+  }
 
   const assignedWarning = hasAssignedAssetWarning(assets);
   const eligibleAssets = assets.filter((asset) => !quickCheckoutAssetWarning(asset));
@@ -97,6 +167,7 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
     const text = value.trim();
     if (!text) return;
     setError(null);
+    setWalkUpScan(null);
     setStockSuggestions([]);
     setSerializedSuggestions([]);
     setStockWorkflowQuery("");
@@ -169,9 +240,48 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
     if (possible > 1) {
       setError("Multiple matches found. Add a little more text, use an exact tag/ID, or use the manual search fallback.");
     } else {
-      setError("No borrower or serialized asset found.");
+      // Nothing found at all - offer walk-up badge creation.
+      setWalkUpScan(text);
+      setMessage(null);
+      setError(null);
     }
-    setMessage(null);
+    setScanValue("");
+  }
+
+  async function createWalkUpBorrower() {
+    if (!walkUpScan) return;
+    setCreatingWalkUp(true);
+    setError(null);
+    const response = await fetch("/api/temporary-borrowers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: walkUpScan,
+        badgeId: walkUpScan,
+        needsReview: true,
+        active: true,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setCreatingWalkUp(false);
+    if (!response.ok) {
+      setError(data.error || "Could not create walk-up borrower.");
+      return;
+    }
+    const created = data.borrower;
+    setBorrower({
+      kind: "temporary",
+      id: created.id,
+      name: created.name,
+      label: `Walk-up / ${created.tempId}`,
+      department: null,
+      openHref: `/temporary-borrowers/${created.id}`,
+      activeAssetLoans: 0,
+      activeStockLoans: 0,
+      needsReview: true,
+    });
+    setWalkUpScan(null);
+    setMessage("Walk-up borrower created. Scan asset to continue.");
   }
 
   async function createLoan() {
@@ -228,20 +338,172 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
             scan(scanValue);
           }}
         >
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-4 text-slate-400" size={18} />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-5 text-slate-400" size={18} />
             <input
+              ref={inputRef}
               value={scanValue}
-              onChange={(event) => setScanValue(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setScanValue(nextValue);
+                setError(null);
+                if (nextValue.trim().length < 2) {
+                  setSuggestions([]);
+                  setShowSuggestions(false);
+                }
+              }}
+              onFocus={() => { if (suggestions.length) setShowSuggestions(true); }}
+              onBlur={(e) => { if (!dropdownRef.current?.contains(e.relatedTarget as Node)) closeSuggestions(); }}
+              onKeyDown={(e) => {
+                if (!showSuggestions) return;
+                if (e.key === "ArrowDown") { e.preventDefault(); setSuggestionIndex((i) => Math.min(i + 1, suggestions.length - 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setSuggestionIndex((i) => Math.max(i - 1, -1)); }
+                else if (e.key === "Enter" && suggestionIndex >= 0) { e.preventDefault(); pickSuggestion(suggestions[suggestionIndex]); }
+                else if (e.key === "Escape") closeSuggestions();
+              }}
               className="min-h-16 w-full rounded-lg border border-slate-300 pl-10 pr-3 text-base"
-              placeholder="Scan employee, temp borrower, or asset"
+              placeholder="Scan or type employee, temp borrower, badge ID, or asset"
               autoFocus
+              autoComplete="off"
             />
-          </label>
+            {/* Autocomplete dropdown */}
+            {showSuggestions && (
+              <div
+                ref={dropdownRef}
+                className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl"
+              >
+                {/* Employees */}
+                {suggestions.filter((s) => s.kind === "employee").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5">
+                      <User size={12} className="text-slate-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Employees</span>
+                    </div>
+                    {suggestions.filter((s): s is SuggestionEmployee => s.kind === "employee").map((s) => {
+                      const idx = suggestions.indexOf(s);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          tabIndex={0}
+                          onMouseDown={() => pickSuggestion(s)}
+                          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 ${idx === suggestionIndex ? "bg-blue-50" : ""}`}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                            <User size={15} className="text-slate-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">{s.fullName}</p>
+                            <p className="truncate text-xs text-slate-500">{[s.employeeId, s.department].filter(Boolean).join(" / ") || "Employee"}</p>
+                          </div>
+                          {(s.assetLoans as unknown[])?.length ? <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{(s.assetLoans as unknown[]).length} loans</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Temp borrowers */}
+                {suggestions.filter((s) => s.kind === "temporary").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5">
+                      <Users size={12} className="text-slate-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Temp Borrowers</span>
+                    </div>
+                    {suggestions.filter((s): s is SuggestionTemp => s.kind === "temporary").map((s) => {
+                      const idx = suggestions.indexOf(s);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          tabIndex={0}
+                          onMouseDown={() => pickSuggestion(s)}
+                          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 ${idx === suggestionIndex ? "bg-blue-50" : ""}`}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                            <Users size={15} className="text-amber-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">{s.name}</p>
+                            <p className="truncate text-xs text-slate-500">{[s.tempId, s.department || s.area].filter(Boolean).join(" / ")}</p>
+                          </div>
+                          {s.needsReview && <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Incomplete</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Devices */}
+                {suggestions.filter((s) => s.kind === "device").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5">
+                      <Laptop size={12} className="text-slate-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assets</span>
+                    </div>
+                    {suggestions.filter((s): s is SuggestionDevice => s.kind === "device").map((s) => {
+                      const idx = suggestions.indexOf(s);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          tabIndex={0}
+                          onMouseDown={() => pickSuggestion(s)}
+                          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 ${idx === suggestionIndex ? "bg-blue-50" : ""}`}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                            <Laptop size={15} className="text-slate-500" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-950">{s.name}</p>
+                            <p className="truncate text-xs text-slate-500">{[s.assetTag, s.model, categoryLabels[s.category as keyof typeof categoryLabels] ?? s.category].filter(Boolean).join(" / ")}</p>
+                          </div>
+                          <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusTone[s.status as keyof typeof statusTone] ?? "bg-slate-100 text-slate-700"}`}>{statusLabels[s.status as keyof typeof statusLabels] ?? s.status}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button className="inline-flex min-h-16 items-center justify-center rounded-lg bg-slate-950 px-5 font-semibold text-white hover:bg-slate-800">Scan / Add</button>
         </form>
         {message ? <p className="mt-3 rounded-md bg-emerald-50 p-3 text-sm font-medium text-emerald-900">{message}</p> : null}
         {error ? <p className="mt-3 rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-800">{error}</p> : null}
+
+        {/* Walk-up badge panel */}
+        {walkUpScan ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <ScanLine size={20} className="mt-0.5 shrink-0 text-amber-600" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-900">No match found for <span className="font-mono">{walkUpScan}</span></p>
+                <p className="mt-1 text-sm text-amber-800">
+                  Create a walk-up temporary borrower using this badge ID? You can fill in their name and details later from their profile.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={creatingWalkUp}
+                    onClick={createWalkUpBorrower}
+                    className="inline-flex items-center gap-2 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-60"
+                  >
+                    <Zap size={15} />
+                    {creatingWalkUp ? "Creating..." : "Create walk-up borrower"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWalkUpScan(null)}
+                    className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+                  >
+                    <X size={14} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {stockWorkflowQuery ? <StockWorkflowSuggestionPanel query={stockWorkflowQuery} stockItems={stockSuggestions} serializedAssets={serializedSuggestions} borrower={borrower} /> : null}
         <details className="mt-3 rounded-md border border-slate-200 bg-slate-50">
           <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-slate-700">Manual fallback</summary>
@@ -254,25 +516,30 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
       </section>
 
       {borrower ? (
-        <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <section className={`rounded-lg border p-4 ${borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-emerald-800">{borrower.label}</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-sm font-semibold ${borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview ? "text-amber-800" : "text-emerald-800"}`}>{borrower.label}</p>
+                {borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview && (
+                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">Profile incomplete</span>
+                )}
+              </div>
               <h2 className="text-xl font-semibold text-slate-950">{borrower.name}</h2>
-              <p className="mt-1 text-sm text-slate-600">{borrower.department || "No department/area"}</p>
+              <p className="mt-1 text-sm text-slate-600">{borrower.department || (borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview ? "No details yet - fill in after checkout" : "No department/area")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded-md bg-white p-3"><span className="text-slate-500">Asset loans</span><p className="font-semibold">{borrower.activeAssetLoans ?? 0}</p></div>
                 <div className="rounded-md bg-white p-3"><span className="text-slate-500">Stock loans</span><p className="font-semibold">{borrower.activeStockLoans ?? 0}</p></div>
               </div>
             </div>
             <div className="grid gap-2 sm:min-w-40">
-              <Link href={borrower.openHref} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-emerald-900"><ExternalLink size={15} />Open</Link>
-              <button type="button" onClick={() => setBorrower(null)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-emerald-900"><RotateCcw size={15} />Change</button>
+              <Link href={borrower.openHref} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold ${borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview ? "border-amber-300 bg-white text-amber-900" : "border-emerald-300 bg-white text-emerald-900"}`}><ExternalLink size={15} />Open</Link>
+              <button type="button" onClick={() => setBorrower(null)} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold ${borrower.kind === "temporary" && (borrower as { needsReview?: boolean }).needsReview ? "border-amber-300 bg-white text-amber-900" : "border-emerald-300 bg-white text-emerald-900"}`}><RotateCcw size={15} />Change</button>
             </div>
           </div>
         </section>
       ) : (
-        <section className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">No borrower selected yet. Scan an employee ID/name/email or a temporary borrower ID/name.</section>
+        <section className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">No borrower selected yet. Scan an employee badge, temp borrower ID, or any badge ID to create a walk-up profile.</section>
       )}
 
       <section className="space-y-3">
@@ -361,7 +628,7 @@ function employeeToBorrower(employee: { id: string; fullName: string; employeeId
   };
 }
 
-function temporaryToBorrower(borrower: { id: string; tempId: string; name: string; department?: string | null; area?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[] }): Borrower {
+function temporaryToBorrower(borrower: { id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[] }): Borrower {
   return {
     kind: "temporary",
     id: borrower.id,
@@ -371,6 +638,7 @@ function temporaryToBorrower(borrower: { id: string; tempId: string; name: strin
     openHref: `/temporary-borrowers/${borrower.id}`,
     activeAssetLoans: borrower.assetLoans?.length ?? 0,
     activeStockLoans: borrower.stockIssues?.length ?? 0,
+    needsReview: borrower.needsReview ?? false,
   };
 }
 

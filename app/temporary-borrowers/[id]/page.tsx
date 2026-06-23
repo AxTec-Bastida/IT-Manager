@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Edit, PackageCheck, RotateCcw } from "lucide-react";
+import { AlertTriangle, ClipboardList, Edit, PackageCheck, RotateCcw, ScanLine } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -31,7 +31,7 @@ export default async function TemporaryBorrowerDetailPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={borrower.name}
-        description={`${borrower.tempId} • ${borrower.department || borrower.area || "No department/area"}`}
+        description={`${borrower.tempId} / ${borrower.department || borrower.area || "No department/area"}`}
         action={
           <div className="grid gap-2 sm:flex">
             <Link href={`/stock/issue?temporaryBorrowerId=${borrower.id}&issueType=LOAN`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><PackageCheck size={16} />Issue / Loan Item</Link>
@@ -41,12 +41,40 @@ export default async function TemporaryBorrowerDetailPage({ params }: Props) {
         }
       />
 
+      {borrower.needsReview && (
+        <section className="flex items-start gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <AlertTriangle size={20} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-amber-900">Walk-up profile - details needed</p>
+            <p className="mt-1 text-sm text-amber-800">
+              This borrower was created from a badge scan during checkout. Fill in their name, department, and contact info so the record is complete.
+            </p>
+            {borrower.badgeId && (
+              <p className="mt-2 flex items-center gap-2 text-sm text-amber-700">
+                <ScanLine size={14} />
+                Scanned badge ID: <span className="font-mono font-semibold">{borrower.badgeId}</span>
+              </p>
+            )}
+          </div>
+          <Link
+            href={`/temporary-borrowers/${borrower.id}/edit`}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800"
+          >
+            <Edit size={14} />
+            Fill details
+          </Link>
+        </section>
+      )}
+
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 lg:col-span-2">
           <h2 className="font-semibold text-slate-950">Borrower info</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
             {[
               ["Status", borrower.active ? "Active" : "Inactive"],
+              ...(borrower.badgeId ? [["Badge ID", borrower.badgeId]] : []),
               ["Department", borrower.department || "-"],
               ["Area", borrower.area || "-"],
               ["Supervisor", borrower.supervisorName || "-"],
@@ -105,8 +133,8 @@ export default async function TemporaryBorrowerDetailPage({ params }: Props) {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <Link href={`/stock/issues/${issue.id}`} className="font-semibold text-slate-950 hover:underline">{issue.stockItem.name}</Link>
-                  <p className="text-slate-600">{stockIssueTypeLabels[issue.issueType]} • {issue.quantity} issued • {issue.returnedQuantity} returned</p>
-                  <p className="text-slate-500">{issue.issuedAt.toLocaleDateString()} {issue.expectedReturnAt ? `• due ${issue.expectedReturnAt.toLocaleDateString()}` : ""}</p>
+                  <p className="text-slate-600">{stockIssueTypeLabels[issue.issueType]} / {issue.quantity} issued / {issue.returnedQuantity} returned</p>
+                  <p className="text-slate-500">{issue.issuedAt.toLocaleDateString()} {issue.expectedReturnAt ? `/ due ${issue.expectedReturnAt.toLocaleDateString()}` : ""}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge className={stockIssueStatusTone[issue.status]}>{stockIssueStatusLabels[issue.status]}</Badge>

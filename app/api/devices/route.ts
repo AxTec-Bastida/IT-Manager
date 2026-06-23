@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { deviceSchema } from "@/lib/validation";
 import { ClientInputError, handleApiError } from "@/lib/api";
 import { requirePermission } from "@/lib/auth";
+import { replacePhoneSledPairing } from "@/lib/device-pairing";
 
 const defaultLimit = 50;
 const maxLimit = 100;
@@ -97,15 +98,30 @@ export async function POST(request: NextRequest) {
     await requirePermission("inventory.write");
     const payload = await request.json();
     const data = deviceSchema.parse(payload);
-    const device = await prisma.device.create({ data });
 
-    await prisma.activityLog.create({
-      data: {
-        action: data.status === "RESERVED" ? "ip.reserved" : "device.created",
-        entity: "device",
-        entityId: device.id,
-        message: `${device.name} was ${data.status === "RESERVED" ? "reserved" : "created"} at ${device.ipAddress}.`,
-      },
+    const { pairedDeviceId, chargerStatus, chargerNotes, ...deviceData } = data;
+
+    const device = await prisma.$transaction(async (tx) => {
+      const created = await tx.device.create({
+        data: {
+          ...deviceData,
+          chargerStatus: chargerStatus ?? "HEALTHY",
+          chargerNotes: chargerNotes ?? null,
+        },
+      });
+
+      await replacePhoneSledPairing(tx, created, pairedDeviceId, "Paired via device creation form");
+
+      await tx.activityLog.create({
+        data: {
+          action: data.status === "RESERVED" ? "ip.reserved" : "device.created",
+          entity: "device",
+          entityId: created.id,
+          message: `${created.name} was ${data.status === "RESERVED" ? "reserved" : "created"}${created.ipAddress ? ` at ${created.ipAddress}` : ""}.`,
+        },
+      });
+
+      return created;
     });
 
     return NextResponse.json({ device }, { status: 201 });

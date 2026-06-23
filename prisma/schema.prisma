@@ -585,6 +585,8 @@ model Device {
   purchaseDate                  DateTime?
   warrantyExpiresAt             DateTime?
   repairNotes                   String?
+  chargerStatus                 String?                      @default("HEALTHY")
+  chargerNotes                  String?
   blackTonerLevel               Int?
   cyanTonerLevel                Int?
   magentaTonerLevel             Int?
@@ -1038,6 +1040,8 @@ model TemporaryBorrower {
   id             String          @id @default(cuid())
   tempId         String          @unique
   name           String
+  badgeId        String?
+  needsReview    Boolean         @default(false)
   department     String?
   area           String?
   supervisorName String?
@@ -1053,6 +1057,7 @@ model TemporaryBorrower {
   updatedAt      DateTime        @updatedAt
 
   @@index([tempId])
+  @@index([badgeId])
   @@index([name])
   @@index([department])
   @@index([area])
