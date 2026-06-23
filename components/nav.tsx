@@ -178,28 +178,17 @@ function NavMenuContent({
 
 export function GGlobalLogo({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="ggGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#60A5FA" />
-          <stop offset="50%" stopColor="#818CF8" />
-          <stop offset="100%" stopColor="#FF5C35" />
-        </linearGradient>
-        <linearGradient id="activeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FF5C35" />
-          <stop offset="100%" stopColor="#FFA500" />
-        </linearGradient>
-      </defs>
-      <circle cx="50" cy="50" r="42" stroke="url(#ggGrad)" strokeWidth="4" strokeDasharray="4 4" opacity="0.25" />
-      <path d="M50 8 A42 42 0 0 0 50 92" stroke="url(#ggGrad)" strokeWidth="3" strokeDasharray="3 3" opacity="0.2" />
-      <path d="M8 50 A42 42 0 0 0 92 50" stroke="url(#ggGrad)" strokeWidth="3" strokeDasharray="3 3" opacity="0.2" />
+    <svg className={className} width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="42" stroke="#3B82F6" strokeWidth="4" strokeDasharray="4 4" opacity="0.3" />
+      <path d="M50 8 A42 42 0 0 0 50 92" stroke="#3B82F6" strokeWidth="3" strokeDasharray="3 3" opacity="0.25" />
+      <path d="M8 50 A42 42 0 0 0 92 50" stroke="#3B82F6" strokeWidth="3" strokeDasharray="3 3" opacity="0.25" />
       <path 
         d="M78 30 C70 18, 50 15, 34 25 C18 35, 12 55, 22 72 C32 88, 55 92, 70 82 C82 74, 88 58, 82 44 L66 48 C70 56, 66 68, 58 74 C50 80, 36 78, 28 68 C20 58, 24 44, 34 38 C44 32, 56 34, 62 42 L48 42 L48 56 L88 56 L88 20 L78 30 Z" 
-        fill="url(#ggGrad)" 
+        fill="#3B82F6" 
       />
       <path 
         d="M62 25 L88 12 L70 38 L84 40 L45 85 L58 52 L42 50 Z" 
-        fill="url(#activeGrad)" 
+        fill="#FF4500" 
       />
     </svg>
   );
