@@ -292,25 +292,80 @@ async function processMoveAssetAction(action: OfflineSyncRequestAction, actor: A
     return createOfflineRecordResult({ client, action, actor, status: "FAILED", message, resultSummary: { message }, ...related, ...relatedEntity, conflictCode: "INVALID_PAYLOAD" });
   }
 
-  const [devices, ranges] = await Promise.all([
+  // 1. Fetch only duplicate candidates by IP and MAC to save huge query load
+  const [duplicateIpDevice, duplicateMacDevice, activeIps, ranges] = await Promise.all([
+    device.ipAddress
+      ? client.device.findFirst({
+          where: {
+            id: { not: device.id },
+            ipAddress: device.ipAddress.trim(),
+            status: { notIn: ["RETIRED", "DISPOSED", "LOST"] },
+          },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            status: true,
+            ipAddress: true,
+            macAddress: true,
+            vlan: true,
+            location: true,
+            areaDepartment: true,
+            usesStaticIp: true,
+            isFixedAsset: true,
+            ipRangeId: true,
+          },
+        })
+      : Promise.resolve(null),
+    device.macAddress
+      ? client.device.findFirst({
+          where: {
+            id: { not: device.id },
+            macAddress: device.macAddress.trim(),
+            status: { notIn: ["RETIRED", "DISPOSED", "LOST"] },
+          },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            status: true,
+            ipAddress: true,
+            macAddress: true,
+            vlan: true,
+            location: true,
+            areaDepartment: true,
+            usesStaticIp: true,
+            isFixedAsset: true,
+            ipRangeId: true,
+          },
+        })
+      : Promise.resolve(null),
     client.device.findMany({
+      where: {
+        ipAddress: { not: null },
+        status: { notIn: ["RETIRED", "DISPOSED", "LOST"] },
+      },
       select: {
-        id: true,
-        name: true,
-        category: true,
-        status: true,
         ipAddress: true,
-        macAddress: true,
-        vlan: true,
-        location: true,
-        areaDepartment: true,
-        usesStaticIp: true,
-        isFixedAsset: true,
-        ipRangeId: true,
       },
     }),
     client.ipRange.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
   ]);
+
+  // Construct a minimal in-memory list for warnings validation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const devices: any[] = [];
+  if (duplicateIpDevice) devices.push(duplicateIpDevice);
+  if (duplicateMacDevice && duplicateMacDevice.id !== duplicateIpDevice?.id) {
+    devices.push(duplicateMacDevice);
+  }
+  // Add active IPs for suggestNextIpForRange lookup
+  for (const item of activeIps) {
+    if (item.ipAddress && item.ipAddress !== duplicateIpDevice?.ipAddress && item.ipAddress !== duplicateMacDevice?.ipAddress) {
+      devices.push({ id: `active-ip-${item.ipAddress}`, ipAddress: item.ipAddress });
+    }
+  }
+
   const { warnings, expectedRange, suggestion } = buildMoveWarnings(device, input, devices, ranges);
   if (moveRequiresConfirmation(warnings)) {
     return createOfflineRecordResult({

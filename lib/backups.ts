@@ -94,7 +94,12 @@ export async function createBackup(options: BackupOptions = {}): Promise<BackupR
   }
 
   await fs.mkdir(path.dirname(databaseDestination), { recursive: true });
-  await fs.copyFile(databaseSource, databaseDestination);
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.$executeRawUnsafe(`VACUUM INTO '${databaseDestination.replace(/'/g, "''")}'`);
+  } catch {
+    await fs.copyFile(databaseSource, databaseDestination);
+  }
 
   const assetsStat = await statIfExists(assetsSource);
   let assetsCount = 0;

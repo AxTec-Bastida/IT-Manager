@@ -154,7 +154,11 @@ export async function getUserFromSessionToken(token: string | undefined, client:
     if (session) await client.appSession.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
-  await client.appSession.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => undefined);
+  const now = new Date();
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  if (!session.lastSeenAt || session.lastSeenAt < fiveMinutesAgo) {
+    await client.appSession.update({ where: { id: session.id }, data: { lastSeenAt: now } }).catch(() => undefined);
+  }
   return {
     id: session.user.id,
     name: session.user.name,
