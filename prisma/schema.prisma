@@ -452,6 +452,13 @@ enum TaskCategory {
   SECURITY_ACCESS
 }
 
+enum FacturaStatus {
+  ACTIVE
+  ARCHIVED
+  VOID
+  INVALID
+}
+
 enum PurchaseNoteStatus {
   DRAFT
   REQUESTED
@@ -841,6 +848,7 @@ model AssetPhoto {
 model Factura {
   id                 String                     @id @default(cuid())
   facturaNumber      String
+  status             FacturaStatus              @default(ACTIVE)
   vendorName         String
   vendorRfc          String?
   purchaseDate       DateTime?
@@ -882,6 +890,7 @@ model Factura {
   updatedAt          DateTime                   @updatedAt
 
   @@index([facturaNumber])
+  @@index([status])
   @@index([vendorName])
   @@index([poNumber])
   @@index([purchaseDate])

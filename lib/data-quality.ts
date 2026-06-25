@@ -40,6 +40,7 @@ type ReviewDevice = {
   assignmentItems?: Array<{ returnedAt?: Date | string | null }>;
   assetLoanItems?: Array<{ returnedAt?: Date | string | null }>;
   facturaLineItemLinks?: Array<{ id: string; lineItem: { id: string; description: string; quantity: number; factura: { id: string; facturaNumber: string; vendorName: string } } }>;
+  factura?: { id: string; facturaNumber: string; vendorName: string; status: string } | null;
   aliases?: Array<{ aliasType: string; value: string }>;
   sourceRelationships?: Array<{ relationshipType: string; status: string; targetDeviceId: string }>;
   targetRelationships?: Array<{ relationshipType: string; status: string; sourceDeviceId: string }>;
@@ -79,6 +80,7 @@ type ReviewDevice = {
 type ReviewFactura = {
   id: string;
   facturaNumber: string;
+  status?: string;
   vendorName: string;
   purchaseDate: Date | null;
   receivedDate: Date | null;
@@ -613,6 +615,7 @@ export async function getDataQualityReview() {
         purchaseDate: true,
         warrantyExpiresAt: true,
         facturaId: true,
+        factura: { select: { id: true, facturaNumber: true, vendorName: true, status: true } },
         valueProfile: {
           select: {
             purchaseValue: true,
@@ -687,6 +690,12 @@ export async function getDataQualityReview() {
   const assetValue = summarizeAssetValueQuality(devices);
   const bitLocker = summarizeBitLockerQuality(devices);
   const facturaLineItems = summarizeFacturaLineItemQuality(facturas, devices);
+  const facturaLifecycle = {
+    active: facturas.filter((factura) => factura.status === "ACTIVE").length,
+    archived: facturas.filter((factura) => factura.status === "ARCHIVED").length,
+    voided: facturas.filter((factura) => factura.status === "VOID" || factura.status === "INVALID").length,
+    linkedArchivedOrVoid: devices.filter((device) => device.factura && device.factura.status !== "ACTIVE"),
+  };
   const importAudit = summarizeImportRun(latestRun, latestBackupRoot());
   const mapHealth = summarizeMapHealth(maps, mapAnchors);
   const invalidIps = devices.filter((device) => device.ipAddress && !validateIPv4(device.ipAddress).ok);
@@ -742,6 +751,7 @@ export async function getDataQualityReview() {
     },
     photoCompliance,
     maintenance,
+    facturaLifecycle,
     assetValue,
     bitLocker,
     facturaLineItems,

@@ -5,14 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { hasPagePermission } from "@/lib/page-permissions";
 import { categoryLabels } from "@/lib/constants";
+import { facturaStatusLabels, facturaStatusTone, reviewFacturaHardDeleteSafety } from "@/lib/facturas";
 import { unlinkedQuantity } from "@/lib/factura-line-items";
+import { Badge } from "@/components/badge";
+import { FacturaLifecycleActions } from "@/components/factura-lifecycle-actions";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function FacturaDetailPage({ params }: Props) {
-  const [canWriteInventory, canWriteTasks] = await Promise.all([hasPagePermission("inventory.write"), hasPagePermission("tasks.write")]);
+  const [canWriteInventory, canWriteTasks, canManageAdmin] = await Promise.all([hasPagePermission("inventory.write"), hasPagePermission("tasks.write"), hasPagePermission("admin.manage")]);
   const { id } = await params;
   const factura = await prisma.factura.findUnique({
     where: { id },
@@ -22,9 +25,11 @@ export default async function FacturaDetailPage({ params }: Props) {
       stockMovements: { include: { stockItem: true, asset: true }, orderBy: { createdAt: "desc" } },
       lineItems: { include: { assetLinks: { include: { device: true } } }, orderBy: { createdAt: "asc" } },
       purchaseNotes: { orderBy: { updatedAt: "desc" } },
+      _count: { select: { assets: true, stockItems: true, stockMovements: true, lineItems: true, extractionAttempts: true, tasks: true, purchaseNotes: true } },
     },
   });
   if (!factura) notFound();
+  const deleteReview = reviewFacturaHardDeleteSafety(factura);
 
   return (
     <div className="space-y-6">
@@ -60,6 +65,21 @@ export default async function FacturaDetailPage({ params }: Props) {
           </div>
         }
       />
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-semibold text-slate-950">Factura lifecycle</h2>
+              <Badge className={facturaStatusTone(factura.status)}>{facturaStatusLabels[factura.status]}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">Archiving hides a bad or old factura without breaking asset value history. Hard delete is only available to Admins when nothing depends on it.</p>
+          </div>
+          <div className="lg:w-96">
+            <FacturaLifecycleActions facturaId={factura.id} status={factura.status} canManage={canManageAdmin} canHardDelete={deleteReview.canHardDelete} blockers={deleteReview.blockers} />
+          </div>
+        </div>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 lg:col-span-2">

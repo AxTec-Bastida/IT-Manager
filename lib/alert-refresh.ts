@@ -54,7 +54,7 @@ export async function runAlertRefresh(prisma: PrismaClient, scope: AlertRefreshS
     prisma.device.findMany({ include: { ipRange: true } }),
     prisma.stockItem.findMany({ where: { active: true } }),
     prisma.device.findMany({ where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"] } } }),
-    prisma.factura.findMany(),
+    prisma.factura.findMany({ where: { status: "ACTIVE" } }),
     prisma.assetLocationHistory.findMany({
       include: { apMapLocation: { include: { locationZone: true } } },
       orderBy: { seenAt: "desc" },

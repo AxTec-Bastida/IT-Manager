@@ -17,7 +17,7 @@ export default async function StockRestockPage({ searchParams }: Props) {
 
   const [stockItems, facturas] = await Promise.all([
     prisma.stockItem.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
   ]);
 
   return (

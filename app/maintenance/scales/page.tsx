@@ -20,9 +20,9 @@ export default async function ScaleMaintenancePage() {
   const review = summarizeMaintenanceReview(scales);
   return (
     <div className="space-y-6">
-      <PageHeader title="Scale Maintenance" description="Manual calibration checks, weight tests, display checks, cleaning, and follow-up tracking. No scale polling is performed." action={<PageActions><ActionLink href="/maintenance">Back to Maintenance</ActionLink><ActionLink href="/reports/maintenance">Report</ActionLink></PageActions>} />
+      <PageHeader title="Scale Maintenance" description="Manual calibration checks, weight tests, display checks, cleaning, and follow-up tracking. Active scales use the active maintenance interval. Stock or spare scales use a longer interval. Retired/decommissioned scales are excluded. No scale polling is performed." action={<PageActions><ActionLink href="/maintenance">Back to Maintenance</ActionLink><ActionLink href="/reports/maintenance">Report</ActionLink></PageActions>} />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={<Scale size={18} />} label="Scales" value={scales.length} helper="Warehouse scale assets" />
+        <Metric icon={<Scale size={18} />} label="Scales" value={review.scales.length} helper={`${review.excluded.length} excluded retired/decommissioned`} />
         <Metric icon={<Wrench size={18} />} label="No checks" value={review.scalesMissingHistory.length} helper="Need first calibration/check" />
         <Metric icon={<Wrench size={18} />} label="Overdue" value={review.overdue.length} helper={`${review.dueSoon.length} due soon`} />
         <Metric icon={<Wrench size={18} />} label="Failed / follow-up" value={review.failedNeedsFollowUp.length} helper="Create task if needed" />
@@ -45,6 +45,7 @@ function MaintenanceDeviceCard({ asset }: { asset: Awaited<ReturnType<typeof pri
           <Badge className={maintenanceStatusTone(summary.status)}>{maintenanceStatusLabel(summary.status)}</Badge>
           <h2 className="mt-2 text-lg font-semibold text-slate-950">{asset.name}</h2>
           <p className="text-sm text-slate-600">{asset.assetTag || "No tag"} / {asset.location || asset.areaDepartment || "No location"}</p>
+          <p className="mt-1 text-sm text-slate-500">{summary.profile.label}: {summary.profile.explanation}</p>
           <p className="mt-1 text-sm text-slate-500">Next due: {summary.nextDueAt ? summary.nextDueAt.toLocaleDateString() : "No schedule"}</p>
           {latest ? <p className="mt-1 text-sm text-slate-500">Last: {maintenanceTypeLabels[latest.maintenanceType]} / {maintenanceResultLabels[latest.result]}</p> : <p className="mt-1 text-sm text-amber-700">No calibration/check history yet.</p>}
           {latest?.testWeight || latest?.measuredValue ? <p className="mt-1 text-sm text-slate-500">Weight: {latest.testWeight || "-"} / measured {latest.measuredValue || "-"}</p> : null}

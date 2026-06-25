@@ -42,7 +42,28 @@ export async function GET(_request: Request, context: Context) {
   } else if (type === "facturas") {
     rows = await prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }] });
   } else if (type === "maintenance-records") {
-    rows = await prisma.maintenanceRecord.findMany({ orderBy: { performedAt: "desc" }, take: 2000 });
+    const records = await prisma.maintenanceRecord.findMany({ orderBy: { performedAt: "desc" }, take: 2000, include: { asset: true, stockItem: true } });
+    rows = records.map((record) => ({
+      id: record.id,
+      assetTag: record.asset.assetTag ?? "",
+      assetName: record.asset.name,
+      category: record.asset.category,
+      maintenanceType: record.maintenanceType,
+      result: record.result,
+      performedAt: record.performedAt.toISOString(),
+      performedBy: record.performedBy ?? "",
+      pageCountOrMeasuredValue: record.measuredValue ?? "",
+      expectedValue: record.expectedValue ?? "",
+      previousPartInfo: record.previousPartInfo ?? "",
+      newPartInfo: record.newPartInfo ?? "",
+      partNumberSkuSerial: record.partSerialNumber ?? "",
+      stockItem: record.stockItem?.name ?? "",
+      quantityUsed: record.quantityUsed ?? "",
+      cost: record.cost ?? "",
+      currency: record.currency ?? "",
+      nextDueAt: record.nextDueAt?.toISOString().slice(0, 10) ?? "",
+      notes: record.notes ?? "",
+    }));
   } else if (type === "asset-values") {
     const devices = await prisma.device.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -91,6 +112,33 @@ export async function GET(_request: Request, context: Context) {
   } else if (type === "po-tracker") {
     const notes = await prisma.purchaseNote.findMany({ orderBy: [{ status: "asc" }, { followUpDate: "asc" }, { updatedAt: "desc" }], include: { relatedFactura: true } });
     rows = notes.map((note) => ({ ...note, relatedFactura: note.relatedFactura?.facturaNumber ?? "" }));
+  } else if (type === "po-requisition-formato") {
+    const notes = await prisma.purchaseNote.findMany({ orderBy: [{ status: "asc" }, { followUpDate: "asc" }, { updatedAt: "desc" }], include: { items: { include: { relatedStockItem: true, relatedDevice: true } } } });
+    rows = notes.flatMap<Record<string, unknown>>((note) => note.items.length ? note.items.map((item) => ({
+      CANT: item.quantity ?? 1,
+      UM: "PZA",
+      "DESCRIPCION DEL MATERIAL": item.description,
+      "MARCA Y/O MODELO": item.relatedDevice?.model ?? item.relatedStockItem?.compatibleModels ?? "",
+      "AREA DE USO": note.requestedBy ?? "",
+      "USO Y FUNCION DEL ARTICULO": note.title,
+      DURACION: "",
+      "LINK O IMAGEN DE EJEMPLO": "",
+      "FECHA EN QUE LO NECESITA EN ALMACEN": note.expectedDeliveryAt?.toISOString().slice(0, 10) ?? "",
+      "SUGERENCIA DE PROVEEDOR": note.vendorName ?? "",
+      NOTAS: [note.notes, item.notes].filter(Boolean).join(" / "),
+    })) : [{
+      CANT: "",
+      UM: "",
+      "DESCRIPCION DEL MATERIAL": note.title,
+      "MARCA Y/O MODELO": "",
+      "AREA DE USO": note.requestedBy ?? "",
+      "USO Y FUNCION DEL ARTICULO": note.title,
+      DURACION: "",
+      "LINK O IMAGEN DE EJEMPLO": "",
+      "FECHA EN QUE LO NECESITA EN ALMACEN": note.expectedDeliveryAt?.toISOString().slice(0, 10) ?? "",
+      "SUGERENCIA DE PROVEEDOR": note.vendorName ?? "",
+      NOTAS: note.notes ?? "",
+    }]);
   } else if (type === "tool-links") {
     rows = await prisma.toolLink.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
   } else if (type === "rma-cases") {
@@ -221,7 +269,7 @@ export async function GET(_request: Request, context: Context) {
       createdAt: borrower.createdAt.toISOString(),
     }));
   } else {
-    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, asset-values, facturas, tasks, po-tracker, tool-links, rma-cases, rma-items, stock-issues, asset-loans, asset-loan-items, or temporary-borrowers.", 400);
+    return jsonError("Export type must be devices, ranges, conflicts, scan-results, stock-items, stock-movements, maintenance-records, asset-values, facturas, tasks, po-tracker, po-requisition-formato, tool-links, rma-cases, rma-items, stock-issues, asset-loans, asset-loan-items, or temporary-borrowers.", 400);
   }
 
     return new NextResponse(toCsv(rows), {

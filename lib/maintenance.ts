@@ -1,10 +1,12 @@
-import type { DeviceCategory, MaintenanceResult, MaintenanceType } from "@prisma/client";
+import type { DeviceCategory, DeviceStatus, MaintenanceResult, MaintenanceType } from "@prisma/client";
 
 export const printerMaintenanceCategories = new Set<DeviceCategory>(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"]);
 export const scaleMaintenanceCategories = new Set<DeviceCategory>(["SCALE"]);
 
 export const printerMaintenanceDefaultDays = 30;
 export const scaleMaintenanceDefaultDays = 90;
+export const printerStockMaintenanceDefaultDays = 180;
+export const scaleStockMaintenanceDefaultDays = 365;
 export const dueSoonDays = 7;
 
 export type MaintenanceAsset = {
@@ -12,6 +14,9 @@ export type MaintenanceAsset = {
   name: string;
   assetTag?: string | null;
   category: DeviceCategory | string;
+  status?: DeviceStatus | string | null;
+  location?: string | null;
+  areaDepartment?: string | null;
   maintenanceDueAt?: Date | string | null;
   lastCleanedAt?: Date | string | null;
   cleaningIntervalDays?: number | null;
@@ -30,7 +35,14 @@ export type MaintenanceAsset = {
   }>;
 };
 
-export type MaintenanceStatus = "OK" | "DUE_SOON" | "OVERDUE" | "NO_SCHEDULE";
+export type MaintenanceContext = "ACTIVE" | "STOCK" | "SPARE" | "STORAGE" | "RETIRED" | "DECOMMISSIONED";
+export type MaintenanceStatus = "OK" | "DUE_SOON" | "OVERDUE" | "NO_SCHEDULE" | "EXCLUDED";
+export type MaintenanceProfile = {
+  context: MaintenanceContext;
+  intervalDays: number | null;
+  label: string;
+  explanation: string;
+};
 
 export const maintenanceResultLabels: Record<MaintenanceResult, string> = {
   PASS: "Pass",
@@ -61,17 +73,58 @@ export function supportsMaintenanceFocus(asset: Pick<MaintenanceAsset, "category
   return isPrinterAsset(asset) || isScaleAsset(asset);
 }
 
+export function maintenanceContextForAsset(asset: Pick<MaintenanceAsset, "status" | "location" | "areaDepartment">): MaintenanceContext {
+  if (asset.status === "DISPOSED") return "DECOMMISSIONED";
+  if (["RETIRED", "MISSING", "LOST"].includes(String(asset.status ?? ""))) return "RETIRED";
+  const locationText = `${asset.location ?? ""} ${asset.areaDepartment ?? ""}`.toLowerCase();
+  if (/\b(spare|backup|reserve|reserved)\b/.test(locationText) || asset.status === "RESERVED") return "SPARE";
+  if (/\b(stock|stockroom|warehouse|almacen|almac[eé]n)\b/.test(locationText)) return "STOCK";
+  if (/\b(storage|stored|bodega)\b/.test(locationText) || asset.status === "AVAILABLE") return "STORAGE";
+  return "ACTIVE";
+}
+
+export function isMaintenanceExcluded(asset: Pick<MaintenanceAsset, "status" | "location" | "areaDepartment">) {
+  const context = maintenanceContextForAsset(asset);
+  return context === "RETIRED" || context === "DECOMMISSIONED";
+}
+
+export function maintenanceProfileForAsset(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment">): MaintenanceProfile {
+  if (!supportsMaintenanceFocus(asset)) {
+    return { context: "DECOMMISSIONED", intervalDays: null, label: "Not tracked", explanation: "This category does not use the printer/scale maintenance schedule." };
+  }
+  const context = maintenanceContextForAsset(asset);
+  if (context === "RETIRED" || context === "DECOMMISSIONED") {
+    return { context, intervalDays: null, label: context === "RETIRED" ? "Retired" : "Decommissioned", explanation: "Retired, lost, missing, or disposed assets are excluded from normal recurring maintenance alerts." };
+  }
+  const stockLike = context === "STOCK" || context === "SPARE" || context === "STORAGE";
+  if (isScaleAsset(asset)) {
+    const intervalDays = stockLike ? scaleStockMaintenanceDefaultDays : scaleMaintenanceDefaultDays;
+    return {
+      context,
+      intervalDays,
+      label: stockLike ? "Scale stock/spare profile" : "Scale active profile",
+      explanation: stockLike ? "Stock, spare, and stored scales use a longer yearly baseline interval." : "Active scales use a 3-month calibration/check interval.",
+    };
+  }
+  const intervalDays = stockLike ? printerStockMaintenanceDefaultDays : printerMaintenanceDefaultDays;
+  return {
+    context,
+    intervalDays,
+    label: stockLike ? "Printer stock/spare profile" : "Printer active profile",
+    explanation: stockLike ? "Stock, spare, and stored printers use a longer 6-month baseline interval." : "Active printers use the normal monthly maintenance interval.",
+  };
+}
+
 export function defaultMaintenanceTypeForAsset(asset: Pick<MaintenanceAsset, "category">): MaintenanceType {
   if (isPrinterAsset(asset)) return "CLEAN_PRINTHEAD";
   if (isScaleAsset(asset)) return "CALIBRATION_CHECK";
   return "INSPECTION";
 }
 
-export function defaultNextDueAt(asset: Pick<MaintenanceAsset, "category">, performedAt: Date) {
+export function defaultNextDueAt(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment">, performedAt: Date) {
   if (!supportsMaintenanceFocus(asset)) return null;
-  if (isPrinterAsset(asset)) return addDays(performedAt, printerMaintenanceDefaultDays);
-  if (isScaleAsset(asset)) return addDays(performedAt, scaleMaintenanceDefaultDays);
-  return null;
+  const profile = maintenanceProfileForAsset(asset);
+  return profile.intervalDays ? addDays(performedAt, profile.intervalDays) : null;
 }
 
 export function scheduleStatus(nextDueAt?: Date | string | null, now = new Date()): MaintenanceStatus {
@@ -83,22 +136,25 @@ export function scheduleStatus(nextDueAt?: Date | string | null, now = new Date(
 }
 
 export function maintenanceStatusLabel(status: MaintenanceStatus) {
-  return status === "OK" ? "OK" : status === "DUE_SOON" ? "Due soon" : status === "OVERDUE" ? "Overdue" : "No schedule";
+  return status === "OK" ? "OK" : status === "DUE_SOON" ? "Due soon" : status === "OVERDUE" ? "Overdue" : status === "EXCLUDED" ? "Excluded" : "No schedule";
 }
 
 export function maintenanceStatusTone(status: MaintenanceStatus) {
   if (status === "OK") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (status === "DUE_SOON") return "border-amber-200 bg-amber-50 text-amber-800";
   if (status === "OVERDUE") return "border-rose-200 bg-rose-50 text-rose-800";
+  if (status === "EXCLUDED") return "border-slate-200 bg-slate-100 text-slate-600";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export function buildMaintenanceSummary(asset: MaintenanceAsset, now = new Date()) {
   const latest = [...(asset.maintenanceRecords ?? [])].sort((a, b) => normalizeDate(b.performedAt)!.getTime() - normalizeDate(a.performedAt)!.getTime())[0] ?? null;
-  const nextDueAt = normalizeDate(asset.maintenanceDueAt) ?? normalizeDate(latest?.nextDueAt);
-  const status = scheduleStatus(nextDueAt, now);
+  const profile = maintenanceProfileForAsset(asset);
+  const nextDueAt = profile.intervalDays ? normalizeDate(asset.maintenanceDueAt) ?? normalizeDate(latest?.nextDueAt) : null;
+  const status = profile.intervalDays ? scheduleStatus(nextDueAt, now) : "EXCLUDED";
   return {
     latest,
+    profile,
     lastMaintenanceAt: normalizeDate(latest?.performedAt),
     lastResult: latest?.result ?? null,
     nextDueAt,
@@ -108,12 +164,15 @@ export function buildMaintenanceSummary(asset: MaintenanceAsset, now = new Date(
 }
 
 export function summarizeMaintenanceReview<T extends MaintenanceAsset>(assets: T[], now = new Date()) {
-  const printers = assets.filter(isPrinterAsset);
-  const scales = assets.filter(isScaleAsset);
+  const activeAssets = assets.filter((asset) => !isMaintenanceExcluded(asset));
+  const excluded = assets.filter(isMaintenanceExcluded);
+  const printers = activeAssets.filter(isPrinterAsset);
+  const scales = activeAssets.filter(isScaleAsset);
   const withSummaries = assets.map((asset) => ({ asset, summary: buildMaintenanceSummary(asset, now) }));
   return {
     printers,
     scales,
+    excluded,
     printersMissingHistory: printers.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
     scalesMissingHistory: scales.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
     overdue: withSummaries.filter((item) => item.summary.status === "OVERDUE").map((item) => item.asset),

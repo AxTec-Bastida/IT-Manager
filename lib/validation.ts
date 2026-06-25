@@ -373,6 +373,9 @@ export const maintenanceRecordSchema = z.object({
   if (Number.isNaN(value.performedAt.getTime())) {
     ctx.addIssue({ code: "custom", path: ["performedAt"], message: "Enter a valid performed date." });
   }
+  if (value.measuredValue && /^\s*-/.test(value.measuredValue)) {
+    ctx.addIssue({ code: "custom", path: ["measuredValue"], message: "Page count / measured value cannot be negative." });
+  }
 });
 
 export const taskSchema = z.object({

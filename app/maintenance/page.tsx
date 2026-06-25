@@ -29,7 +29,7 @@ export default async function MaintenanceHubPage() {
     <div className="space-y-6">
       <PageHeader
         title="Maintenance"
-        description="Manual printer and scale cleaning, calibration, parts replacement, checks, evidence, and follow-up tracking."
+        description="Manual printer and scale cleaning, calibration, page counts, consumables, evidence, and follow-up tracking. Active equipment uses shorter intervals; stock/spare equipment uses longer intervals; retired and decommissioned assets are excluded."
         action={
           <PageActions>
             <ActionLink href="/maintenance/printers"><Printer size={16} />Printers</ActionLink>
@@ -38,11 +38,12 @@ export default async function MaintenanceHubPage() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <SummaryCard icon={<Printer size={18} />} label="Printers" value={review.printers.length} helper={`${review.printersMissingHistory.length} with no history`} href="/maintenance/printers" />
         <SummaryCard icon={<Scale size={18} />} label="Scales" value={review.scales.length} helper={`${review.scalesMissingHistory.length} with no checks`} href="/maintenance/scales" />
         <SummaryCard icon={<AlertTriangle size={18} />} label="Overdue" value={review.overdue.length} helper={`${review.dueSoon.length} due soon`} tone={review.overdue.length ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"} />
         <SummaryCard icon={<AlertTriangle size={18} />} label="No Schedule" value={review.noSchedule.length} helper="Needs due date after baseline" tone={review.noSchedule.length ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"} />
+        <SummaryCard icon={<Wrench size={18} />} label="Excluded" value={review.excluded.length} helper="Retired/decommissioned" />
         <SummaryCard icon={<Wrench size={18} />} label="Open Tasks" value={openTasks.length} helper="Maintenance / repair follow-ups" href="/tasks?category=MAINTENANCE" />
       </section>
 
@@ -119,6 +120,7 @@ function MaintenanceAssetCard({ asset }: { asset: Awaited<ReturnType<typeof pris
           <Badge className={maintenanceStatusTone(summary.status)}>{maintenanceStatusLabel(summary.status)}</Badge>
           <h3 className="mt-2 font-semibold text-slate-950">{asset.name}</h3>
           <p className="text-sm text-slate-600">{asset.assetTag || "No tag"} / {categoryLabels[asset.category]}</p>
+          <p className="text-sm text-slate-500">{summary.profile.label} / {summary.profile.intervalDays ? `${summary.profile.intervalDays} days` : "No recurring interval"}</p>
           <p className="text-sm text-slate-500">Next due: {summary.nextDueAt ? summary.nextDueAt.toLocaleDateString() : "No schedule"}</p>
         </div>
         <div className="grid gap-2 sm:min-w-40">

@@ -22,7 +22,7 @@ export default async function EditDevicePage({ params }: Props) {
     }),
     prisma.ipRange.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.employee.findMany({ where: { status: "ACTIVE" }, orderBy: { fullName: "asc" } }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
     prisma.locationZone.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.device.findMany({
       select: {

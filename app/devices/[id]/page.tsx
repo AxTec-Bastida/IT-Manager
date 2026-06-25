@@ -22,6 +22,7 @@ import { buildAnchorDisplayPath } from "@/lib/map-anchors";
 import { decommissionReasonLabels } from "@/lib/decommission";
 import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel } from "@/lib/maintenance";
 import { buildAssetValueSummary, canEditAssetValue, canViewAssetValue, formatAssetAge, formatMoney } from "@/lib/depreciation";
+import { facturaStatusLabels, facturaStatusTone } from "@/lib/facturas";
 import { lineItemValueSourceLabel } from "@/lib/factura-line-items";
 
 export const dynamic = "force-dynamic";
@@ -703,7 +704,13 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                     <p className="text-xs text-emerald-800">{valueSource.lineItemDescription} / {formatMoney(valueSource.unitCost, valueSource.currency)}</p>
                     <Link href={`/facturas/${valueSource.facturaId}`} className="mt-2 inline-flex min-h-10 items-center justify-center rounded-md bg-white px-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200">Open factura</Link>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-medium uppercase text-amber-700">Link status</p>
+                    <p className="mt-1 font-semibold text-amber-950">{device.factura ? "Factura linked, but no structured line item value source" : "No factura linked"}</p>
+                    <p className="text-xs text-amber-800">{device.factura ? "Use factura line items to apply a precise value source when available." : "No factura linked. You can link one later from this asset edit page or from Facturas."}</p>
+                  </div>
+                )}
               </div>
               {editAssetValue ? (
                 <Link href={`/devices/${device.id}/value`} className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
@@ -863,6 +870,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                 {device.factura.facturaNumber} from {device.factura.vendorName}
                 {device.factura.purchaseDate ? ` • ${device.factura.purchaseDate.toLocaleDateString()}` : ""}
               </p>
+              <Badge className={facturaStatusTone(device.factura.status)}>{facturaStatusLabels[device.factura.status]}</Badge>
             </div>
             <Link href={`/facturas/${device.factura.id}`} className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               Open factura
@@ -968,8 +976,8 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-semibold text-slate-950">{isScale ? "Scale maintenance / calibration" : "Printer maintenance"}</h2>
-              <p className="text-sm text-slate-500">{isScale ? "Manual calibration checks, weight tests, cleaning, and follow-up." : "Manual supply levels, test prints, parts, and scheduled printer care."}</p>
+              <h2 className="font-semibold text-slate-950">{isScale ? "Scale maintenance / calibration" : "Consumables & Page Counts"}</h2>
+              <p className="text-sm text-slate-500">{isScale ? "Manual calibration checks, weight tests, cleaning, and follow-up." : "Manual page counts, supply levels, test prints, consumables, parts, and scheduled printer care. No SNMP polling is performed."}</p>
             </div>
             <div className="grid gap-2 sm:flex">
               <Link href={`/devices/${device.id}/maintenance`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">View history</Link>
@@ -1033,6 +1041,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                   ["Cutter replaced", device.lastCutterReplacementAt ? device.lastCutterReplacementAt.toLocaleDateString() : "-"],
                   ["Maintenance due", device.maintenanceDueAt ? device.maintenanceDueAt.toLocaleDateString() : "-"],
                   ["Last maintenance", latestMaintenance ? latestMaintenance.performedAt.toLocaleDateString() : "-"],
+                  ["Page count", device.pageCount ?? "-"],
                   ["Estimated printhead life", device.estimatedPrintheadLife ?? "-"],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-md bg-slate-50 p-3">
@@ -1064,6 +1073,8 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
                 {record.performedBy || "No technician recorded"}
                 {record.stockItem ? ` - used ${record.quantityUsed ?? 0} ${record.stockItem.name}` : ""}
               </p>
+              {record.measuredValue ? <p className="text-slate-500">Page count / measured value: {record.measuredValue}</p> : null}
+              {record.previousPartInfo || record.newPartInfo || record.partSerialNumber ? <p className="text-slate-500">Part/level: {[record.previousPartInfo, record.newPartInfo, record.partSerialNumber].filter(Boolean).join(" -> ")}</p> : null}
               {record.notes ? <p className="text-slate-500">{record.notes}</p> : null}
             </div>
           ))}

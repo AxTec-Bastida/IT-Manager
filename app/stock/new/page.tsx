@@ -10,7 +10,7 @@ export default async function NewStockPage() {
   if (!(await hasPagePermission("stock.write"))) return <ForbiddenPanel message="Adding stock items requires IT Staff or Admin access." />;
   const [settings, facturas, deviceModels, stockItems] = await Promise.all([
     prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
     prisma.device.findMany({ select: { model: true }, distinct: ["model"], where: { AND: [{ model: { not: null } }, { model: { not: "" } }] } }),
     prisma.stockItem.findMany({ select: { name: true }, distinct: ["name"], where: { active: true } }),
   ]);

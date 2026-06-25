@@ -51,6 +51,7 @@ export default async function DataQualityPage() {
         <SummaryCard icon={Network} label="Duplicate IPs" value={review.duplicateIps.length} helper={review.duplicateIps.length ? "Review before relying on IPAM" : "No duplicate active IPs"} />
         <SummaryCard icon={Network} label="Duplicate MACs" value={review.duplicateMacs.length} helper={review.duplicateMacs.length ? "Review hardware address conflicts" : "No duplicate active MACs"} />
         <SummaryCard icon={ReceiptText} label="Unlinked Facturas" value={review.unlinkedFacturas.length} helper="No linked assets or stock" />
+        <SummaryCard icon={ReceiptText} label="Archived/Void Facturas" value={review.facturaLifecycle.archived + review.facturaLifecycle.voided} helper={`${review.facturaLifecycle.linkedArchivedOrVoid.length} linked to assets`} />
         <SummaryCard icon={ReceiptText} label="Factura Lines" value={review.facturaLineItems.lineItemsWithUnlinkedQuantity.length} helper={`${review.facturaLineItems.linkedAssetsMissingValue.length} linked assets missing values`} />
         <SummaryCard icon={ShieldCheck} label="Skipped Duplicates" value={review.skippedDuplicates.length} helper="Workbook duplicates skipped by importer" />
         <SummaryCard icon={Wrench} label="Active RMAs" value={review.totals.activeRmas} helper={`${review.totals.devicesInRma} devices currently in RMA`} />
@@ -498,11 +499,13 @@ export default async function DataQualityPage() {
           <SummaryCard icon={AlertTriangle} label="Overdue" value={review.maintenance.overdue.length} helper={`${review.maintenance.dueSoon.length} due soon`} />
           <SummaryCard icon={AlertTriangle} label="Failed / follow-up" value={review.maintenance.failedNeedsFollowUp.length} helper="Create tasks as needed" />
           <SummaryCard icon={AlertTriangle} label="Missing schedule" value={review.maintenance.noSchedule.length} helper="No next due date" />
+          <SummaryCard icon={ShieldCheck} label="Excluded" value={review.maintenance.excluded.length} helper="Retired/decommissioned" />
         </div>
         <div className="grid gap-3 lg:grid-cols-2">
           <AssetList title="Printers with no maintenance history" assets={review.maintenance.printersMissingHistory.slice(0, 8)} taskPrefix="Add printer maintenance baseline" />
           <AssetList title="Scales with no calibration/check history" assets={review.maintenance.scalesMissingHistory.slice(0, 8)} taskPrefix="Add scale calibration baseline" />
           <AssetList title="Missing maintenance schedule" assets={review.maintenance.noSchedule.slice(0, 8)} taskPrefix="Set printer or scale maintenance schedule" />
+          <AssetList title="Excluded retired/decommissioned assets" assets={review.maintenance.excluded.slice(0, 8)} taskPrefix="Review excluded maintenance asset" />
         </div>
         {review.maintenance.failedNeedsFollowUp.length ? (
           <div className="grid gap-3 lg:grid-cols-2">

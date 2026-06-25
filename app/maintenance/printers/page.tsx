@@ -20,9 +20,9 @@ export default async function PrinterMaintenancePage() {
   const review = summarizeMaintenanceReview(printers);
   return (
     <div className="space-y-6">
-      <PageHeader title="Printer Maintenance" description="Manual printer cleaning, test print, parts replacement, and follow-up tracking. No printer commands are sent." action={<PageActions><ActionLink href="/maintenance">Back to Maintenance</ActionLink><ActionLink href="/reports/maintenance">Report</ActionLink></PageActions>} />
+      <PageHeader title="Printer Maintenance" description="Manual printer cleaning, page counts, consumables, test prints, parts replacement, and follow-up tracking. Active printers use a monthly profile; stock/spare printers use a longer interval. No printer commands are sent." action={<PageActions><ActionLink href="/maintenance">Back to Maintenance</ActionLink><ActionLink href="/reports/maintenance">Report</ActionLink></PageActions>} />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={<Printer size={18} />} label="Printers" value={printers.length} helper="Thermal, MFP, and other printers" />
+        <Metric icon={<Printer size={18} />} label="Printers" value={review.printers.length} helper={`${review.excluded.length} excluded retired/decommissioned`} />
         <Metric icon={<Wrench size={18} />} label="No history" value={review.printersMissingHistory.length} helper="Need first maintenance record" />
         <Metric icon={<Wrench size={18} />} label="Overdue" value={review.overdue.length} helper={`${review.dueSoon.length} due soon`} />
         <Metric icon={<Wrench size={18} />} label="Failed / follow-up" value={review.failedNeedsFollowUp.length} helper="Create task if needed" />
@@ -45,6 +45,7 @@ function MaintenanceDeviceCard({ asset }: { asset: Awaited<ReturnType<typeof pri
           <Badge className={maintenanceStatusTone(summary.status)}>{maintenanceStatusLabel(summary.status)}</Badge>
           <h2 className="mt-2 text-lg font-semibold text-slate-950">{asset.name}</h2>
           <p className="text-sm text-slate-600">{asset.assetTag || "No tag"} / {asset.location || asset.areaDepartment || "No location"}</p>
+          <p className="mt-1 text-sm text-slate-500">{summary.profile.label}: {summary.profile.explanation}</p>
           <p className="mt-1 text-sm text-slate-500">Next due: {summary.nextDueAt ? summary.nextDueAt.toLocaleDateString() : "No schedule"}</p>
           {latest ? <p className="mt-1 text-sm text-slate-500">Last: {maintenanceTypeLabels[latest.maintenanceType]} / {maintenanceResultLabels[latest.result]}</p> : <p className="mt-1 text-sm text-amber-700">No maintenance history yet.</p>}
         </div>

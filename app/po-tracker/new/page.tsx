@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPoTrackerPage() {
   const [facturas, stockItems, devices] = await Promise.all([
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], select: { id: true, facturaNumber: true, vendorName: true } }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], select: { id: true, facturaNumber: true, vendorName: true } }),
     prisma.stockItem.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, sku: true } }),
     prisma.device.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, assetTag: true } }),
   ]);

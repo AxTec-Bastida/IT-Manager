@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleApiError } from "@/lib/api";
 import { makeActivityActor, requirePermission } from "@/lib/auth";
-import { normalizeLinkedIds } from "@/lib/facturas";
+import { activeFacturaWhere, normalizeLinkedIds } from "@/lib/facturas";
 import { facturaSchema } from "@/lib/validation";
 import { generateSafeFilename, publicUploadPath, saveUploadedFile, validateFacturaXmlUpload, validateUploadFile } from "@/lib/uploads";
 
@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
   try {
     await requirePermission("inventory.read");
     const query = request.nextUrl.searchParams.get("q")?.trim();
+    const showArchived = request.nextUrl.searchParams.get("showArchived") === "true";
     const facturas = await prisma.factura.findMany({
-      where: query
-        ? {
+      where: {
+        ...activeFacturaWhere(showArchived),
+        ...(query
+          ? {
             OR: [
               { facturaNumber: { contains: query } },
               { vendorName: { contains: query } },
@@ -23,7 +26,8 @@ export async function GET(request: NextRequest) {
               { notes: { contains: query } },
             ],
           }
-        : {},
+          : {}),
+      },
       include: { _count: { select: { assets: true, stockItems: true, stockMovements: true } } },
       orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
     });

@@ -931,6 +931,49 @@ export default async function UiPreviewPage() {
         </div>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90F maintenance, factura, and printer patterns" description="Static examples for status-aware maintenance, safe factura lifecycle actions, linked value cards, printer records, and FORMATO-style requisition rows.">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <MobileCard className="space-y-3">
+            <Badge tone="info">Maintenance profile</Badge>
+            <h3 className="font-semibold text-slate-950">Scale Active Profile</h3>
+            <p className="text-sm text-slate-600">Active scales use 3-month checks. Stock/spare scales use yearly checks. Retired assets are excluded.</p>
+            <div className="rounded-md bg-slate-50 p-3 text-sm">
+              <p className="font-semibold text-slate-950">Due asset card</p>
+              <p className="text-slate-600">Mettler Toledo BC60 / Packing / Next due Jul 15</p>
+            </div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="danger">Factura lifecycle</Badge>
+            <h3 className="font-semibold text-slate-950">Linked factura cannot hard-delete</h3>
+            <p className="text-sm text-slate-600">Archive hides a bad factura without breaking asset value history. Hard delete is blocked when assets, line items, files, tasks, or stock depend on it.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button className="min-h-11 rounded-md border border-slate-300 bg-white text-sm font-semibold text-slate-700">Archive</button>
+              <button className="min-h-11 rounded-md border border-rose-300 bg-rose-50 text-sm font-semibold text-rose-800">Mark void</button>
+            </div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="success">Asset value</Badge>
+            <h3 className="font-semibold text-slate-950">Linked factura source</h3>
+            <p className="text-sm text-slate-600">DELL Latitude 5520 / MXN 14,200 / Source: factura line item.</p>
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Missing factura state: link one later from asset edit or Facturas.</p>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="neutral">Printer record</Badge>
+            <h3 className="font-semibold text-slate-950">Consumables & Page Counts</h3>
+            <p className="text-sm text-slate-600">Manual page count 125430 / black toner 8% to 100% / part TN-850. No SNMP polling.</p>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="pending">PO FORMATO row</Badge>
+            <p className="text-xs font-semibold text-slate-500">CANT / UM / DESCRIPCION DEL MATERIAL / MARCA Y/O MODELO / AREA DE USO / FECHA EN QUE LO NECESITA EN ALMACEN</p>
+            <p className="text-sm text-slate-700">1 / PZA / Zebra scanner cable / CS6080 / Shipping / 2026-07-01</p>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="warning">Data Quality checks</Badge>
+            <p className="text-sm text-slate-600">Maintenance due, excluded retired assets, archived factura links, printer records, and asset value gaps appear as summary-first review signals.</p>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.

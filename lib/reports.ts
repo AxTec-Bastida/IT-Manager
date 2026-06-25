@@ -360,9 +360,10 @@ async function getWarrantyReport() {
   const in30 = addDays(now, 30);
   const in60 = addDays(now, 60);
   const in90 = addDays(now, 90);
-  const [assets, unlinkedFacturas] = await Promise.all([
+  const [assets, unlinkedFacturas, facturaStatusCounts] = await Promise.all([
     prisma.device.findMany({ select: { id: true, name: true, assetTag: true, serialNumber: true, category: true, status: true, warrantyExpiresAt: true, facturaId: true, factura: { select: { id: true, facturaNumber: true, vendorName: true } } }, orderBy: { warrantyExpiresAt: "asc" }, take: 1000 }),
-    prisma.factura.count({ where: { assets: { none: {} }, stockItems: { none: {} } } }),
+    prisma.factura.count({ where: { status: "ACTIVE", assets: { none: {} }, stockItems: { none: {} } } }),
+    prisma.factura.groupBy({ by: ["status"], _count: { _all: true }, orderBy: { status: "asc" } }),
   ]);
   const exp30 = assets.filter((asset) => asset.warrantyExpiresAt && asset.warrantyExpiresAt >= now && asset.warrantyExpiresAt <= in30);
   const exp60 = assets.filter((asset) => asset.warrantyExpiresAt && asset.warrantyExpiresAt >= now && asset.warrantyExpiresAt <= in60);
@@ -386,6 +387,7 @@ async function getWarrantyReport() {
       { label: "Assets with factura but no warranty date", value: facturaNoWarranty.length },
       { label: "Unlinked facturas", value: unlinkedFacturas, href: "/data-quality" },
     ] },
+    { title: "Factura lifecycle", rows: facturaStatusCounts.map((item) => ({ label: item.status.replaceAll("_", " "), value: item._count._all, href: item.status === "ACTIVE" ? "/facturas" : "/facturas?showArchived=true" })) },
   ]);
 }
 
@@ -404,15 +406,22 @@ async function getMaintenanceReport() {
     { label: "Scales", value: review.scales.length, href: "/maintenance/scales" },
     { label: "Overdue", value: review.overdue.length, href: "/maintenance" },
     { label: "No schedule", value: review.noSchedule.length, href: "/maintenance" },
+    { label: "Excluded", value: review.excluded.length, href: "/maintenance" },
     { label: "Failed / follow-up", value: review.failedNeedsFollowUp.length, href: "/maintenance" },
   ], [
     { title: "Due soon / overdue", emptyText: "No printer or scale maintenance due soon.", rows: review.overdue.concat(review.dueSoon).slice(0, 25).map((asset) => {
       const summary = buildMaintenanceSummary(asset);
-      return { label: asset.assetTag || asset.name, value: summary.nextDueAt ? dateText(summary.nextDueAt) : "No schedule", helper: asset.name, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance due: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` };
+      return { label: asset.assetTag || asset.name, value: summary.nextDueAt ? dateText(summary.nextDueAt) : "No schedule", helper: `${summary.profile.label} / ${asset.name}`, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance due: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` };
+    }) },
+    { title: "Maintenance profiles", rows: assets.slice(0, 50).map((asset) => {
+      const summary = buildMaintenanceSummary(asset);
+      return { label: asset.assetTag || asset.name, value: summary.profile.label, helper: summary.profile.explanation, href: `/devices/${asset.id}/maintenance` };
     }) },
     { title: "Missing schedule", emptyText: "No printer or scale schedule gaps.", rows: review.noSchedule.slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.category.replaceAll("_", " "), helper: "No next due date", href: `/devices/${asset.id}/maintenance/new` })) },
+    { title: "Excluded from normal maintenance", emptyText: "No retired/decommissioned printer or scale assets in this report window.", rows: review.excluded.slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.status?.replaceAll("_", " ") ?? "Excluded", helper: asset.name, href: `/devices/${asset.id}` })) },
     { title: "Missing maintenance baseline", rows: review.printersMissingHistory.concat(review.scalesMissingHistory).slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.category.replaceAll("_", " "), helper: "No maintenance/check history", href: `/devices/${asset.id}/maintenance/new` })) },
     { title: "Failed / needs follow-up", emptyText: "No failed maintenance records.", rows: review.failedNeedsFollowUp.slice(0, 25).map(({ asset, record }) => ({ label: asset.assetTag || asset.name, value: maintenanceResultLabels[record.result], helper: record.notes || asset.name, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance follow-up: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` })) },
+    { title: "Printer page counts / consumables", emptyText: "No printer records with page counts or consumable details.", rows: recent.filter((record) => ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(record.asset.category) && (record.measuredValue || record.partSerialNumber || record.previousPartInfo || record.newPartInfo)).map((record) => ({ label: record.asset.assetTag || record.asset.name, value: record.measuredValue || record.maintenanceType.replaceAll("_", " "), helper: [record.maintenanceType.replaceAll("_", " "), record.previousPartInfo, record.newPartInfo, record.partSerialNumber].filter(Boolean).join(" / "), href: `/devices/${record.assetId}/maintenance` })) },
     { title: "Recently completed", rows: recent.map((record) => ({ label: record.asset.assetTag || record.asset.name, value: record.maintenanceType.replaceAll("_", " "), helper: `${maintenanceResultLabels[record.result]} / ${dateText(record.performedAt)}`, href: `/devices/${record.assetId}/maintenance` })) },
   ]);
 }

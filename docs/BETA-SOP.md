@@ -1230,3 +1230,35 @@ This phase transforms the Assignments, Quick Loans, and RMA screens into scan-fi
     - Added static safe mocks at `/admin/ui-preview` for: Badge Scan & Lookup, Temporary Borrower creation, Overwrite Transfer confirmations, SMTP skipped warnings, Loan Selected list, RMA drafts, and RMA Export table columns.
 11. **Unit Tests**:
     - Appended unit tests in `tests/assignments.test.ts` to test transfer validation rules, and in `tests/rma.test.ts` to test category filters and draft validation. All 476 tests pass successfully.
+
+## Phase 90F Maintenance Profiles, Facturas, Asset Value, Printer Records, PO/Requisitions, and Reporting Cleanup
+
+This phase is a targeted beta cleanup for maintenance, facturas, asset value, printer records, PO exports, Data Quality, and Reports. It does not add OCR, SNMP, UniFi, direct Zebra printing, SMTP credentials, or new external integrations.
+
+Operational notes:
+
+1. **Maintenance profiles by context**:
+   - Active printers use the normal monthly profile.
+   - Active scales use the normal 3-month profile.
+   - Stock/spare/storage printers and scales use longer baseline intervals.
+   - Retired, missing, lost, and disposed assets are excluded from normal recurring maintenance alerts.
+   - Maintenance task links create open Maintenance-category work when follow-up is needed; no random technician is auto-assigned.
+2. **Facturas lifecycle safety**:
+   - Facturas can be Active, Archived, Void, or Invalid.
+   - Normal lists and linking pickers show Active records by default.
+   - Archive/void bad, test, or invalid facturas instead of deleting them when history depends on them.
+   - Hard delete is Admin-only and blocked if assets, stock, movements, line items, extraction attempts, tasks, PO notes, files, or XML depend on the factura.
+3. **Asset value**:
+   - Asset detail shows whether value comes from manual/import data or a factura line item.
+   - Missing factura/value source appears as a review state, not a blocker.
+4. **Printer records**:
+   - Printer/MFP records are manual only: page count/meter reading, toner/ink/drum/roller/printhead part notes, optional stock item used, and timeline.
+   - No SNMP polling, live printer credentials, or direct printer commands are part of this beta phase.
+5. **Reports and Data Quality**:
+   - Reports include maintenance profile/exclusion rows, factura lifecycle counts, printer page-count/consumable rows, and asset value review data.
+   - Data Quality includes summary-first maintenance/factura/printer review signals without loading files or sensitive payloads.
+   - `GET /api/export/po-requisition-formato` exports purchase-note rows using the company FORMATO column structure.
+6. **UI Preview Lab**:
+   - `/admin/ui-preview` contains static non-sensitive examples for the new maintenance/factura/printer/value/report patterns.
+
+Do not use this phase to hard-delete linked facturas, parse new real documents with OCR, poll printers, store printer credentials, or integrate with external Purchasing systems.

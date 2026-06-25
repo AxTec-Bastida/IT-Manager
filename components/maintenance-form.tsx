@@ -89,13 +89,27 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
         <legend className="px-2 text-sm font-semibold text-slate-950">Test / calibration details</legend>
         <div className="grid gap-4 lg:grid-cols-2">
           {isPrinter ? (
-            <label className={labelClass}>
-              Test print result
-              <select className={inputClass} name="resultDetails" defaultValue="">
-                <option value="">Not a test print / not recorded</option>
-                {testPrintResultOptions.map((result) => <option key={result} value={result}>{result}</option>)}
-              </select>
-            </label>
+            <>
+              <label className={labelClass}>
+                Page count / meter reading
+                <input className={inputClass} name="measuredValue" inputMode="numeric" pattern="[0-9]*" placeholder="Example: 125430" />
+              </label>
+              <label className={labelClass}>
+                Test print result
+                <select className={inputClass} name="resultDetails" defaultValue="">
+                  <option value="">Not a test print / not recorded</option>
+                  {testPrintResultOptions.map((result) => <option key={result} value={result}>{result}</option>)}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Old level / previous reading
+                <input className={inputClass} name="previousPartInfo" placeholder="Example: black toner 8%" />
+              </label>
+              <label className={labelClass}>
+                New level / new part
+                <input className={inputClass} name="newPartInfo" placeholder="Example: black toner 100% / TN-850" />
+              </label>
+            </>
           ) : null}
           {isScale ? (
             <>
@@ -136,8 +150,8 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
             <input className={inputClass} name="quantityUsed" type="number" min="1" placeholder="Only if using stock" />
           </label>
           <label className={labelClass}>
-            Part serial number
-            <input className={inputClass} name="partSerialNumber" />
+            Part number / SKU / serial
+            <input className={inputClass} name="partSerialNumber" placeholder={isPrinter ? "Toner, ink, drum, roller, or printhead SKU" : ""} />
           </label>
           <label className={labelClass}>
             Cost
@@ -157,14 +171,18 @@ export function MaintenanceForm({ asset, stockItems }: Props) {
             Next due
             <input className={inputClass} name="nextDueAt" type="datetime-local" />
           </label>
-          <label className={`${labelClass} lg:col-span-2`}>
-            Previous part info
-            <input className={inputClass} name="previousPartInfo" />
-          </label>
-          <label className={`${labelClass} lg:col-span-2`}>
-            New part info
-            <input className={inputClass} name="newPartInfo" />
-          </label>
+          {!isPrinter ? (
+            <>
+              <label className={`${labelClass} lg:col-span-2`}>
+                Previous part info
+                <input className={inputClass} name="previousPartInfo" />
+              </label>
+              <label className={`${labelClass} lg:col-span-2`}>
+                New part info
+                <input className={inputClass} name="newPartInfo" />
+              </label>
+            </>
+          ) : null}
           <label className={`${labelClass} lg:col-span-2`}>
             Notes
             <textarea className={inputClass} name="notes" rows={4} placeholder="Required for Fail or Needs follow-up. Include issue, action taken, and next step." />

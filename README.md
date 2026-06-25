@@ -2890,4 +2890,35 @@ What changed:
 - **UI Preview Lab Updates**: Added static safe mocks at `/admin/ui-preview` for: Badge Scan & Lookup, Temporary Borrower creation, Overwrite Transfer confirmations, SMTP skipped warnings, Loan Selected list, RMA drafts, and RMA Export table columns.
 - **Unit Tests**: Appended unit tests in `tests/assignments.test.ts` to test transfer validation rules, and in `tests/rma.test.ts` to test category filters and draft validation. All 476 tests pass successfully.
 
+## Phase 90F: Maintenance Profiles, Facturas, Printer Records, and Reporting Cleanup
+
+Phase 90F keeps the beta workflow stable while making maintenance, facturas, asset value, printer records, and operational exports safer.
+
+What changed:
+
+- Maintenance schedules now use status/context-aware profiles. Active printers use the monthly printer interval, active scales use the 3-month scale interval, stock/spare/storage assets use longer intervals, and retired/lost/missing/disposed assets are excluded from normal recurring maintenance alerts.
+- Maintenance pages now explain why an asset is due, which profile applies, and why retired/decommissioned assets are excluded. Maintenance follow-up task links use the existing Maintenance task category and stay unassigned unless a tech takes them.
+- Facturas now have a lifecycle status: Active, Archived, Void, or Invalid. Normal factura lists and link pickers show Active by default. Archived/voided/invalid records remain directly reviewable and can be shown intentionally.
+- Factura hard delete is Admin-only and blocked when assets, stock items, stock movements, line items, extraction attempts, tasks, PO notes, PDF/XML files, or other history depend on the factura. Archive or void bad records instead of deleting linked history.
+- Asset detail value cards now make the source clearer: manual/import/factura-line value, linked factura metadata, or a missing-factura empty state.
+- Printer/MFP maintenance records now support manual page count/meter readings and consumable/part change notes using the existing maintenance record workflow. No SNMP, printer credentials, live page-count polling, or direct printer commands were added.
+- Reports/Data Quality now include maintenance profile/exclusion signals, factura lifecycle counts, linked archived/voided factura review, printer page-count/consumable rows, and the `po-requisition-formato` CSV export columns.
+- `/admin/ui-preview` includes static non-sensitive examples for maintenance profiles, factura lifecycle warnings, asset value source cards, printer records, PO FORMATO rows, and related Data Quality checks.
+
+PO/Requisition FORMATO export columns:
+
+- `CANT`
+- `UM`
+- `DESCRIPCION DEL MATERIAL`
+- `MARCA Y/O MODELO`
+- `AREA DE USO`
+- `USO Y FUNCION DEL ARTICULO`
+- `DURACION`
+- `LINK O IMAGEN DE EJEMPLO`
+- `FECHA EN QUE LO NECESITA EN ALMACEN`
+- `SUGERENCIA DE PROVEEDOR`
+- `NOTAS`
+
+Intentionally not implemented in Phase 90F: OCR expansion, SNMP/live printer polling, direct Zebra sending, SMTP credentials, BitLocker reveal changes, external purchasing-app integration, broad reports module rebuild, and hard-deleting linked facturas.
+
 

@@ -4,16 +4,27 @@ import { handleApiError, jsonError } from "@/lib/api";
 import { makeActivityActor, requirePermission } from "@/lib/auth";
 import { maintenanceRecordSchema } from "@/lib/validation";
 import { calculateStockMovement } from "@/lib/stock";
-import { defaultNextDueAt, summarizeMaintenanceReview } from "@/lib/maintenance";
+import { defaultNextDueAt, isMaintenanceExcluded, isPrinterAsset, summarizeMaintenanceReview } from "@/lib/maintenance";
 
-function deviceMaintenanceUpdate(maintenanceType: string, performedAt: Date, nextDueAt?: Date | null) {
+function numericPageCount(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function deviceMaintenanceUpdate(asset: { category: string; status: string; location: string | null; areaDepartment: string | null }, maintenanceType: string, performedAt: Date, nextDueAt?: Date | null, measuredValue?: string | null) {
+  const excluded = isMaintenanceExcluded(asset);
+  const pageCount = isPrinterAsset(asset) ? numericPageCount(measuredValue) : null;
   return {
     ...(["CLEANING", "CLEAN_PRINTHEAD", "CLEAN_ROLLER"].includes(maintenanceType) ? { lastCleanedAt: performedAt } : {}),
     ...(maintenanceType === "TONER_REPLACEMENT" || maintenanceType === "INK_REPLACEMENT" ? { lastSupplyReplacementAt: performedAt } : {}),
     ...(maintenanceType === "PRINTHEAD_REPLACEMENT" || maintenanceType === "REPLACE_PRINTHEAD" ? { lastPrintheadReplacementAt: performedAt } : {}),
     ...(maintenanceType === "PLATEN_ROLLER_REPLACEMENT" || maintenanceType === "REPLACE_PLATEN_ROLLER" || maintenanceType === "REPLACE_ROLLER" ? { lastPlatenRollerReplacementAt: performedAt } : {}),
     ...(maintenanceType === "CUTTER_REPLACEMENT" ? { lastCutterReplacementAt: performedAt } : {}),
-    ...(nextDueAt ? { maintenanceDueAt: nextDueAt } : {}),
+    ...(pageCount != null ? { pageCount } : {}),
+    ...(excluded ? { maintenanceDueAt: null } : nextDueAt ? { maintenanceDueAt: nextDueAt } : {}),
   };
 }
 
@@ -88,7 +99,7 @@ export async function POST(request: NextRequest) {
             performedBy: data.performedBy,
           },
         }),
-        prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(data.maintenanceType, data.performedAt, data.nextDueAt) }),
+        prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(asset, data.maintenanceType, data.performedAt, data.nextDueAt, data.measuredValue) }),
         prisma.activityLog.create({
           data: {
             ...makeActivityActor(actor),
@@ -104,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     const [record] = await prisma.$transaction([
       prisma.maintenanceRecord.create({ data }),
-      prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(data.maintenanceType, data.performedAt, data.nextDueAt) }),
+      prisma.device.update({ where: { id: asset.id }, data: deviceMaintenanceUpdate(asset, data.maintenanceType, data.performedAt, data.nextDueAt, data.measuredValue) }),
       prisma.activityLog.create({
         data: {
           ...makeActivityActor(actor),

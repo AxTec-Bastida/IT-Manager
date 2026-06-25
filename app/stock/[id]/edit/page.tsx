@@ -14,7 +14,7 @@ export default async function EditStockPage({ params }: Props) {
   const { id } = await params;
   const [stockItem, facturas, deviceModels, stockItems] = await Promise.all([
     prisma.stockItem.findUnique({ where: { id } }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
     prisma.device.findMany({ select: { model: true }, distinct: ["model"], where: { AND: [{ model: { not: null } }, { model: { not: "" } }] } }),
     prisma.stockItem.findMany({ select: { name: true }, distinct: ["name"], where: { active: true } }),
   ]);

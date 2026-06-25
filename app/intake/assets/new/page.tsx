@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function AddOneAssetPage() {
   if (!(await hasPagePermission("inventory.write"))) return <ForbiddenPanel message="Adding assets requires IT Staff or Admin access." />;
   const [facturas, controlledValues] = await Promise.all([
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
     prisma.controlledValue.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
   ]);
   return (

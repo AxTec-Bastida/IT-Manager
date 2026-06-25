@@ -1,4 +1,5 @@
 import type { AlertSeverity, AlertSource, AlertType, Device, StockItem } from "@prisma/client";
+import { isMaintenanceExcluded } from "./maintenance";
 import { isLowStock } from "./stock";
 
 type AlertCandidate = {
@@ -18,6 +19,9 @@ type PrinterAsset = Pick<
   | "id"
   | "name"
   | "category"
+  | "status"
+  | "location"
+  | "areaDepartment"
   | "blackTonerLevel"
   | "cyanTonerLevel"
   | "magentaTonerLevel"
@@ -34,6 +38,7 @@ type PrinterAsset = Pick<
 type StockAlertItem = Pick<StockItem, "id" | "name" | "quantityOnHand" | "minimumQuantity">;
 
 export function isThermalCleaningDue(asset: PrinterAsset, now = new Date()) {
+  if (isMaintenanceExcluded(asset)) return false;
   if (asset.category !== "THERMAL_PRINTER") return false;
   const intervalDays = asset.cleaningIntervalDays ?? 30;
   if (!asset.lastCleanedAt) return true;
@@ -43,6 +48,7 @@ export function isThermalCleaningDue(asset: PrinterAsset, now = new Date()) {
 }
 
 export function isMfpSupplyLow(asset: PrinterAsset, threshold = asset.lowSupplyThreshold ?? 20) {
+  if (isMaintenanceExcluded(asset)) return [];
   if (asset.category !== "MFP_PRINTER") return [];
   const levels = [
     ["Black toner", asset.blackTonerLevel, "MFP_LOW_TONER" as AlertType],
@@ -56,6 +62,7 @@ export function isMfpSupplyLow(asset: PrinterAsset, threshold = asset.lowSupplyT
 }
 
 export function isMaintenanceDue(asset: PrinterAsset, now = new Date()) {
+  if (isMaintenanceExcluded(asset)) return false;
   return Boolean(asset.maintenanceDueAt && asset.maintenanceDueAt <= now);
 }
 

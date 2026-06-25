@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assetFacturaExportFields, facturaRelationId, normalizeLinkedIds } from "@/lib/facturas";
+import { activeFacturaWhere, assetFacturaExportFields, facturaRelationId, normalizeLinkedIds, reviewFacturaHardDeleteSafety } from "@/lib/facturas";
 import { facturaSchema } from "@/lib/validation";
 import { generateSafeFilename, isSafeUploadFilename, shouldSetPrimaryPhoto, uploadContentType, validateMapFileBytes, validateUploadFile } from "@/lib/uploads";
 
@@ -219,5 +219,33 @@ describe("factura validation and linking", () => {
     });
     expect(fields.facturaNumber).toBe("F-1001");
     expect(fields.photoCount).toBe(2);
+  });
+
+  it("hides archived or voided facturas by default", () => {
+    expect(activeFacturaWhere(false)).toEqual({ status: "ACTIVE" });
+    expect(activeFacturaWhere(true)).toEqual({});
+  });
+
+  it("blocks hard delete when a factura has links, files, or history", () => {
+    const review = reviewFacturaHardDeleteSafety({
+      filePath: "/uploads/facturas/test.pdf",
+      _count: { assets: 1, stockItems: 0, stockMovements: 0, lineItems: 2, extractionAttempts: 1, tasks: 0, purchaseNotes: 0 },
+    });
+
+    expect(review.canHardDelete).toBe(false);
+    expect(review.blockers.join(" ")).toContain("linked asset");
+    expect(review.blockers.join(" ")).toContain("line item");
+    expect(review.blockers.join(" ")).toContain("attached factura file");
+  });
+
+  it("allows hard delete review only when a factura is completely unlinked", () => {
+    const review = reviewFacturaHardDeleteSafety({
+      filePath: null,
+      xmlPath: null,
+      _count: { assets: 0, stockItems: 0, stockMovements: 0, lineItems: 0, extractionAttempts: 0, tasks: 0, purchaseNotes: 0 },
+    });
+
+    expect(review.canHardDelete).toBe(true);
+    expect(review.blockers).toEqual([]);
   });
 });

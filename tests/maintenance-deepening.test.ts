@@ -4,6 +4,7 @@ import {
   buildMaintenanceSummary,
   defaultMaintenanceTypeForAsset,
   defaultNextDueAt,
+  maintenanceProfileForAsset,
   scheduleStatus,
   summarizeMaintenanceReview,
 } from "@/lib/maintenance";
@@ -42,6 +43,17 @@ describe("printer and scale maintenance helpers", () => {
     expect(defaultNextDueAt(scale, performedAt)?.toISOString().slice(0, 10)).toBe("2026-08-30");
   });
 
+  it("uses longer stock/spare profiles and excludes retired assets", () => {
+    const performedAt = new Date("2026-06-01T08:00:00.000Z");
+    const spareScale = { ...scale, status: "RESERVED" as const };
+    const retiredPrinter = { ...printer, status: "RETIRED" as const };
+
+    expect(maintenanceProfileForAsset(spareScale).intervalDays).toBe(365);
+    expect(defaultNextDueAt(spareScale, performedAt)?.toISOString().slice(0, 10)).toBe("2027-06-01");
+    expect(maintenanceProfileForAsset(retiredPrinter).intervalDays).toBeNull();
+    expect(buildMaintenanceSummary(retiredPrinter).status).toBe("EXCLUDED");
+  });
+
   it("classifies overdue, due soon, clear, and unscheduled dates", () => {
     const now = new Date("2026-06-16T12:00:00.000Z");
     expect(scheduleStatus(null, now)).toBe("NO_SCHEDULE");
@@ -72,6 +84,13 @@ describe("printer and scale maintenance helpers", () => {
     expect(review.overdue.map((asset) => asset.id)).toContain("printer-2");
     expect(review.noSchedule.map((asset) => asset.id)).toEqual(["printer-1", "scale-1"]);
     expect(review.failedNeedsFollowUp[0].record.result).toBe("FAIL");
+  });
+
+  it("does not count retired assets as missing schedules", () => {
+    const review = summarizeMaintenanceReview([{ ...printer, id: "retired-printer", status: "RETIRED" }], new Date("2026-06-16T12:00:00.000Z"));
+
+    expect(review.excluded.map((asset) => asset.id)).toEqual(["retired-printer"]);
+    expect(review.noSchedule).toHaveLength(0);
   });
 
   it("builds latest result and next due summary from maintenance history", () => {
@@ -119,5 +138,18 @@ describe("maintenance validation", () => {
     });
     expect(parsed.testWeight).toBe("20 lb");
     expect(parsed.result).toBe("PASS");
+  });
+
+  it("rejects negative page count or measured values", () => {
+    const parsed = maintenanceRecordSchema.safeParse({
+      assetId: "printer-1",
+      maintenanceType: "TEST_PRINT",
+      result: "PASS",
+      performedAt: "2026-06-16",
+      measuredValue: "-1",
+    });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0].message).toContain("cannot be negative");
   });
 });

@@ -17,7 +17,7 @@ export default async function StockIntakePage() {
       orderBy: { name: "asc" },
       take: 300,
     }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
   ]);
   return (
     <div className="space-y-6">

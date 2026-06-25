@@ -11,7 +11,7 @@ export default async function EditPoTrackerPage({ params }: Props) {
   const { id } = await params;
   const [purchaseNote, facturas, stockItems, devices] = await Promise.all([
     prisma.purchaseNote.findUnique({ where: { id }, include: { items: true } }),
-    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], select: { id: true, facturaNumber: true, vendorName: true } }),
+    prisma.factura.findMany({ where: { status: "ACTIVE" }, orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], select: { id: true, facturaNumber: true, vendorName: true } }),
     prisma.stockItem.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, sku: true } }),
     prisma.device.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, assetTag: true } }),
   ]);
