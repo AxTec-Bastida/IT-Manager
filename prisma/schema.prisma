@@ -1577,7 +1577,8 @@ model ToolLink {
   color        String?
   isFavorite   Boolean          @default(false)
   requiresVpn  Boolean          @default(false)
-  internalOnly Boolean          @default(false)
+  internalOnly        Boolean          @default(false)
+  requiresCredentials Boolean          @default(false)
   notes        String?
   active       Boolean          @default(true)
   createdAt    DateTime         @default(now())
@@ -1956,4 +1957,20 @@ model AppSettings {
   autoSendOverdueReminderEmails      Boolean        @default(false)
   createdAt                          DateTime       @default(now())
   updatedAt                          DateTime       @updatedAt
+}
+
+model ControlledValue {
+  id             String   @id @default(cuid())
+  type           String   // e.g. "ASSET_CATEGORY", "BRAND", "MODEL", "AREA", "DEPARTMENT", "LOCATION", "TAG", "TASK_CATEGORY", "STOCK_CATEGORY", "MAINTENANCE_PROFILE", "PRINTER_CONSUMABLE_TYPE"
+  name           String
+  normalizedName String   // normalized value (e.g. UPPERCASE and trimmed)
+  description    String?
+  isActive       Boolean  @default(true)
+  sortOrder      Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([type, normalizedName])
+  @@index([type])
+  @@index([isActive])
 }

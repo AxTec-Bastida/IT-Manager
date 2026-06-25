@@ -919,7 +919,32 @@ This phase addresses critical usability and technical blockers identified during
 6. **Test Suite Alignments**:
    - Updated the unit tests in `tests/phase42-pwa-camera.test.ts` to assert that the scanner stops and cleans up tracks upon successful detection. All 449 tests pass successfully.
 
+## Phase 90B Admin Center, Master Data, Controlled Lists, IP Ranges, and Settings Rework
+
+Phase 90B introduces the Admin Center and Master Data taxonomies foundation to prevent dirty data from inconsistent free-text inputs, and simplifies settings overview flows.
+
+### Key Changes
+1. **Admin Center Dashboard**:
+   - Created `/admin` which acts as the central admin-only dashboard, organizing Users, Master Data, Network/IP, Email, Defaults, and Operations in a clean phone-first card layout.
+2. **Master Data Taxonomy**:
+   - Added the `ControlledValue` model and implemented `/admin/master-data` UI with automatic idempotent seeding of defaults (Asset Categories, Areas/Departments, Task Categories, Stock Categories, Printer Consumables) on first visit.
+   - Enforces case-insensitive duplicate checks and blocks deletion of values in use by active devices, tasks, or stock items.
+3. **Settings Page Rework**:
+   - Redesigned `/settings` to act as a system status and diagnostic overview (session, SMTP, and database stats) with clear redirection to the Admin Center.
+4. **Network / IP Range Management**:
+   - Reworked IP range management under `/admin/ip-ranges` with strict overlap validations on create/update and checks to prevent hard deleting subnets that have devices assigned.
+5. **Email & Notifications Section**:
+   - Implemented `/admin/email-notifications` to verify SMTP connectivity parameters cleanly (hiding secrets) and configure automated notification rules. Added an admin-only POST endpoint at `/api/admin/test-email` to send transport validation test emails.
+6. **Defaults & Explanations**:
+   - Created inventory and stock/maintenance defaults documentation pages. Refactored `/zones` to clearly explain maps, physical AP anchors, expected zones, and auto-resolving movement alerts.
+7. **Resource Flag**:
+   - Added a `requiresCredentials` boolean flag to the `ToolLink` resource model, updating form views, tool cards list, and schemas.
+8. **UI Preview Lab Updates**:
+   - Added static mock-ups to `/admin/ui-preview` for Master Data rows, IP range cards with overlaps, email settings, default values, and zone explanations.
+9. **Unit and Integration Tests**:
+   - Added a comprehensive test suite `tests/admin-center.test.ts` to test duplicate master data blocking, used-value deletions, range overlaps, and resource flags. All 454 tests pass.
+
 ### Known Limitations & External Blockers
 - **Real Phone/Camera Validation**: While verified via automated unit testing and browser simulation, physical phone camera permissions, HTTPS local DNS resolution, and PWA shortcut behaviors require local deployment verification.
-- **SMTP credentials**: Degradation warnings for email logging are ignored and logged as skipped in this phase; real SMTP credentials must be configured on deployment.
+- **SMTP credentials**: SMTP transport diagnostics are supported; real SMTP credentials must be configured on deployment.
 - **BITLOCKER_VAULT_SECRET**: Vault secret must be securely configured in the approved password manager before entering production recovery keys.

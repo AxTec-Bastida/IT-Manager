@@ -412,6 +412,88 @@ export default async function UiPreviewPage() {
         </div>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90B Admin Center & Master Data Patterns" description="Static preview samples for master data lists, custom dropdowns, IP subnet pools, email settings, default values, and resource credentials.">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Master Data List Row & Unknown Value Warning */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Master Data Controlled Row</h3>
+            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-900">Laptop</span>
+                <Badge tone="success">Active</Badge>
+              </div>
+              <p className="text-xs text-slate-500">Asset category used by 12 devices.</p>
+              <div className="rounded border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 flex gap-2">
+                <AlertTriangle size={15} className="shrink-0 text-amber-700" />
+                <p>This value is used by existing records. Deactivate it instead of deleting to preserve history.</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs text-rose-950 space-y-2">
+              <p className="font-bold">Unknown Value Blocked</p>
+              <p>Type "Server" is not a controlled value. Non-admin users are blocked from adding custom categories on forms.</p>
+            </div>
+          </MobileCard>
+
+          {/* IP Range Pool Card */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">IP Subnet Pool Manager Card</h3>
+            <div className="rounded-lg border border-slate-200 bg-white p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-slate-950 text-sm">Printer Subnet</h4>
+                <Badge tone="success">Active</Badge>
+              </div>
+              <p className="text-xs text-slate-600">VLAN 20 • Location: IT Cage • Category: Printers</p>
+              <p className="font-mono text-xs text-slate-900 bg-slate-50 px-2 py-1 rounded inline-block">192.168.20.1 - 192.168.20.254</p>
+              <div className="rounded border border-rose-100 bg-rose-50/50 p-2 text-xs text-rose-900 flex gap-2">
+                <AlertTriangle size={14} className="shrink-0 text-rose-700 mt-0.5" />
+                <p>Overlap warning: This subnet range overlaps with another active range (192.168.20.0/24).</p>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Email Settings & SMTP Warning */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Email Automation Diagnostics</h3>
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-950 flex gap-2">
+              <ShieldAlert className="size-4 text-rose-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Email sending is disabled until SMTP is configured.</p>
+                <p className="mt-0.5">System will skip email delivery tasks gracefully without crashing operational forms.</p>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-100 text-xs">
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">SMTP Host</span>
+                <span className="font-mono font-semibold text-slate-700">SMTP_HOST (Present)</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-500">SMTP Credentials</span>
+                <span className="font-mono font-semibold text-slate-400">•••••••• (Hidden for security)</span>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Defaults, Zones, Resources */}
+          <MobileCard className="space-y-4">
+            <h3 className="font-semibold text-slate-950">Defaults, Zones & Resource Flags</h3>
+            <div className="grid gap-2 text-xs">
+              <div className="p-2.5 bg-slate-50 rounded border border-slate-100">
+                <span className="font-bold text-slate-900 block mb-0.5">Asset Tag Prefix</span>
+                <span className="text-slate-500">Laptops pre-filled with: <strong>GHT-LP</strong></span>
+              </div>
+              <div className="p-2.5 bg-slate-50 rounded border border-slate-100">
+                <span className="font-bold text-slate-900 block mb-0.5">Warehouse Location Zones</span>
+                <span className="text-slate-500">Group map anchors (e.g. IT Cage) to flag when static assets move.</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 rounded border border-slate-100 flex items-center justify-between">
+                <span className="font-bold text-slate-900">Requires user credentials flag</span>
+                <Badge tone="security">Credentials Required</Badge>
+              </div>
+            </div>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.

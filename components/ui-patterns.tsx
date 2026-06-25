@@ -132,16 +132,19 @@ export function ActionLink({
   children,
   variant = "secondary",
   className,
+  target,
 }: {
   href: string;
   children: React.ReactNode;
   variant?: ActionVariant;
   className?: string;
+  target?: string;
 }) {
   return (
     <Link
       href={href}
       className={actionButtonClass(variant, className)}
+      target={target}
     >
       {children}
     </Link>

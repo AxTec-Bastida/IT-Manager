@@ -432,6 +432,7 @@ export const toolLinkSchema = z.object({
   isFavorite: z.coerce.boolean().default(false),
   requiresVpn: z.coerce.boolean().default(false),
   internalOnly: z.coerce.boolean().default(false),
+  requiresCredentials: z.coerce.boolean().default(false),
   notes: optionalText.refine((value) => !value || !/password|secret|token|api key/i.test(value), "Do not store passwords, tokens, API keys, or secrets in tool notes."),
   active: z.coerce.boolean().default(true),
 });

@@ -21,6 +21,7 @@ export function ToolLinkForm({ toolLink }: { toolLink?: ToolLink | null }) {
       isFavorite: formData.get("isFavorite") === "on",
       requiresVpn: formData.get("requiresVpn") === "on",
       internalOnly: formData.get("internalOnly") === "on",
+      requiresCredentials: formData.get("requiresCredentials") === "on",
       active: formData.get("active") === "on",
     };
     const response = await fetch(toolLink ? `/api/tools/${toolLink.id}` : "/api/tools", {
@@ -75,10 +76,11 @@ export function ToolLinkForm({ toolLink }: { toolLink?: ToolLink | null }) {
 
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h2 className="font-semibold text-slate-950">Flags</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Checkbox name="isFavorite" label="Favorite" checked={toolLink?.isFavorite ?? false} />
           <Checkbox name="requiresVpn" label="VPN required" checked={toolLink?.requiresVpn ?? false} />
           <Checkbox name="internalOnly" label="Internal only" checked={toolLink?.internalOnly ?? false} />
+          <Checkbox name="requiresCredentials" label="Requires user credentials" checked={toolLink?.requiresCredentials ?? false} />
           <Checkbox name="active" label="Active link" checked={toolLink?.active ?? true} />
         </div>
       </section>

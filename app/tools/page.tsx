@@ -91,6 +91,7 @@ function ToolCard({ link }: { link: Awaited<ReturnType<typeof prisma.toolLink.fi
         {link.isFavorite ? <Badge className="bg-amber-100 text-amber-900 ring-amber-200">Favorite</Badge> : null}
         {link.requiresVpn ? <Badge className="bg-blue-100 text-blue-800 ring-blue-200">VPN Required</Badge> : null}
         {link.internalOnly ? <Badge className="bg-slate-100 text-slate-700 ring-slate-200">Internal Only</Badge> : null}
+        {link.requiresCredentials ? <Badge className="bg-purple-100 text-purple-800 ring-purple-200">Credentials Required</Badge> : null}
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <a href={link.url} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800"><ExternalLink size={16} />Open</a>

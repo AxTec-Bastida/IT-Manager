@@ -53,6 +53,7 @@ const navGroups = [
   {
     label: "Admin",
     links: [
+      { href: "/admin", label: "Admin Center", icon: ShieldCheck },
       { href: "/settings", label: "Settings", icon: Settings },
       { href: "/admin/ui-preview", label: "UI Preview Lab", icon: Palette },
       { href: "/admin/users", label: "Users", icon: Users },
