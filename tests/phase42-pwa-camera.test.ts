@@ -63,11 +63,10 @@ describe("phase 42 camera helpers", () => {
 });
 
 describe("phase 42 scanner and photo UI contracts", () => {
-  it("keeps the live scanner ready for another scan instead of stopping after detection", async () => {
+  it("stops the live scanner immediately on detection", async () => {
     const source = await readFile(path.join(process.cwd(), "components/camera-scanner.tsx"), "utf8");
-    expect(source).toContain("Ready for next scan");
-    expect(source).toContain("window.setTimeout");
-    expect(source).not.toContain("controlsRef.current?.stop();\n            onDetected");
+    expect(source).toContain("controlsRef.current?.stop();");
+    expect(source).toContain("track.stop()");
   });
 
   it("integrates shared camera capture and upload progress in asset photos", async () => {

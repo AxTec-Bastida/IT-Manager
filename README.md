@@ -2813,3 +2813,15 @@ Phase 89 intentionally kept daily workflow behavior stable. Any future visual wo
 Mobile navigation now uses an off-canvas drawer instead of a bottom sheet or visible sidebar. On narrow screens, the drawer is hidden by default, opens from the mobile header or bottom `Menu` button, shows a backdrop, closes on backdrop tap, closes on Escape, and closes after tapping a nav link. Desktop keeps the normal visible sidebar and the same route/permission logic.
 
 Beta QA should check 320px, 360px, 390px, and 430px widths for no horizontal overflow, readable nav labels, scrollable drawer content, and content using the full width when the drawer is closed.
+
+## Phase 90A Scan, Camera, Mobile Action, and Field-Flow Blocker Fixes
+
+Phase 90A addresses critical usability and technical blockers identified during controlled beta field testing of the app.
+
+What changed:
+- **Immediate Scan Stop & Close**: The camera scanner component (`camera-scanner.tsx`) now freezes the frame and stops the video stream/media tracks immediately upon successful detection of a barcode or QR code. This turns off the physical phone camera light instantly and prevents duplicate scan events. The quick scan panel now closes the scanner overlay on detection to show the review card immediately.
+- **Top-Right Header Scan Button**: Fixed the header Scan button to route correctly to `/scan` on both mobile and desktop. It is keyboard accessible, has an explicit tag, and is not blocked by z-index or navigation drawer states.
+- **Photo Checklist Camera Binding**: Fixed the black camera preview issue by replacing a race-prone `setTimeout` with a React callback ref (`videoRef`) to bind the media stream as soon as the video element mounts. Implemented a fallback to any available camera if the ideal environmental/rear camera constraint fails.
+- **Mobile Actions Menu Redesign**: Replaced the giant fixed-bottom mobile action panel on device details with a clean, in-page **Asset Actions** card. Primary actions (Scan label, Move / Relocate) are directly visible, secondary actions are grouped under an expandable **More Actions** drawer, and the decommission action is isolated in a separated **Danger Zone**.
+- **UI Preview Lab Updates**: Added static mock-up examples to `/admin/ui-preview` for scan results review, camera fallback error warnings, manual scan inputs, collapsible actions menus, and phone-first scan workflows.
+- **Test Suite Alignment**: Adjusted unit tests in `tests/phase42-pwa-camera.test.ts` to expect immediate stop and track release. All tests pass successfully.

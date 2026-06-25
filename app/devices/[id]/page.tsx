@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArchiveX, CircleDollarSign, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, Printer, RotateCcw, Route, ScanLine, ShieldCheck, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
+import { ArchiveX, ChevronDown, CircleDollarSign, ClipboardList, Download, Edit, MapPin, Network, PackageCheck, Printer, RotateCcw, Route, ScanLine, ShieldCheck, Tags, Truck, UserRoundPlus, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -152,7 +152,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
         title={displayName}
         description={`${device.ipAddress || "No IP"}${device.vlan ? ` on VLAN ${device.vlan}` : ""}`}
         action={
-          <div className="grid gap-2 sm:flex">
+          <div className="hidden lg:flex lg:gap-2">
             {canWriteInventory ? <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
               <Edit size={16} />
               Edit
@@ -258,6 +258,108 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
           Internal asset value estimate saved.
         </div>
       ) : null}
+
+      {/* Mobile-Only Actions Card */}
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:hidden space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Asset Actions</h2>
+        
+        {/* Primary Mobile Actions */}
+        <div className="grid gap-2 grid-cols-2">
+          <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <ScanLine size={16} />
+            Scan label
+          </Link>
+          {canWriteInventory && moveUseful ? (
+            <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-sky-700 px-3 text-sm font-semibold text-white hover:bg-sky-800">
+              <Truck size={16} />
+              Move / Relocate
+            </Link>
+          ) : null}
+        </div>
+
+        {/* Collapsible More Actions */}
+        <details className="group border-t border-slate-100 pt-3">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-slate-700 list-none select-none">
+            <span>More actions</span>
+            <ChevronDown className="transition-transform group-open:rotate-180 text-slate-500" size={16} />
+          </summary>
+          <div className="mt-3 grid gap-2">
+            {canWriteInventory ? (
+              <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Edit size={16} />
+                Edit Asset
+              </Link>
+            ) : null}
+            {canWriteInventory && installEligible ? (
+              <Link href={`/devices/${device.id}/install`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-cyan-700 px-3 text-sm font-semibold text-white hover:bg-cyan-800">
+                <Network size={16} />
+                {installActionLabel(device)}
+              </Link>
+            ) : null}
+            {canWriteInventory && moveUseful ? (
+              <Link href={offlineMoveHref} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-sky-300 bg-sky-50 px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100">
+                <Route size={16} />
+                Offline move
+              </Link>
+            ) : null}
+            <Link href={`/map?asset=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+              <MapPin size={16} />
+              View on Map
+            </Link>
+            {canWriteInventory ? (
+              <Link href={`/devices/${device.id}/maintenance/new`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <Wrench size={16} />
+                Add maintenance
+              </Link>
+            ) : null}
+            {canWriteTasks ? (
+              <Link href={`/tasks/new?relatedDeviceId=${device.id}&category=INVENTORY&title=${encodeURIComponent(`Follow up ${device.name}`)}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <ClipboardList size={16} />
+                Create Task
+              </Link>
+            ) : null}
+            {activeRmaItem ? (
+              <Link href={`/rma/${activeRmaItem.rmaCaseId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-amber-700 px-3 text-sm font-semibold text-white hover:bg-amber-800">
+                <PackageCheck size={16} />
+                Open RMA
+              </Link>
+            ) : canWriteRma ? (
+              <Link href={`/rma/new?deviceId=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <PackageCheck size={16} />
+                Create RMA
+              </Link>
+            ) : null}
+            {activeLoanItem ? (
+              <Link href={`/loans/${activeLoanItem.loanId}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-violet-700 px-3 text-sm font-semibold text-white hover:bg-violet-800">
+                <ClipboardList size={16} />
+                Open Loan
+              </Link>
+            ) : canWriteLoans ? (
+              <Link href={`/loans/quick-checkout?assetId=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <ClipboardList size={16} />
+                Quick Loan
+              </Link>
+            ) : null}
+            {canWriteAssignments && isCurrentlyAssigned ? (
+              <Link href={`/devices/${device.id}/return`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 text-sm font-semibold text-white hover:bg-emerald-800">
+                <RotateCcw size={16} />
+                Return / Unassign
+              </Link>
+            ) : null}
+          </div>
+        </details>
+
+        {/* Separated Danger Zone */}
+        {canWriteInventory ? (
+          <div className="border-t border-rose-100 pt-3">
+            <p className="text-xs font-semibold text-rose-500 uppercase tracking-wider mb-2">Danger Zone</p>
+            <Link href={`/devices/${device.id}/decommission`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-rose-50 border border-rose-200 px-3 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+              <ArchiveX size={16} />
+              Open controlled decommission
+            </Link>
+          </div>
+        ) : null}
+      </div>
 
       <section className="grid items-start gap-4 xl:grid-cols-3">
         <div className="self-start xl:col-span-2 space-y-4">
@@ -1016,43 +1118,6 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
           {activity.length === 0 ? <p className="text-sm text-slate-500">No logged actions for this device yet.</p> : null}
         </div>
       </section>
-
-      <nav className="fixed inset-x-3 bottom-24 z-30 grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur lg:hidden">
-        {canWriteInventory ? <Link href={`/devices/${device.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-slate-950 px-2 text-sm font-semibold text-white">
-          <Edit size={16} />
-          Edit
-        </Link> : null}
-        <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 text-sm font-semibold text-slate-700">
-          <ScanLine size={16} />
-          Scan
-        </Link>
-        <Link href={`/map?asset=${device.id}`} className="inline-flex min-h-12 items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 text-sm font-semibold text-slate-700">
-          <MapPin size={16} />
-          Map
-        </Link>
-        {canWriteInventory && moveUseful ? (
-          <Link href={`/devices/${device.id}/move`} className="col-span-3 inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-sky-700 px-2 text-sm font-semibold text-white">
-            <Truck size={16} />
-            Move / Relocate
-          </Link>
-        ) : null}
-        {canWriteAssignments && isCurrentlyAssigned ? (
-          <Link href={`/devices/${device.id}/return`} className="col-span-3 inline-flex min-h-12 items-center justify-center gap-1 rounded-lg bg-emerald-700 px-2 text-sm font-semibold text-white">
-            <RotateCcw size={16} />
-            Return / Unassign
-          </Link>
-        ) : null}
-      </nav>
-
-      {canWriteInventory ? <details className="rounded-lg border border-rose-200 bg-white p-4">
-        <summary className="min-h-11 cursor-pointer text-sm font-semibold text-rose-700">More / danger actions</summary>
-        <div className="mt-3">
-          <Link href={`/devices/${device.id}/decommission`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800">
-            <ArchiveX size={16} />
-            Open controlled decommission
-          </Link>
-        </div>
-      </details> : null}
     </div>
   );
 }

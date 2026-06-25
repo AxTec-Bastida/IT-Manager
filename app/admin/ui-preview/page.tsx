@@ -332,6 +332,86 @@ export default async function UiPreviewPage() {
         </MobileCard>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90A Scan & Camera Patterns" description="Static preview samples for scanners, camera fallbacks, mobile in-page action menus, and phone-first scan workflow examples.">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Scan result review card */}
+          <MobileCard className="space-y-3">
+            <Badge tone="success">Scan result found</Badge>
+            <div>
+              <h3 className="font-semibold text-slate-950">DELL Latitude 5420</h3>
+              <p className="font-mono text-sm text-slate-600">Asset Tag: GHT-LP-011</p>
+              <p className="text-xs text-slate-500 mt-1">Scanner automatically stopped after successful detection.</p>
+            </div>
+            <div className="grid gap-2 grid-cols-2">
+              <ActionLink href="/devices" variant="primary" className="text-center">Open asset</ActionLink>
+              <ActionLink href="/devices" className="text-center">Move / Relocate</ActionLink>
+            </div>
+          </MobileCard>
+
+          {/* Camera fallback/error card */}
+          <MobileCard className="space-y-2 border-rose-200 bg-rose-50/50">
+            <h3 className="font-semibold text-rose-950">Camera scanner fallback</h3>
+            <p className="text-sm text-rose-900">Camera preview could not start. Check browser permission or use Upload Photo.</p>
+            <p className="text-xs text-rose-800 font-medium">Camera requires HTTPS on most phones. Use https://warehouse-it.local.</p>
+            <div className="pt-2">
+              <button type="button" className={actionButtonClass("secondary", "w-full")}>Upload Photo</button>
+            </div>
+          </MobileCard>
+
+          {/* Manual scan fallback */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Manual scan input</h3>
+            <p className="text-sm text-slate-600">Use this fallback if your camera is unavailable or you are using a handheld wedge scanner.</p>
+            <div className="flex gap-2">
+              <input readOnly value="GHT-LP-011" className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm" />
+              <button type="button" className={actionButtonClass("primary")}>Lookup</button>
+            </div>
+          </MobileCard>
+
+          {/* Phone-first scan workflow example */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Phone-first scan checklist</h3>
+            <p className="text-sm text-slate-600">Scan employee badge followed by the asset tag to complete quick assignments.</p>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 rounded bg-slate-50 p-2 text-slate-700">
+                <span className="font-semibold">Step 1:</span> Scan borrower badge (Pending...)
+              </div>
+              <div className="flex items-center gap-2 rounded bg-slate-50 p-2 text-slate-400">
+                <span className="font-semibold">Step 2:</span> Scan asset tag
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Mobile action menu / More actions pattern */}
+          <MobileCard className="space-y-4 md:col-span-2">
+            <h3 className="font-semibold text-slate-950">Mobile Collapsible Asset Actions (More Actions / Danger Zone)</h3>
+            <p className="text-sm text-slate-600">Demonstrates the in-page non-obstructive actions card that replaced the floating panel.</p>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+              <div className="grid gap-2 grid-cols-2">
+                <button type="button" className={actionButtonClass("secondary", "w-full")}>Scan label</button>
+                <button type="button" className={actionButtonClass("primary", "w-full")}>Move / Relocate</button>
+              </div>
+              <details className="group border-t border-slate-100 pt-3">
+                <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-slate-700 list-none select-none">
+                  <span>More actions</span>
+                  <span className="text-xs text-slate-500 font-normal">Expand for Edit, Map, Tasks, RMA</span>
+                </summary>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button type="button" className={actionButtonClass("secondary", "w-full")}>Edit Asset</button>
+                  <button type="button" className={actionButtonClass("secondary", "w-full")}>View on Map</button>
+                  <button type="button" className={actionButtonClass("secondary", "w-full")}>Add maintenance</button>
+                  <button type="button" className={actionButtonClass("secondary", "w-full")}>Create Task</button>
+                </div>
+              </details>
+              <div className="border-t border-rose-100 pt-3">
+                <p className="text-xs font-semibold text-rose-500 uppercase tracking-wider mb-2">Danger Zone</p>
+                <button type="button" className={actionButtonClass("danger", "w-full")}>Open controlled decommission</button>
+              </div>
+            </div>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.

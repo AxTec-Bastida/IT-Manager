@@ -23,6 +23,7 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
 
   useEffect(() => {
     let active = true;
+    const videoElement = videoRef.current;
 
     async function start() {
       try {
@@ -43,32 +44,55 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const { parseScannedLabel } = await import("@/lib/scan-label");
         const reader = new BrowserMultiFormatReader();
-        const controls = await reader.decodeFromConstraints(
-          {
-            audio: false,
-            video: {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const decodeCallback = (result: any) => {
+          if (!active || !result || handledRef.current) return;
+          const raw = result.getText();
+          const now = Date.now();
+          if (lastRawRef.current && lastRawRef.current.value === raw && now - lastRawRef.current.at < 4000) return;
+          lastRawRef.current = { value: raw, at: now };
+          handledRef.current = true;
+          const parsed = parseScannedLabel(raw);
+          const value = target ? valueForScanTarget(parsed, target) : parsed.query;
+          setLastValue(value);
+
+          // Stop scanner immediately on detection
+          active = false;
+          controlsRef.current?.stop();
+          if (videoElement?.srcObject) {
+            const stream = videoElement.srcObject as MediaStream;
+            stream.getTracks().forEach((track) => track.stop());
+          }
+
+          onDetected(value, parsed);
+        };
+
+        let controls;
+        try {
+          controls = await reader.decodeFromConstraints(
+            {
+              audio: false,
+              video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
             },
-          },
-          videoRef.current!,
-          (result) => {
-            if (!active || !result || handledRef.current) return;
-            const raw = result.getText();
-            const now = Date.now();
-            if (lastRawRef.current?.value === raw && now - lastRawRef.current.at < 4000) return;
-            lastRawRef.current = { value: raw, at: now };
-            handledRef.current = true;
-            const parsed = parseScannedLabel(raw);
-            const value = target ? valueForScanTarget(parsed, target) : parsed.query;
-            setLastValue(value);
-            onDetected(value, parsed);
-            window.setTimeout(() => {
-              handledRef.current = false;
-            }, 1800);
-          },
-        );
+            videoElement!,
+            decodeCallback
+          );
+        } catch {
+          // Fall back to generic video stream constraints
+          controls = await reader.decodeFromConstraints(
+            {
+              audio: false,
+              video: true,
+            },
+            videoElement!,
+            decodeCallback
+          );
+        }
 
         controlsRef.current = controls;
         setLoading(false);
@@ -87,6 +111,10 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
     return () => {
       active = false;
       controlsRef.current?.stop();
+      if (videoElement?.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
   }, [onDetected, target]);
 

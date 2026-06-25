@@ -612,7 +612,7 @@ export function QuickScanPanel({ permissions = defaultQuickScanPermissions }: { 
         ))}
       </section>
 
-      {scannerOpen ? <CameraScanner onDetected={(value) => lookup(value, { closeScanner: false })} onClose={() => setScannerOpen(false)} title="Quick inventory scan" /> : null}
+      {scannerOpen ? <CameraScanner onDetected={(value) => lookup(value, { closeScanner: true })} onClose={() => setScannerOpen(false)} title="Quick inventory scan" /> : null}
     </div>
   );
 }

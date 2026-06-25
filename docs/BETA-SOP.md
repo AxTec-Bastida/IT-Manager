@@ -886,3 +886,40 @@ Mobile navigation should be tested as an off-canvas drawer:
 - Desktop and wide tablet layouts should keep the normal visible sidebar.
 
 This hotfix does not change roles, permissions, routes, auth, database models, or workflows.
+
+## Phase 90A Scan, Camera, Mobile Action, and Field-Flow Blocker Fixes
+
+This phase addresses critical usability and technical blockers identified during controlled beta field testing of the app.
+
+### Key Changes
+1. **Start Camera Scan Flow**:
+   - The camera scanner component (`camera-scanner.tsx`) now stops scanning immediately upon detecting a QR code or barcode.
+   - It freezes the frame (`active = false` and `controls.stop()`) and shuts down the video media tracks immediately to turn off the physical camera light, preventing duplicate scans while loading.
+   - Handheld manual scanner and photo uploads remain available as robust fallbacks.
+   - Changed the Quick Scan panel (`quick-scan-panel.tsx`) scanner trigger call to close the scanner overlay immediately on detection, showing the review card instantly.
+2. **Top-Right Header Scan Button**:
+   - The top-right Scan button in the mobile header correctly navigates to the `/scan` route. It is keyboard-accessible, has a clear target, and is not blocked by the navigation drawer or z-index constraints.
+3. **Photo Checklist Camera Preview**:
+   - Changed the video element stream binding in `camera-capture.tsx` from a race-prone `setTimeout` to a React callback ref (`videoRef`). This guarantees the media stream binds to the video tag as soon as it mounts, resolving the black screen preview issue.
+   - Implemented constraint fallback: falls back gracefully to any generic camera if the ideal environmental/rear camera constraint fails.
+4. **Mobile Asset/Device Action Menu Redesign**:
+   - Removed the giant fixed bottom action panel (`lg:hidden`) from the device details page (`app/devices/[id]/page.tsx`) that obstructed notes/history and decommission options.
+   - Replaced it with a clean, responsive, in-page **Asset Actions** card.
+     - Displays primary actions (**Scan label** and **Move / Relocate**) directly.
+     - Collapses secondary actions (Edit, Map, Tasks, RMA, etc.) under an expandable **More Actions** drawer using HTML `<details>`.
+     - Isolates the **Decommission** action in a separated **Danger Zone** panel.
+   - Hidden the desktop `PageHeader`'s action bar on mobile viewports using Tailwind classes (`hidden lg:flex`) to prevent action duplication.
+5. **UI Preview Lab Updates**:
+   - Appended static, safe visual samples to `/admin/ui-preview` for:
+     - Scan result review card
+     - Camera scanner fallback/error card
+     - Manual scan input fallback
+     - Mobile collapsible actions menu (with More actions and Danger Zone)
+     - Phone-first scan checklist workflow example
+6. **Test Suite Alignments**:
+   - Updated the unit tests in `tests/phase42-pwa-camera.test.ts` to assert that the scanner stops and cleans up tracks upon successful detection. All 449 tests pass successfully.
+
+### Known Limitations & External Blockers
+- **Real Phone/Camera Validation**: While verified via automated unit testing and browser simulation, physical phone camera permissions, HTTPS local DNS resolution, and PWA shortcut behaviors require local deployment verification.
+- **SMTP credentials**: Degradation warnings for email logging are ignored and logged as skipped in this phase; real SMTP credentials must be configured on deployment.
+- **BITLOCKER_VAULT_SECRET**: Vault secret must be securely configured in the approved password manager before entering production recovery keys.

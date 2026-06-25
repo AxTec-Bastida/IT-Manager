@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Camera, Check, ImageUp, Loader2, RotateCcw, X } from "lucide-react";
 import type { AssetPhotoType } from "@prisma/client";
@@ -21,7 +21,14 @@ type Props = {
 };
 
 export function CameraCapture({ photoType, onPhotoReady, disabled = false, resetToken = 0 }: Props) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoElementRef.current = node;
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current;
+      node.play().catch(() => {});
+    }
+  }, []);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -49,7 +56,7 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    if (videoElementRef.current) videoElementRef.current.srcObject = null;
     setCameraOpen(false);
   }
 
@@ -67,22 +74,24 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
     }
     setStarting(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1600 },
-          height: { ideal: 1200 },
-        },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1600 },
+            height: { ideal: 1200 },
+          },
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
       streamRef.current = stream;
       setCameraOpen(true);
-      window.setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play();
-        }
-      }, 0);
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : "";
       setMessage(/denied|permission/i.test(rawMessage) ? "Camera permission was denied. Allow camera access, or choose a photo from the gallery." : "Unable to start the camera. Try the gallery upload fallback.");
@@ -92,8 +101,8 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
   }
 
   async function takePhoto() {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
+    if (!videoElementRef.current) return;
+    const video = videoElementRef.current;
     const options = photoCompressionOptions(photoType);
     const scale = Math.min(1, options.maxWidth / Math.max(video.videoWidth, 1));
     const canvas = document.createElement("canvas");
