@@ -974,6 +974,33 @@ export default async function UiPreviewPage() {
         </div>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90G final beta readiness patterns" description="Static examples for Map/Zones clarity, camera background pause, navigation cleanup, and release-readiness review.">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <MobileCard className="space-y-3">
+            <Badge tone="info">Map / Zones</Badge>
+            <h3 className="font-semibold text-slate-950">Expected Location Zone</h3>
+            <p className="text-sm text-slate-600">Map anchors are floor-plan coordinates. Zones are logical areas such as Packing, Receiving, IT Cage, Returns, Shipping, or Co-Production.</p>
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">FIXED_ASSET_MOVED appears when a fixed/static asset is recorded outside its expected zone.</p>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="warning">Camera paused</Badge>
+            <h3 className="font-semibold text-slate-950">Background safety message</h3>
+            <p className="text-sm text-slate-600">Camera paused while app was in the background. Tap Start camera to scan again.</p>
+            <button type="button" className={actionButtonClass("primary")}>Start camera again</button>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="security">Release readiness</Badge>
+            <h3 className="font-semibold text-slate-950">Final beta checklist</h3>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>Protected routes require login.</li>
+              <li>Exports avoid secrets and recovery keys.</li>
+              <li>Phone pages avoid horizontal overflow at 320px.</li>
+              <li>Real phone and SMTP validation remain external blockers.</li>
+            </ul>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.

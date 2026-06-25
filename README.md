@@ -2921,4 +2921,63 @@ PO/Requisition FORMATO export columns:
 
 Intentionally not implemented in Phase 90F: OCR expansion, SNMP/live printer polling, direct Zebra sending, SMTP credentials, BitLocker reveal changes, external purchasing-app integration, broad reports module rebuild, and hard-deleting linked facturas.
 
+## Phase 90G: Final Real-Beta Regression and Release Readiness
+
+Phase 90G is a final hardening pass for the current beta surface. It is not a new workflow phase. The goal is to make the app easier to understand on a phone, catch broken navigation, clarify Map/Zones, and keep release readiness honest.
+
+Map and Zones:
+
+- `/map` is the visual warehouse floor plan. It shows uploaded map images, map anchors, last-scanned asset location pins, and movement alert context.
+- `/zones` defines logical warehouse sectors such as Packing, Receiving, IT Cage, Returns, Shipping, Office, or Co-Production.
+- A map anchor is a coordinate on the map. A zone is the logical area that anchor belongs to. An expected location zone is the zone where a fixed/static asset should normally be.
+- `FIXED_ASSET_MOVED` alerts are review signals for fixed/static assets recorded outside their expected zone. They can auto-resolve when the asset returns to the expected zone.
+
+Canonical beta routes:
+
+- Quick scan: `/scan`
+- Inventory hub: `/devices`
+- Intake hub: `/intake`
+- Add One Asset: `/intake/assets/new`
+- Bulk Receive Serialized Assets: `/intake/assets/bulk`
+- Pair Companion Devices: `/intake/pair`
+- Stockroom: `/stock`
+- Restock Existing Item: `/stock/restock`
+- Physical Count / Adjustment: `/stock/count`
+- Print Labels: `/labels`
+- Assignments: `/assignments`
+- Quick Asset Checkout: `/loans/quick-checkout`
+- RMA / Repair: `/rma`
+- Maintenance: `/maintenance`
+- Facturas: `/facturas`
+- Reports: `/reports`
+- Data Quality: `/data-quality`
+- Admin Center: `/admin`
+- Master Data: `/admin/master-data`
+- IP Ranges: `/admin/ip-ranges`
+- Email notification settings: `/admin/email-notifications`
+- Map and Zones: `/map` and `/zones`
+
+Phone and camera cleanup rules:
+
+- Camera streams must stop when scan succeeds, photo is captured, the user cancels, the component unmounts, the route changes, the page is hidden, or the browser fires `pagehide`.
+- The app should not auto-resume the camera after returning from the background. It should show: `Camera paused while app was in the background. Tap Start camera to scan again.`
+- Real phone validation is still an external beta blocker unless it has been performed on the actual warehouse phone.
+
+Release-readiness checklist:
+
+- Run `npm run backup` before migrations or broad QA.
+- Run `npx prisma migrate status`, `npx prisma migrate deploy`, `npx prisma generate`, `npm run doctor`, `npm test`, `npm run lint`, `npm run build`, and `npm run jobs:run-due`.
+- Confirm protected pages redirect to login when unauthenticated.
+- Confirm exports do not include SMTP credentials, BitLocker recovery keys, secrets, uploaded file contents, or password-manager data.
+- Keep SMTP optional. Missing SMTP must not block workflow saves.
+- Keep BitLocker recovery reveal behavior unchanged.
+
+Intentionally not implemented in Phase 90G: OCR, SNMP/live printer polling, UniFi integration, direct Zebra network printing, SMTP credential setup, fingerprint/thumb scanning, service worker expansion, and real phone validation claims without an actual phone test.
+
+Remaining external blockers before wider rollout:
+
+1. Real physical phone validation on the trusted HTTPS beta URL.
+2. SMTP credentials plus first real QA email.
+3. `BITLOCKER_VAULT_SECRET` stored in the approved password manager.
+
 

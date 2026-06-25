@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Camera, Check, ImageUp, Loader2, RotateCcw, X } from "lucide-react";
 import type { AssetPhotoType } from "@prisma/client";
-import { cameraSecurityMessage, cameraUnsupportedMessage, photoCompressionOptions, resizeImageFile, validateClientPhotoFile } from "@/lib/camera";
+import { cameraPausedInBackgroundMessage, cameraSecurityMessage, cameraUnsupportedMessage, photoCompressionOptions, resizeImageFile, validateClientPhotoFile } from "@/lib/camera";
 
 type CapturedPhoto = {
   file: File;
@@ -37,12 +37,37 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
   const [message, setMessage] = useState<string | null>(null);
   const [photo, setPhoto] = useState<CapturedPhoto | null>(null);
 
+  const stopCamera = useCallback((nextMessage?: string) => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoElementRef.current) videoElementRef.current.srcObject = null;
+    setCameraOpen(false);
+    if (nextMessage) setMessage(nextMessage);
+  }, []);
+
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (videoElementRef.current) videoElementRef.current.srcObject = null;
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+    function pauseForBackground() {
+      stopCamera(cameraPausedInBackgroundMessage());
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") pauseForBackground();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", pauseForBackground);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", pauseForBackground);
+    };
+  }, [cameraOpen, stopCamera]);
 
   useEffect(() => {
     setPhoto((current) => {
@@ -52,13 +77,6 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
     });
     setMessage(null);
   }, [resetToken]);
-
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    if (videoElementRef.current) videoElementRef.current.srcObject = null;
-    setCameraOpen(false);
-  }
 
   async function openCamera() {
     setMessage(null);
@@ -197,7 +215,7 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
               <Camera size={17} />
               Capture
             </button>
-            <button type="button" onClick={stopCamera} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-white/10 px-4 font-semibold text-white hover:bg-white/20">
+            <button type="button" onClick={() => stopCamera()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-white/10 px-4 font-semibold text-white hover:bg-white/20">
               <X size={17} />
               Cancel
             </button>

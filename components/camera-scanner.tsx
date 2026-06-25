@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Camera, Check, ImageUp, Loader2, ScanLine, X } from "lucide-react";
-import { cameraSecurityMessage, cameraUnsupportedMessage } from "@/lib/camera";
+import { cameraPausedInBackgroundMessage, cameraSecurityMessage, cameraUnsupportedMessage } from "@/lib/camera";
 import { valueForScanTarget, type ParsedScan } from "@/lib/scan-label";
 
 type CameraScannerProps = {
@@ -20,13 +20,30 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
   const [error, setError] = useState<string | null>(null);
   const [lastValue, setLastValue] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restartToken, setRestartToken] = useState(0);
 
   useEffect(() => {
     let active = true;
     const videoElement = videoRef.current;
 
+    function stopLiveCamera(message?: string) {
+      active = false;
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+      if (videoElement?.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoElement.srcObject = null;
+      }
+      setLoading(false);
+      if (message) setError(message);
+    }
+
     async function start() {
       try {
+        setError(null);
+        setLoading(true);
+        handledRef.current = false;
         const securityMessage = cameraSecurityMessage({ isSecureContext: window.isSecureContext, hostname: window.location.hostname });
         if (securityMessage) {
           setError(securityMessage);
@@ -58,12 +75,7 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
           setLastValue(value);
 
           // Stop scanner immediately on detection
-          active = false;
-          controlsRef.current?.stop();
-          if (videoElement?.srcObject) {
-            const stream = videoElement.srcObject as MediaStream;
-            stream.getTracks().forEach((track) => track.stop());
-          }
+          stopLiveCamera();
 
           onDetected(value, parsed);
         };
@@ -106,17 +118,24 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
       }
     }
 
+    function pauseForBackground() {
+      stopLiveCamera(cameraPausedInBackgroundMessage());
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") pauseForBackground();
+    }
+
     start();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", pauseForBackground);
 
     return () => {
-      active = false;
-      controlsRef.current?.stop();
-      if (videoElement?.srcObject) {
-        const stream = videoElement.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", pauseForBackground);
+      stopLiveCamera();
     };
-  }, [onDetected, target]);
+  }, [onDetected, restartToken, target]);
 
   async function scanImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -173,7 +192,20 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
       </div>
 
       <div className="space-y-2 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        {error ? <div className="rounded-lg bg-rose-500/20 p-3 text-sm text-rose-100">{error}</div> : null}
+        {error ? (
+          <div className="space-y-2 rounded-lg bg-rose-500/20 p-3 text-sm text-rose-100">
+            <p>{error}</p>
+            {error === cameraPausedInBackgroundMessage() ? (
+              <button
+                type="button"
+                onClick={() => setRestartToken((value) => value + 1)}
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 text-sm font-semibold text-slate-950"
+              >
+                Start camera again
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex items-center gap-2 rounded-lg bg-white/10 p-3 text-sm">
           {lastValue ? <Check className="text-emerald-300" size={18} /> : <ScanLine className="text-slate-300" size={18} />}
           <span className="min-w-0 truncate">{lastValue ? `Detected: ${lastValue}. Ready for next scan.` : "Scanning..."}</span>

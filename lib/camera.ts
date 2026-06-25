@@ -20,6 +20,10 @@ export function cameraUnsupportedMessage(hasMediaDevices: boolean) {
   return hasMediaDevices ? null : "Camera access is not available in this browser. Use HTTPS or localhost and allow camera permissions.";
 }
 
+export function cameraPausedInBackgroundMessage() {
+  return "Camera paused while app was in the background. Tap Start camera to scan again.";
+}
+
 export function scanLookupFailureMessage(error?: unknown) {
   if (error instanceof TypeError) return "Server unavailable. Check Wi-Fi/VPN/server and try again.";
   const message = error instanceof Error ? error.message : "";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search, SlidersHorizontal } from "lucide-react";
+import { Info, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { WarehouseMapView } from "@/components/warehouse-map-view";
@@ -54,7 +54,7 @@ export default async function MapPage({ searchParams }: Props) {
     <div className="space-y-6">
       <PageHeader
         title="Warehouse map"
-        description="Upload a warehouse map, place location anchors, and review stored manual asset location history. This is approximate, not GPS."
+        description="Visual floor plan for location anchors, last-scanned asset pins, and movement alerts. This is approximate warehouse context, not GPS."
         action={
           <Link href="/map/ap-locations/new" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
             <Plus size={16} />
@@ -62,6 +62,32 @@ export default async function MapPage({ searchParams }: Props) {
           </Link>
         }
       />
+
+      <section className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+        <div className="flex items-start gap-3">
+          <Info className="mt-0.5 shrink-0" size={18} />
+          <div className="space-y-2">
+            <h2 className="font-semibold">How Map and Zones work together</h2>
+            <p>
+              The map is the visual warehouse floor plan. Location anchors are points on that map, such as an AP, doorway,
+              bench, rack, or cage. Zones are logical sectors like Packing, Receiving, IT Cage, Returns, Shipping, or
+              Co-Production. Assign anchors to zones so fixed/static assets can be compared against their expected zone.
+            </p>
+            <p>
+              Asset pins use stored manual scan/location history and enabled legacy local data only. If a fixed asset is
+              recorded in a different zone than expected, the app can raise a FIXED_ASSET_MOVED alert for review.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Link href="/zones" className="inline-flex min-h-10 items-center justify-center rounded-md bg-white px-3 font-semibold text-sky-950 ring-1 ring-sky-200">
+                Open Zones
+              </Link>
+              <Link href="/admin/master-data" className="inline-flex min-h-10 items-center justify-center rounded-md bg-white px-3 font-semibold text-sky-950 ring-1 ring-sky-200">
+                Admin Master Data
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <form className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
         <label className="relative block">
@@ -127,7 +153,15 @@ export default async function MapPage({ searchParams }: Props) {
                 </div>
               );
             })}
-            {allAccessPoints.length === 0 ? <p className="py-3 text-sm text-slate-500">No location anchors configured yet.</p> : null}
+            {allAccessPoints.length === 0 ? (
+              <div className="py-3 text-sm text-slate-600">
+                <p className="font-medium text-slate-950">No location anchors configured yet.</p>
+                <p className="mt-1">Create anchors for important places like Packing, Receiving, IT Cage, Returns, Shipping, or Co-Production. Anchors can then be assigned to zones.</p>
+                <Link href="/map/ap-locations/new" className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-3 font-semibold text-slate-700 hover:bg-slate-100">
+                  Add first location anchor
+                </Link>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -143,7 +177,12 @@ export default async function MapPage({ searchParams }: Props) {
                   <p className="text-xs text-slate-500">{map.uploadedStoredFilename ? "Uploaded map image" : "Manual path / legacy map reference"}</p>
                 </div>
               ))}
-              {maps.length === 0 ? <p>Using the sample map at /warehouse-map.svg. Upload your warehouse map above when ready.</p> : null}
+              {maps.length === 0 ? (
+                <div className="space-y-2">
+                  <p>No custom warehouse layout image is active yet.</p>
+                  <p>Using the sample map at /warehouse-map.svg. Upload the warehouse floor plan when ready; anchors and zones can still be configured before that.</p>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
