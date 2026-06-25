@@ -1328,3 +1328,30 @@ Remaining external blockers:
 1. Real physical phone validation.
 2. SMTP credentials plus first real QA email.
 3. `BITLOCKER_VAULT_SECRET` stored in the approved password manager.
+
+## Phase 90I Controlled Beta Execution and Handoff
+
+Phase 90I is the execution package for controlled beta. It does not add major features and does not close manual blockers without real evidence.
+
+Status:
+
+- Controlled Team Beta: **CONDITIONAL GO** for controlled tester execution using the verified build and punchlist.
+- Wider Rollout: **NO-GO** until the manual blockers are closed.
+
+Execution docs:
+
+- `docs/BETA-PUNCHLIST.md` - live build status, open blockers, manual QA results, bugs found, decisions, and deferred items.
+- `docs/PHONE-QA-CHECKLIST.md` - real phone/camera/background/photo workflow checklist.
+- `docs/SMTP-QA-CHECKLIST.md` - SMTP provider, QA recipient, real test email, and EmailLog checklist.
+- `docs/BITLOCKER-SECRET-READINESS.md` - vault secret readiness and safe dummy reveal checklist.
+- `docs/CADDY-HTTPS-READINESS.md` - Caddy, trusted HTTPS, hostname, and phone access checklist.
+- `docs/ROUTE-SMOKE-MATRIX.md` - route smoke expectations for unauthenticated and authenticated checks.
+- `docs/BETA-TESTER-HANDOFF.md` - short tester-facing instructions.
+
+Manual blocker rules:
+
+- Real phone validation remains OPEN until the actual beta phone opens the trusted URL, scans, captures/uploads a photo, and verifies background camera cleanup.
+- SMTP QA remains OPEN until an approved QA email is sent, received, and logged.
+- BitLocker secret readiness remains OPEN until `BITLOCKER_VAULT_SECRET` is stored in the approved password manager and verified safely.
+
+Do not paste secrets, recovery keys, real SMTP credentials, production facturas, real photos, or sensitive screenshots into docs or bug reports.

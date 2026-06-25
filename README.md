@@ -2980,4 +2980,32 @@ Remaining external blockers before wider rollout:
 2. SMTP credentials plus first real QA email.
 3. `BITLOCKER_VAULT_SECRET` stored in the approved password manager.
 
+## Phase 90I: Controlled Beta Execution and Handoff
+
+Phase 90I creates the controlled beta execution package. It does not add new modules or close manual blockers without evidence.
+
+Current status:
+
+- Controlled Team Beta: **CONDITIONAL GO** for the current verified build and controlled tester workflow.
+- Wider Rollout: **NO-GO** until manual blockers are closed.
+- Current punchlist: `docs/BETA-PUNCHLIST.md`.
+
+Beta execution docs:
+
+- `docs/BETA-PUNCHLIST.md` - live build status, open blockers, QA results, bug table, decision log, and deferred items.
+- `docs/PHONE-QA-CHECKLIST.md` - real phone, camera, photo, and phone workflow checklist.
+- `docs/SMTP-QA-CHECKLIST.md` - real QA email and EmailLog checklist.
+- `docs/BITLOCKER-SECRET-READINESS.md` - vault secret readiness and safe dummy reveal checklist.
+- `docs/CADDY-HTTPS-READINESS.md` - Caddy/HTTPS/phone trust checklist.
+- `docs/ROUTE-SMOKE-MATRIX.md` - route behavior matrix for unauthenticated/authenticated smoke checks.
+- `docs/BETA-TESTER-HANDOFF.md` - short beta tester handoff guide.
+
+Open blockers remain:
+
+1. Real physical phone validation.
+2. SMTP QA email sent to and received by an approved QA mailbox.
+3. `BITLOCKER_VAULT_SECRET` stored in the approved password manager.
+
+Do not mark these blockers closed from source tests, HTTP smoke, or workstation-only checks. Do not commit `.env`, SMTP credentials, BitLocker recovery keys, database files, uploads, backups, certs, screenshots with sensitive data, or runtime files.
+
 
