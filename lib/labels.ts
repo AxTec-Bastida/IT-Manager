@@ -1,8 +1,8 @@
 import QRCode from "qrcode";
 
 export type LabelCodeType = "qr" | "barcode" | "qr_barcode" | "data_matrix";
-export type LabelTemplate = "compact" | "standard" | "large" | "batch_sheet" | "micro_device" | "scanner_sled";
-export type LabelMode = "existing" | "range" | "manual" | "alias-linked" | "batch";
+export type LabelTemplate = "compact" | "standard" | "large" | "batch_sheet" | "micro_device" | "scanner_sled" | "2x2" | "4x6" | "small_asset" | "stock_shelf" | "sheet_labels";
+export type LabelMode = "existing" | "range" | "manual" | "alias-linked" | "batch" | "stock";
 
 export type LabelItem = {
   deviceId?: string;
@@ -53,6 +53,11 @@ export const labelTemplateConfig: Record<LabelTemplate, { label: string; widthDo
   batch_sheet: { label: "Batch sheet", widthDots: 280, heightDots: 120, qrScale: 3, barcodeHeight: 34 },
   micro_device: { label: "Micro device", widthDots: 240, heightDots: 96, qrScale: 3, barcodeHeight: 28 },
   scanner_sled: { label: "Scanner / sled", widthDots: 320, heightDots: 140, qrScale: 4, barcodeHeight: 40 },
+  "2x2": { label: "2x2 Square", widthDots: 400, heightDots: 400, qrScale: 6, barcodeHeight: 60 },
+  "4x6": { label: "4x6 Large", widthDots: 812, heightDots: 1218, qrScale: 8, barcodeHeight: 120 },
+  small_asset: { label: "Small asset tag", widthDots: 280, heightDots: 100, qrScale: 3, barcodeHeight: 24 },
+  stock_shelf: { label: "Stock shelf label", widthDots: 400, heightDots: 200, qrScale: 5, barcodeHeight: 40 },
+  sheet_labels: { label: "Sheet labels", widthDots: 300, heightDots: 150, qrScale: 4, barcodeHeight: 30 },
 };
 
 export function normalizeLabelCodeType(value?: string | null): LabelCodeType {
@@ -61,7 +66,7 @@ export function normalizeLabelCodeType(value?: string | null): LabelCodeType {
 }
 
 export function normalizeLabelTemplate(value?: string | null): LabelTemplate {
-  if (value === "compact" || value === "standard" || value === "large" || value === "batch_sheet" || value === "micro_device" || value === "scanner_sled") return value;
+  if (value === "compact" || value === "standard" || value === "large" || value === "batch_sheet" || value === "micro_device" || value === "scanner_sled" || value === "2x2" || value === "4x6" || value === "small_asset" || value === "stock_shelf" || value === "sheet_labels") return value as LabelTemplate;
   return "standard";
 }
 

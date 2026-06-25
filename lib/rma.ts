@@ -106,10 +106,17 @@ export function buildRmaAlertCandidate(rma: RmaCase & { items: RmaItem[] }, now 
 
 export async function createRmaCase(prisma: PrismaClient, input: CreateRmaInput) {
   if (!input.rmaNumber.trim()) throw new ClientInputError("RMA number is required.");
-  if (!input.destination.trim()) throw new ClientInputError("Destination is required.");
-  if (!input.devices.length) throw new ClientInputError("Select at least one device for this RMA.");
   const sentAt = input.sentAt ?? null;
   const status = input.status ?? (sentAt ? "SENT" : "DRAFT");
+  let destination = (input.destination ?? "").trim();
+  if (!destination) {
+    if (status === "DRAFT") {
+      destination = "Pending";
+    } else {
+      throw new ClientInputError("Destination is required.");
+    }
+  }
+  if (!input.devices.length) throw new ClientInputError("Select at least one device for this RMA.");
   const reminderAfterDays = Math.max(1, Number(input.reminderAfterDays ?? 7));
   const deviceIds = [...new Set(input.devices.map((item) => item.deviceId).filter(Boolean))];
 
@@ -128,7 +135,7 @@ export async function createRmaCase(prisma: PrismaClient, input: CreateRmaInput)
       data: {
         rmaNumber: input.rmaNumber.trim(),
         title: clean(input.title),
-        destination: input.destination.trim(),
+        destination: destination,
         vendorName: clean(input.vendorName),
         contactName: clean(input.contactName),
         contactEmail: clean(input.contactEmail),

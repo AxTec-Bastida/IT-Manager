@@ -166,6 +166,14 @@ export const stockMovementTypeLabels: Record<StockMovementType, string> = {
   HANDED_OUT: "Handed Out",
   LOANED_OUT: "Loaned Out",
   RETURNED_TO_STOCK: "Returned to Stock",
+  RECEIVE: "Receive New Stock",
+  RESTOCK: "Restock Existing Item",
+  ISSUE: "Issue Consumable",
+  RETURN: "Return Usable Stock",
+  PHYSICAL_COUNT: "Physical Count Correction",
+  ADJUSTMENT: "Quantity Adjustment",
+  DAMAGED: "Damaged Stock",
+  LOST: "Lost Stock",
 };
 
 export const stockMovementTypeOptions = Object.keys(stockMovementTypeLabels) as StockMovementType[];

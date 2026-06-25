@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, LockKeyhole, Package, ShieldAlert, XCircle, Boxes, Handshake, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, LockKeyhole, Package, ShieldAlert, XCircle, Boxes, Handshake, FileSpreadsheet, Plus, Search, Tags } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/badge";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { PageHeader } from "@/components/page-header";
@@ -635,6 +635,302 @@ export default async function UiPreviewPage() {
         </div>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90D Stock & Labels Rework" description="Preview of stockroom restock flows, physical count warning alerts, and label generator card options.">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Restock Preview */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950 flex items-center gap-2">
+              <Boxes size={18} />
+              Stock Restock Form Preview
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md bg-slate-50 p-3 border border-slate-200">
+                <p className="font-bold text-slate-800">Item: CAT6 Ethernet Cable (STK-CAT6-10)</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 block">Current stock:</span>
+                    <span className="font-semibold text-slate-700 text-sm">120 units</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">New stock preview:</span>
+                    <span className="font-semibold text-emerald-600 text-sm">170 units (+50)</span>
+                  </div>
+                </div>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-700">Restock quantity</span>
+                <input type="number" defaultValue={50} className="mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 text-sm bg-white" disabled />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-700">Link purchase factura</span>
+                <select className="mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 text-sm bg-slate-50 text-slate-600" disabled>
+                  <option>FAC-2026-0034 ($450.00 — 2026-06-20)</option>
+                </select>
+              </label>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs">
+                <p className="font-bold text-emerald-800">Restocked successfully!</p>
+                <p className="text-slate-600 mt-1">Transaction recorded as RESTOCK. STK-CAT6-10 total stock updated.</p>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Physical Count Warning Preview */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950 flex items-center gap-2">
+              <ShieldAlert size={18} />
+              Physical Count Delta Warnings
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md bg-rose-50 p-3 border border-rose-200">
+                <p className="font-bold text-rose-800">Stock Discrepancy Detected</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-rose-600/80 block">Current registered:</span>
+                    <span className="font-semibold text-slate-700 text-sm">85 units</span>
+                  </div>
+                  <div>
+                    <span className="text-rose-600/80 block">Counted physical:</span>
+                    <span className="font-semibold text-rose-600 text-sm">70 units (-15)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs">
+                <p className="font-bold text-rose-800">Warning: Stock reduction</p>
+                <p className="text-slate-600 mt-1">Reducing registered stock from 85 to 70 requires entering an audit reason below.</p>
+              </div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-700">Audit / adjustment reason (Required)</span>
+                <select className="mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 text-sm bg-white" defaultValue="DAMAGED" disabled>
+                  <option value="DAMAGED">Damaged stock written off</option>
+                  <option value="LOST">Lost / missing inventory</option>
+                  <option value="ADJUSTMENT">General discrepancy adjustment</option>
+                </select>
+              </label>
+            </div>
+          </MobileCard>
+
+          {/* Label Hub Selector Card Preview */}
+          <div className="md:col-span-2 grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-col h-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 rounded-lg p-2 bg-slate-950 text-white">
+                  <Package size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-slate-950 text-xs">Stock Items Mode</h4>
+                  <p className="mt-0.5 text-[11px] text-slate-600 leading-normal">Print shelf bin labels for consumables, parts, and accessories.</p>
+                </div>
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-2 text-[10px] text-slate-500">
+                <strong>Size preset:</strong> Stock Shelf Label (4&quot; x 2&quot;)
+              </div>
+            </div>
+            <div className="flex flex-col h-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 rounded-lg p-2 bg-slate-950 text-white">
+                  <Tags size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-slate-950 text-xs">Alias-linked Labels</h4>
+                  <p className="mt-0.5 text-[11px] text-slate-600 leading-normal">Link physical labels (e.g. J01, J02) to device records.</p>
+                </div>
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-2 text-[10px] text-slate-500">
+                <strong>Best for:</strong> Sled/iPod barcode mapping.
+              </div>
+            </div>
+            <div className="flex flex-col h-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 rounded-lg p-2 bg-slate-950 text-white">
+                  <FileSpreadsheet size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-slate-950 text-xs">Batch Pattern Sheets</h4>
+                  <p className="mt-0.5 text-[11px] text-slate-600 leading-normal">Generate ranges with custom patterns (e.g. Zebra-{'{num}'}).</p>
+                </div>
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-2 text-[10px] text-slate-500">
+                <strong>Includes:</strong> Live count preview and prefix padding.
+              </div>
+            </div>
+          </div>
+        </div>
+      </PreviewSection>
+
+      <PreviewSection title="Phase 90E Beta Workflows Polish" description="Mocks representing the scan-first, mobile-friendly Assignments, Quick Loans, and RMA screens.">
+        <div className="grid gap-4 md:grid-cols-2">
+          
+          {/* Card 1: Assignment Badge Scan & Employee Matched Card */}
+          <MobileCard className="space-y-3">
+            <Badge tone="inventory">Badge Scan & Lookup</Badge>
+            <div className="flex gap-2">
+              <input disabled className="flex-1 min-h-10 rounded-lg border border-slate-300 px-3 text-xs bg-slate-100" value="GHT-EMP-1094" />
+              <button disabled className="px-3 bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold">Lookup</button>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-900">Alejandro Bastida</p>
+                <div className="text-[10px] text-slate-600 mt-0.5 space-y-0.5">
+                  <p>Badge ID: GHT-EMP-1094</p>
+                  <p>Email: abastida@g-global.com</p>
+                  <p>Supervisor: supervisor.ops@g-global.com</p>
+                </div>
+              </div>
+              <span className="text-emerald-700 text-xs font-semibold">✓ Matched</span>
+            </div>
+          </MobileCard>
+
+          {/* Card 2: New Temporary Borrower Profile Mock */}
+          <MobileCard className="space-y-3">
+            <Badge tone="warning">New Temporary Borrower Form</Badge>
+            <div className="p-3 border border-slate-200 bg-slate-50/50 rounded-xl space-y-2.5">
+              <p className="text-[11px] text-amber-800 font-medium">⚠️ Badge not found. Confirm creation of temporary profile:</p>
+              <div className="space-y-2">
+                <input disabled className="w-full min-h-9 border border-slate-300 rounded-lg px-2 text-xs bg-white" value="John Doe (Temp)" />
+                <input disabled className="w-full min-h-9 border border-slate-300 rounded-lg px-2 text-xs bg-slate-100" value="Badge ID: GHT-EMP-8889" />
+                <input disabled className="w-full min-h-9 border border-slate-300 rounded-lg px-2 text-xs bg-white" placeholder="Email (Optional)" />
+              </div>
+              <div className="flex gap-1.5 pt-1">
+                <button disabled className="flex-1 min-h-9 bg-slate-950 text-white rounded-lg text-xs font-semibold">Save Profile</button>
+                <button disabled className="px-3 min-h-9 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold">Cancel</button>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Card 3: Asset Scan / Selected Card & Transfer Warning */}
+          <MobileCard className="space-y-3">
+            <Badge tone="danger">Already Assigned Warning / Transfer</Badge>
+            <div className="flex gap-2">
+              <input disabled className="flex-1 min-h-10 rounded-lg border border-slate-300 px-3 text-xs bg-slate-100" value="GHT-LP-0255" />
+              <button disabled className="px-3 bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold">Add</button>
+            </div>
+            
+            <div className="rounded-xl border border-rose-200 bg-rose-50/20 p-3 space-y-2.5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-bold text-xs text-slate-900">MacBook Pro 16</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Tag: GHT-LP-0255 / SN: C02X8934LHD2</p>
+                </div>
+                <Badge tone="danger">Assigned</Badge>
+              </div>
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg space-y-1.5">
+                <p className="text-[10px] text-rose-950 font-semibold">⚠️ Currently Assigned to: Jane Smith (Operations)</p>
+                <label className="flex items-center gap-1.5 text-[10px] font-bold text-rose-900 cursor-pointer">
+                  <input type="checkbox" defaultChecked className="rounded border-rose-300 text-rose-900" disabled />
+                  Confirm Transfer of Asset
+                </label>
+              </div>
+              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700">
+                <input type="checkbox" defaultChecked className="rounded border-slate-300 text-slate-900" disabled />
+                Laptop Charger Included
+              </label>
+            </div>
+          </MobileCard>
+
+          {/* Card 4: Email Rules & SMTP Warnings */}
+          <MobileCard className="space-y-3">
+            <Badge tone="neutral">Email Preview & SMTP Warnings</Badge>
+            
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+              <p className="font-bold text-slate-900">Assignment Email Recipients</p>
+              <div className="text-slate-600 text-[11px] leading-relaxed">
+                <p>• To: abastida@g-global.com (Assignee)</p>
+                <p>• CC: supervisor.ops@g-global.com (Assignee Manager)</p>
+                <p>• CC: it.techstyle@g-global.com (IT Mailbox)</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-xs">
+              <p className="font-semibold text-amber-950 flex items-center gap-1">⚠️ SMTP Not Configured</p>
+              <p className="text-amber-800 text-[10px] leading-relaxed">
+                Assignment created. Email notification skipped because SMTP is not configured.
+              </p>
+            </div>
+          </MobileCard>
+
+          {/* Card 5: Quick Loan Selected Asset Card */}
+          <MobileCard className="space-y-3">
+            <Badge tone="warning">Quick Loan Selected Asset</Badge>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-bold text-xs text-slate-900">Zebra TC57 Scanner</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Tag: GHT-SLD-0824 / SN: 18274A0914</p>
+                </div>
+                <Badge tone="success">Available</Badge>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 text-slate-600">
+                <p className="font-bold text-slate-900">Loan CC List</p>
+                <p>• To: temp.borrower@g-global.com</p>
+                <p>• CC: ops@g-global.com (OPS Mailbox)</p>
+                <p>• CC: it.techstyle@g-global.com</p>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Card 6: RMA Draft & Selected Devices */}
+          <MobileCard className="space-y-3">
+            <Badge tone="info">RMA Draft & Filter Mocks</Badge>
+            <div className="space-y-2 text-xs">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 space-y-1">
+                <p className="font-bold text-slate-900">RMA Draft Case: RMA-8812</p>
+                <p className="text-slate-600 text-[10px]">Title: Batch Draft / Destination: Pending</p>
+                <Badge tone="pending">Draft (Metadata fields optional)</Badge>
+              </div>
+
+              <div className="p-2.5 border border-slate-200 bg-white rounded-lg space-y-2">
+                <p className="font-bold text-[11px] text-slate-800">RMA Selected Device (Scan-first list)</p>
+                <div className="flex justify-between items-center text-[10px]">
+                  <span>Tag: GHT-AP-0911 (Access Point)</span>
+                  <span className="text-slate-400">Photo Attached: No</span>
+                </div>
+                <input disabled className="w-full min-h-8 border border-slate-300 rounded-lg px-2 text-[10px] bg-slate-50" value="Issue: Broken antenna mount" />
+              </div>
+
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-800">
+                <strong>RMA Category Filter Rule:</strong> Selecting &quot;Phones&quot; strictly queries phones and excludes Access Points.
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Card 7: RMA Export Column Mocks */}
+          <MobileCard className="md:col-span-2 space-y-2 text-xs">
+            <Badge tone="neutral">RMA Export Columns Preview</Badge>
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <table className="min-w-full divide-y divide-slate-200 text-[10px]">
+                <thead className="bg-slate-50 text-slate-700">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left font-semibold">RMA #</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Title</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Asset Tag</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Serial #</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Category</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Brand</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Location</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Damage</th>
+                    <th className="px-2 py-1.5 text-left font-semibold">Photo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-600">
+                  <tr>
+                    <td className="px-2 py-1.5 font-semibold text-slate-900">RMA-123</td>
+                    <td className="px-2 py-1.5">Misfit sleds</td>
+                    <td className="px-2 py-1.5 font-mono">GHT-SLD-01</td>
+                    <td className="px-2 py-1.5 font-mono">18A98B09</td>
+                    <td className="px-2 py-1.5">Scanner</td>
+                    <td className="px-2 py-1.5">Zebra</td>
+                    <td className="px-2 py-1.5">Shipping</td>
+                    <td className="px-2 py-1.5">USB port bent</td>
+                    <td className="px-2 py-1.5">Needs Photo</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </MobileCard>
+
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.
@@ -642,6 +938,7 @@ export default async function UiPreviewPage() {
     </div>
   );
 }
+
 
 function PreviewSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (

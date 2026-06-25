@@ -110,22 +110,37 @@ export async function GET(_request: Request, context: Context) {
       notes: rma.notes,
     }));
   } else if (type === "rma-items") {
-    const items = await prisma.rmaItem.findMany({ orderBy: [{ createdAt: "desc" }], include: { rmaCase: true, device: true, replacementDevice: true } });
+    const items = await prisma.rmaItem.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      include: {
+        rmaCase: true,
+        device: {
+          include: {
+            expectedLocationZone: true
+          }
+        },
+        replacementDevice: true
+      }
+    });
     rows = items.map((item) => ({
       rmaNumber: item.rmaCase.rmaNumber,
-      rmaStatus: item.rmaCase.status,
-      destination: item.rmaCase.destination,
-      vendorName: item.rmaCase.vendorName,
-      sentAt: item.sentAt?.toISOString().slice(0, 10) ?? item.rmaCase.sentAt?.toISOString().slice(0, 10) ?? "",
-      expectedFollowUpAt: item.rmaCase.expectedFollowUpAt?.toISOString().slice(0, 10) ?? "",
-      assetTag: item.device.assetTag,
-      serialNumber: item.device.serialNumber,
-      model: item.device.model,
+      rmaTitle: item.rmaCase.title ?? "",
+      status: item.rmaCase.status,
+      assetTag: item.device.assetTag ?? "",
+      serialNumber: item.device.serialNumber ?? "",
       category: item.device.category,
-      result: item.result,
-      returnedAt: item.returnedAt?.toISOString().slice(0, 10) ?? "",
-      replacementAssetTag: item.replacementDevice?.assetTag ?? "",
-      notes: item.notes,
+      brand: item.device.brand ?? "",
+      model: item.device.model ?? "",
+      locationOrArea: item.device.assignedTo || item.device.expectedLocationZone?.name || "",
+      damageNote: item.issueDescription ?? "",
+      photoStatus: item.conditionSent === "Photo Attached" ? "Photo Attached" : "Needs Photo",
+      destination: item.rmaCase.destination,
+      vendor: item.rmaCase.vendorName ?? "",
+      contact: item.rmaCase.contactName ?? "",
+      carrier: item.rmaCase.carrier ?? "",
+      tracking: item.rmaCase.trackingNumber ?? "",
+      sentDate: item.sentAt?.toISOString().slice(0, 10) ?? item.rmaCase.sentAt?.toISOString().slice(0, 10) ?? "",
+      notes: item.notes ?? item.rmaCase.notes ?? "",
     }));
   } else if (type === "stock-issues") {
     const issues = await prisma.stockIssue.findMany({ orderBy: [{ status: "asc" }, { issuedAt: "desc" }], include: { stockItem: true, employee: true, temporaryBorrower: true } });

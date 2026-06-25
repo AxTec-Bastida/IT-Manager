@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Plus, Printer, ScanLine, Search, Tags } from "lucide-react";
+import { Download, Plus, Printer, Search, Tags, Box, ClipboardList, Layers, FileSpreadsheet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { ActionLink, EmptyState, PageActions } from "@/components/ui-patterns";
@@ -10,21 +10,37 @@ import { categoryLabels, categoryOptions, statusLabels, statusOptions } from "@/
 import { generateBatchPatternLabels, generateRangeLabels, normalizeLabelOptions, parseManualLabelList, validateLabelPayload, type LabelItem, type LabelMode } from "@/lib/labels";
 import { aliasPreviewToLabelItems, buildAliasAssignmentPreview, labelItemForAsset } from "@/lib/label-aliases";
 import { hasPagePermission } from "@/lib/page-permissions";
+import { RangeForm, BatchForm } from "@/components/label-range-form";
+import { StockLabelForm } from "@/components/stock-label-selector";
 
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | undefined>> };
 
 export default async function LabelsPage({ searchParams }: Props) {
-  if (!(await hasPagePermission("labels.print"))) return <ForbiddenPanel message="Label preview and printing requires Auditor, IT Staff, or Admin access." />;
+  if (!(await hasPagePermission("labels.print"))) {
+    return <ForbiddenPanel message="Label preview and printing requires Auditor, IT Staff, or Admin access." />;
+  }
+
   const query = await searchParams;
-  const mode = normalizeMode(query.mode);
+  const currentMode = query.mode; // Could be undefined for guided hub
+
+  if (!currentMode) {
+    return <GuidedHubPage />;
+  }
+
+  const mode = normalizeMode(currentMode);
   const options = normalizeLabelOptions(query);
   const existingPage = Math.max(1, Number(query.page || "1"));
   const pageSize = 50;
+
   const { items, total, error } = await loadPreviewItems(mode, query, existingPage, pageSize);
   const previewItems = items.slice(0, 10);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Determine all active stock items for stock label form
+  const stockItems = mode === "stock" ? await prisma.stockItem.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : [];
+
   const zplHref = `/api/labels/zpl?${hrefParams(query, { mode })}`;
   const printHref = `/labels/print?${hrefParams(query, { mode })}`;
 
@@ -39,13 +55,9 @@ export default async function LabelsPage({ searchParams }: Props) {
               <Printer size={16} />
               Calibration
             </ActionLink>
-            <ActionLink href="/devices">
-              <Tags size={16} />
-              Inventory
-            </ActionLink>
-            <ActionLink href="/scan">
-              <ScanLine size={16} />
-              Scan
+            <ActionLink href="/labels" variant="secondary">
+              <Layers size={16} />
+              Modes Menu
             </ActionLink>
             <ActionLink href="/intake/assets/new" variant="primary">
               <Plus size={16} />
@@ -57,11 +69,12 @@ export default async function LabelsPage({ searchParams }: Props) {
 
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
         <p className="font-semibold">Label safety</p>
-        <p className="mt-1">The main QR/barcode encodes only the asset tag. Serial can be added as a separate secondary code. Do not encode passwords, BitLocker keys, employee names, private notes, facturas, or credentials.</p>
+        <p className="mt-1">The main QR/barcode encodes only the asset tag or stock code. Serial can be added as a separate secondary code. Do not encode passwords, BitLocker keys, employee names, private notes, facturas, or credentials.</p>
       </section>
 
-      <nav className="flex gap-2 overflow-x-auto pb-1">
+      <nav className="flex gap-2 overflow-x-auto pb-1 border-b border-slate-200">
         <ModeLink mode="existing" current={mode}>Existing assets</ModeLink>
+        <ModeLink mode="stock" current={mode}>Stock items</ModeLink>
         <ModeLink mode="range" current={mode}>Range / pattern</ModeLink>
         <ModeLink mode="batch" current={mode}>Batch sheet</ModeLink>
         <ModeLink mode="manual" current={mode}>Manual list</ModeLink>
@@ -70,20 +83,21 @@ export default async function LabelsPage({ searchParams }: Props) {
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         {mode === "existing" ? <ExistingAssetsForm query={query} page={existingPage} totalPages={totalPages} /> : null}
-        {mode === "range" ? <RangeForm query={query} /> : null}
-        {mode === "batch" ? <BatchForm query={query} /> : null}
+        {mode === "stock" ? <StockLabelForm stockItems={stockItems} initialStockItemId={query.stockItemId} /> : null}
+        {mode === "range" ? <RangeForm initialValues={query} /> : null}
+        {mode === "batch" ? <BatchForm initialValues={query} /> : null}
         {mode === "manual" ? <ManualForm query={query} /> : null}
         {mode === "alias-linked" ? <AliasLinkedForm query={query} page={existingPage} totalPages={totalPages} /> : null}
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="font-semibold text-slate-950">Output options</h2>
+        <h2 className="font-semibold text-slate-950 font-sans">Output options</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-4">
           <input type="hidden" name="mode" value={mode} />
           {preserveModeInputs(query, mode)}
           <label className="grid gap-1 text-sm font-semibold text-slate-700">
             Code type
-            <select name="codeType" defaultValue={options.codeType} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+            <select name="codeType" defaultValue={options.codeType} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
               <option value="qr_barcode">QR + Barcode</option>
               <option value="qr">QR only</option>
               <option value="data_matrix">Data Matrix</option>
@@ -91,14 +105,18 @@ export default async function LabelsPage({ searchParams }: Props) {
             </select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-slate-700">
-            Template
-            <select name="template" defaultValue={options.template} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
-              <option value="compact">Compact</option>
-              <option value="standard">Standard</option>
-              <option value="large">Large</option>
-              <option value="batch_sheet">Batch sheet</option>
-              <option value="micro_device">Micro device</option>
-              <option value="scanner_sled">Scanner / sled</option>
+            Template size preset
+            <select name="template" defaultValue={options.template ?? (mode === "stock" ? "stock_shelf" : "standard")} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
+              <option value="compact">Compact (2&quot; x 1&quot;)</option>
+              <option value="standard">Standard (3&quot; x 2&quot;)</option>
+              <option value="large">Large (4&quot; x 2&quot;)</option>
+              <option value="micro_device">Micro device (1&quot; x 0.5&quot;)</option>
+              <option value="scanner_sled">Scanner / sled (2&quot; x 1.2&quot;)</option>
+              <option value="2x2">2x2 Square (Best for small boxes/QR)</option>
+              <option value="4x6">4x6 Large (Shipping style / detailed)</option>
+              <option value="small_asset">Small asset tag (Laptop/sled tag)</option>
+              <option value="stock_shelf">Stock shelf label (Consumable bins)</option>
+              <option value="sheet_labels">Sheet labels (Office printer sheets)</option>
             </select>
           </label>
           <input type="hidden" name="includeSerialText" value="false" />
@@ -111,15 +129,15 @@ export default async function LabelsPage({ searchParams }: Props) {
             <input type="checkbox" name="includeSerialCode" value="true" defaultChecked={options.includeSerialCode} />
             Separate serial code
           </label>
-          <button className="min-h-12 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white md:col-span-4">Update preview</button>
+          <button className="min-h-12 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white md:col-span-4 hover:bg-slate-800">Update preview</button>
         </form>
       </section>
 
       <section className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-950">Preview</h2>
-            <p className="text-sm text-slate-500">Showing first {previewItems.length} of {total}. Export all matching labels when ready.</p>
+            <h2 className="font-semibold text-slate-950 font-sans">Preview</h2>
+            <p className="text-sm text-slate-500">Showing first {previewItems.length} of {total}. Export or print all matching labels when ready.</p>
           </div>
           <div className="grid gap-2 sm:flex">
             <Link href={zplHref} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
@@ -132,29 +150,123 @@ export default async function LabelsPage({ searchParams }: Props) {
             </Link>
           </div>
         </div>
+        
         {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-900">{error}</div> : null}
+        
         {!error && mode === "batch" && items.length ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-semibold">Free batch labels are not linked to inventory yet.</p>
             <p className="mt-1">They will scan to their encoded values, but they will not open assets until those values exist as asset tags or aliases.</p>
           </div>
         ) : null}
+        
         {!error && mode === "existing" && items.length ? <ExistingSelectionForm items={items} query={query} /> : null}
         {!error && mode === "alias-linked" && items.length ? <AliasLinkedActions items={items} query={query} /> : null}
+        
         {!error && previewItems.length ? (
           <div className="grid gap-3 xl:grid-cols-2">
             {await Promise.all(previewItems.map((item) => <LabelPreviewCard key={item.assetTag} item={item} options={options} />))}
           </div>
         ) : !error ? (
-          <EmptyState title="No labels to preview" description="Search assets, enter a range, or paste a manual list to generate labels." />
+          <EmptyState title="No labels to preview" description="Search assets, select stock items, enter a range, or paste a manual list to generate labels." />
         ) : null}
       </section>
     </div>
   );
 }
 
+function GuidedHubPage() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Label Generator"
+        description="Choose what type of labels you want to configure and print today."
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <GuidedHubCard
+          href="/labels?mode=existing"
+          title="Existing Assets"
+          description="Print labels for devices already registered in inventory. Search by category, name, or serial number."
+          bestFor="Laptops, printers, scales, or access points currently in warehouse cages."
+          icon={Tags}
+        />
+        <GuidedHubCard
+          href="/labels?mode=stock"
+          title="Stock Items"
+          description="Print labels for quantity-tracked consumables, peripherals, adapters, or chargers."
+          bestFor="Bin labels, shelf markings, cable containers, or printer supply shelves."
+          icon={Box}
+        />
+        <GuidedHubCard
+          href="/labels?mode=range"
+          title="Range / Pattern"
+          description="Generate a sequential list of barcodes (e.g., GHT-LP-01 to GHT-LP-50). Configures prefix, start, end, and explicit padding."
+          bestFor="Pre-printing label sheets for upcoming intake batches or bin ranges."
+          icon={Layers}
+        />
+        <GuidedHubCard
+          href="/labels?mode=batch"
+          title="Batch Sheet"
+          description="Generate labels from visible and encoded templates. Supports custom pattern strings like Zebra-K{num}."
+          bestFor="Complex batch receiving sheets where scanning values differ from printed tags."
+          icon={FileSpreadsheet}
+        />
+        <GuidedHubCard
+          href="/labels?mode=manual"
+          title="Manual List"
+          description="Paste or type a list of custom asset tags (one per line) to preview and print instantly."
+          bestFor="Printing replacement tags for a custom, ad-hoc list of devices."
+          icon={ClipboardList}
+        />
+        <GuidedHubCard
+          href="/labels?mode=alias-linked"
+          title="Alias-linked / Paired Labels"
+          description="Link generated physical codes (e.g. J01, J02) to existing inventory assets as aliases."
+          bestFor="Pairing sleds with iPods/iPhones where secondary tags are required."
+          icon={Tags}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GuidedHubCard({
+  href,
+  title,
+  description,
+  bestFor,
+  icon: Icon,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  bestFor: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}) {
+  return (
+    <Link href={href} className="flex flex-col h-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-300 transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 rounded-lg p-2.5 bg-slate-950 text-white">
+          <Icon size={20} />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-slate-950 text-sm">{title}</h3>
+          <p className="mt-1 text-xs text-slate-600 leading-normal">{description}</p>
+        </div>
+      </div>
+      <div className="mt-3 border-t border-slate-100 pt-2.5 text-xs text-slate-500">
+        <strong>Best for:</strong> {bestFor}
+      </div>
+      <div className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md bg-slate-950 px-4 text-xs font-semibold text-white hover:bg-slate-800 mt-auto">
+        Configure
+      </div>
+    </Link>
+  );
+}
+
 function normalizeMode(value?: string): LabelMode {
-  return value === "range" || value === "manual" || value === "alias-linked" || value === "batch" ? value : "existing";
+  return value === "range" || value === "manual" || value === "alias-linked" || value === "batch" || value === "stock" ? value : "existing";
 }
 
 async function loadPreviewItems(mode: LabelMode, query: Record<string, string | undefined>, page: number, pageSize: number): Promise<{ items: LabelItem[]; total: number; error?: string }> {
@@ -164,7 +276,7 @@ async function loadPreviewItems(mode: LabelMode, query: Record<string, string | 
         prefix: query.prefix || "J",
         start: Number(query.start || "1"),
         end: Number(query.end || "10"),
-        padding: Number(query.padding || "3"),
+        padding: Number(query.padding || "2"),
       });
       return { items, total: items.length };
     }
@@ -184,6 +296,42 @@ async function loadPreviewItems(mode: LabelMode, query: Record<string, string | 
     if (mode === "manual") {
       const items = parseManualLabelList(query.manual || "");
       return { items, total: items.length };
+    }
+
+    if (mode === "stock") {
+      const stockItemId = query.stockItemId;
+      const q = query.q?.trim();
+      const where = {
+        active: true,
+        ...(stockItemId ? { id: stockItemId } : {}),
+        ...(q ? {
+          OR: [
+            { name: { contains: q } },
+            { barcodeValue: { contains: q } },
+            { sku: { contains: q } }
+          ]
+        } : {})
+      };
+      const [total, stockItems] = await Promise.all([
+        prisma.stockItem.count({ where }),
+        prisma.stockItem.findMany({
+          where,
+          orderBy: { name: "asc" },
+          take: pageSize,
+        })
+      ]);
+      return {
+        total,
+        items: stockItems.map((item) => ({
+          assetTag: item.barcodeValue || item.sku || `STK-${item.id.slice(0, 8)}`,
+          visibleText: item.name,
+          encodedValue: item.barcodeValue || item.sku || `STK-${item.id}`,
+          serialNumber: item.sku || null,
+          assetName: `${item.name}${item.storageLocation ? ` (${item.storageLocation})` : ""}`,
+          existsInInventory: true,
+          matchNote: `Stock shelf label`
+        })),
+      };
     }
 
     if (mode === "alias-linked") {
@@ -284,11 +432,11 @@ function AliasLinkedForm({ query, page, totalPages }: { query: Record<string, st
         <Link href="/labels?mode=alias-linked" className="inline-flex min-h-14 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:min-h-12">Clear</Link>
       </div>
       <div className="grid gap-3 md:grid-cols-6">
-        <select name="category" defaultValue={query.category ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+        <select name="category" defaultValue={query.category ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
           <option value="">All categories</option>
           {categoryOptions.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}
         </select>
-        <select name="status" defaultValue={query.status ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+        <select name="status" defaultValue={query.status ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
           <option value="">All statuses</option>
           {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
         </select>
@@ -296,7 +444,7 @@ function AliasLinkedForm({ query, page, totalPages }: { query: Record<string, st
         <input name="start" type="number" defaultValue={query.start ?? "1"} placeholder="Start" className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
         <input name="end" type="number" defaultValue={query.end ?? ""} placeholder="End (auto)" className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
         <input name="padding" type="number" defaultValue={query.padding ?? "2"} placeholder="Padding" className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-        <select name="aliasType" defaultValue={query.aliasType ?? "PHYSICAL_LABEL"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+        <select name="aliasType" defaultValue={query.aliasType ?? "PHYSICAL_LABEL"} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
           <option value="PHYSICAL_LABEL">Physical label</option>
           <option value="SCAN_CODE">Scan code</option>
         </select>
@@ -322,7 +470,7 @@ function AliasLinkedActions({ items, query }: { items: LabelItem[]; query: Recor
           <p className="mt-1 text-sm text-emerald-900">Preview maps {deviceIds.length} current-page asset(s) to generated physical label codes.</p>
         </div>
         <div className="grid gap-2 sm:flex">
-          <Link href={`/api/labels/zpl?${params}`} className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white">Download linked ZPL</Link>
+          <Link href={`/api/labels/zpl?${params}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white">Download linked ZPL</Link>
           <Link href={`/labels/print?${params}`} className="inline-flex min-h-12 items-center justify-center rounded-md border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-800">Print linked labels</Link>
         </div>
       </div>
@@ -376,11 +524,11 @@ function ExistingAssetsForm({ query, page, totalPages }: { query: Record<string,
         <Link href="/labels?mode=existing" className="inline-flex min-h-14 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:min-h-12">Clear</Link>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
-        <select name="category" defaultValue={query.category ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+        <select name="category" defaultValue={query.category ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
           <option value="">All categories</option>
           {categoryOptions.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}
         </select>
-        <select name="status" defaultValue={query.status ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm">
+        <select name="status" defaultValue={query.status ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 bg-white text-base sm:text-sm">
           <option value="">All statuses</option>
           {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
         </select>
@@ -390,69 +538,6 @@ function ExistingAssetsForm({ query, page, totalPages }: { query: Record<string,
         </div>
       </div>
       <p className="text-sm text-slate-500">Select individual assets by opening this page with search/filter, or export the current filtered set. Preview is limited so phones stay fast.</p>
-    </form>
-  );
-}
-
-function RangeForm({ query }: { query: Record<string, string | undefined> }) {
-  return (
-    <form className="grid gap-3 md:grid-cols-5">
-      <input type="hidden" name="mode" value="range" />
-      <label className="grid gap-1 text-sm font-semibold text-slate-700">
-        Prefix
-        <input name="prefix" defaultValue={query.prefix ?? "J"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-      </label>
-      <label className="grid gap-1 text-sm font-semibold text-slate-700">
-        Start
-        <input name="start" type="number" defaultValue={query.start ?? "1"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-      </label>
-      <label className="grid gap-1 text-sm font-semibold text-slate-700">
-        End
-        <input name="end" type="number" defaultValue={query.end ?? "10"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-      </label>
-      <label className="grid gap-1 text-sm font-semibold text-slate-700">
-        Padding
-        <input name="padding" type="number" min="0" max="12" defaultValue={query.padding ?? "3"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-      </label>
-      <button className="min-h-12 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white md:mt-6">Preview range</button>
-    </form>
-  );
-}
-
-function BatchForm({ query }: { query: Record<string, string | undefined> }) {
-  return (
-    <form className="space-y-3">
-      <input type="hidden" name="mode" value="batch" />
-      <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-        <p className="font-semibold text-slate-950">Batch sheet mode</p>
-        <p className="mt-1">Use <span className="font-mono">{"{num}"}</span> where the padded number belongs. Visible text is printed; encoded value is what the scanner reads.</p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1 text-sm font-semibold text-slate-700">
-          Visible text pattern
-          <input name="visibleTemplate" defaultValue={query.visibleTemplate ?? "K{num}"} placeholder="K{num}" className="min-h-12 rounded-md border border-slate-300 px-3 font-mono text-base sm:text-sm" />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold text-slate-700">
-          Encoded scan pattern
-          <input name="encodedTemplate" defaultValue={query.encodedTemplate ?? query.visibleTemplate ?? "K{num}"} placeholder="Zebra-K{num}" className="min-h-12 rounded-md border border-slate-300 px-3 font-mono text-base sm:text-sm" />
-        </label>
-      </div>
-      <div className="grid gap-3 md:grid-cols-4">
-        <label className="grid gap-1 text-sm font-semibold text-slate-700">
-          Start
-          <input name="start" type="number" defaultValue={query.start ?? "1"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold text-slate-700">
-          End
-          <input name="end" type="number" defaultValue={query.end ?? "24"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold text-slate-700">
-          Padding
-          <input name="padding" type="number" min="0" max="12" defaultValue={query.padding ?? "2"} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-        </label>
-        <button className="min-h-12 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white md:mt-6">Preview batch sheet</button>
-      </div>
-      <p className="text-sm text-slate-500">Examples: visible <span className="font-mono">J-{"{num}"}</span> with encoded <span className="font-mono">Zebra-J{"{num}"}</span>, or visible and encoded both <span className="font-mono">K{"{num}"}</span>.</p>
     </form>
   );
 }
@@ -493,6 +578,6 @@ function hrefParams(current: Record<string, string | undefined>, next: Record<st
 }
 
 function preserveModeInputs(query: Record<string, string | undefined>, mode: LabelMode) {
-  const keys = mode === "range" ? ["prefix", "start", "end", "padding"] : mode === "batch" ? ["visibleTemplate", "encodedTemplate", "start", "end", "padding"] : mode === "manual" ? ["manual"] : mode === "alias-linked" ? ["q", "category", "status", "prefix", "start", "end", "padding", "aliasType", "page"] : ["q", "category", "status", "deviceId", "page"];
+  const keys = mode === "range" ? ["prefix", "start", "end", "padding"] : mode === "batch" ? ["visibleTemplate", "encodedTemplate", "start", "end", "padding"] : mode === "manual" ? ["manual"] : mode === "stock" ? ["stockItemId"] : mode === "alias-linked" ? ["q", "category", "status", "prefix", "start", "end", "padding", "aliasType", "page"] : ["q", "category", "status", "deviceId", "page"];
   return keys.map((key) => (query[key] ? <input key={key} type="hidden" name={key} value={query[key]} /> : null));
 }

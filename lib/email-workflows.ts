@@ -15,7 +15,12 @@ export async function sendAssignmentWorkflowEmail(prisma: PrismaClient, assignme
   if (!assignment) return skipped("Assignment not found.");
   const config = getMailConfig();
   const to = recipientOverride || assignment.employee?.email;
-  const cc = workflowCc("assignment", config);
+  const ccEmails = [
+    assignment.employee?.supervisorEmail,
+    "it.techstyle@g-global.com",
+    workflowCc("assignment", config)
+  ].filter((e): e is string => Boolean(e && e.trim())).map(e => e.trim());
+  const cc = ccEmails.length ? [...new Set(ccEmails)].join(", ") : undefined;
   const input = kind === "return" ? buildAssignmentReturnEmail(assignment, to, cc, config) : buildAssignmentReceiptEmail(assignment, to, cc, config);
   const type: EmailLogType = kind === "return" ? "ASSIGNMENT_RETURN_CONFIRMATION" : "ASSIGNMENT_RECEIPT";
   const result = await sendAndLogEmail(prisma, type, input, { assignmentId: assignment.id, relatedDeviceId: assignment.items[0]?.assetId ?? null }, config);
@@ -38,7 +43,15 @@ export async function sendAssetLoanWorkflowEmail(prisma: PrismaClient, loanId: s
   if (!loan) return skipped("Asset loan not found.");
   const config = getMailConfig();
   const to = recipientOverride || loan.employee?.email || loan.temporaryBorrower?.email;
-  const cc = workflowCc("loan", config);
+  const opsMailbox = process.env.OPS_MAILBOX || "ops@g-global.com";
+  const managerEmail = loan.employee?.supervisorEmail;
+  const ccEmails = [
+    opsMailbox,
+    managerEmail,
+    "it.techstyle@g-global.com",
+    workflowCc("loan", config)
+  ].filter((e): e is string => Boolean(e && e.trim())).map(e => e.trim());
+  const cc = ccEmails.length ? [...new Set(ccEmails)].join(", ") : undefined;
   const input = kind === "return" ? buildAssetLoanReturnEmail(loan, to, cc, config) : buildAssetLoanCheckoutEmail(loan, to, cc, config);
   const type: EmailLogType = kind === "return" ? "ASSET_LOAN_RETURN" : "ASSET_LOAN_CHECKOUT";
   return sendAndLogEmail(prisma, type, input, { assetLoanId: loan.id, relatedDeviceId: loan.items[0]?.deviceId ?? null }, config);

@@ -192,6 +192,7 @@ export const settingsSchema = z.object({
 export const employeeSchema = z.object({
   fullName: z.string().trim().min(1, "Employee name is required."),
   employeeId: optionalText,
+  badgeId: optionalText,
   email: optionalText.refine((value) => !value || z.email().safeParse(value).success, "Enter a valid email address."),
   department: optionalText,
   title: optionalText,
@@ -217,6 +218,7 @@ export const assignmentSchema = z.object({
   notes: optionalText,
   status: z.nativeEnum(AssignmentStatus).default("ACTIVE"),
   assetIds: z.array(z.string().min(1)).min(1, "Select at least one asset."),
+  confirmTransfer: z.boolean().optional(),
 }).superRefine((value, context) => {
   if (value.targetType === "EMPLOYEE" && !value.employeeId) {
     context.addIssue({ code: "custom", message: "Select an employee for a person assignment.", path: ["employeeId"] });

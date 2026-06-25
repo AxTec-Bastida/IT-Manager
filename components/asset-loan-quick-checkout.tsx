@@ -320,7 +320,11 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
       setError(data.error || "Unable to create asset loan.");
       return;
     }
-    router.push(`/loans/${data.loan.id}`);
+    if (data.emailResult?.skipped) {
+      router.push(`/loans/${data.loan.id}?emailWarning=skipped`);
+    } else {
+      router.push(`/loans/${data.loan.id}`);
+    }
     router.refresh();
   }
 

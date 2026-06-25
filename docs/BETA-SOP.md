@@ -964,6 +964,201 @@ This phase improves the inventory intake workflows, adds a new Pair Companion De
 4. **Bulk Receive Mode B Mapping**:
    - Added Mode A (Range Generate) / Mode B (Mapping Paste) tab selection to bulk intake. Mode B allows copy-pasting CSV/TSV data matching serials to asset tags and companion devices, validates client-side, and shows validation badges (Ready, Duplicate, ExistingAsset, ExistingSerial, PairedMissing, Needs Review).
 5. **Pair Companion Devices / Flash Pairing**:
+2. Configure Caddy with a reviewed local Caddyfile:
+
+   ```text
+   {
+     skip_install_trust
+   }
+
+   https://warehouse-it.local {
+     tls internal
+     reverse_proxy 127.0.0.1:3000
+   }
+   ```
+
+3. Make `warehouse-it.local` resolve to the server IP through local DNS or hosts-file testing.
+4. `tls internal` uses Caddy's local CA. `skip_install_trust` prevents hidden startup prompts; trust the Caddy local CA/certificate on the test phone before relying on camera/PWA testing.
+5. Set `APP_BASE_URL=https://warehouse-it.local` in `.env`.
+6. Restart the app and Caddy.
+7. Run `npm run doctor`; HTTP LAN should warn, HTTPS should avoid the phone-camera warning.
+8. Run the Phone Smoke Checklist.
+
+Runtime commands for this beta machine:
+
+```powershell
+cd C:\Dev\warehouse-it-inventory
+npm run start
+```
+
+In a second terminal:
+
+```powershell
+C:\Tools\caddy\caddy.exe run --config C:\Tools\caddy\Caddyfile
+```
+
+Server-side HTTPS smoke checks:
+
+```powershell
+curl.exe -k https://warehouse-it.local/api/health
+curl.exe -k -I https://warehouse-it.local/login
+curl.exe -k -I https://warehouse-it.local/manifest.webmanifest
+```
+
+The `-k` flag is only for server-side proxy validation while device trust is being installed. It is not a substitute for trusting the Caddy local CA on the phone.
+
+Alternate: mkcert.
+
+```powershell
+mkcert -install
+mkcert warehouse-it.local 192.168.0.67 localhost
+```
+
+Store generated files in an ignored local folder such as `certs\`. Install/trust the mkcert root CA on the phone. Do not commit cert/key files.
+
+Rollback:
+
+1. Stop Caddy or the HTTPS proxy.
+2. Set `APP_BASE_URL=http://192.168.0.67:3000`.
+3. Restart the app.
+4. Continue with manual scan and scan-from-photo fallback until HTTPS is fixed.
+
+## Beta Release Checklist
+
+Before beta:
+
+- Git working tree reviewed.
+- Latest code pushed to GitHub if that is the team workflow.
+- Backup created under `C:\Dev\warehouse-it-inventory\backups`.
+- `npm run doctor` has no critical warnings.
+- `/api/health` is OK or degraded only for SMTP.
+- If SMTP is enabled, `/settings` test email works with a QA recipient and no secrets are exposed.
+- `npm run jobs:run-due` succeeds.
+- Admin user exists.
+- IT Staff teammate user exists.
+- Server URL works from teammate device.
+- Phone login works.
+- `QA-SMOKE-001` scan/search works.
+- Photo upload works.
+- Reports load.
+
+During beta:
+
+- Keep beta to 1-2 users.
+- Try QA asset first.
+- Run small real workflows only.
+- Back up daily.
+- Log bugs with the bug report format above.
+
+After beta week:
+
+- Review issues.
+- Decide next fixes.
+- Expand usage only after the top issues are handled.
+
+## Phase 89 Full Interface Polish Mega-Pass
+
+Phase 89 is the final large visual polish pass for the Team Beta build. It keeps the app phone-first and avoids changing business behavior.
+
+Review notes:
+
+- Use the bounded application shell on desktop and phone-first cards on mobile.
+- Prefer shared `PolishedCard`, `ActionGrid`, and `KeyValueGrid` patterns for new UI cleanup.
+- Keep main actions large, obvious, and stacked on phones before becoming compact on desktop.
+- Keep compliance and admin detail progressive so daily warehouse workflows do not feel crowded.
+- Do not include secrets, recovery keys, SMTP values, real credentials, sensitive notes, or confidential screenshots in QA artifacts.
+
+Phase 89 did not add service worker caching, OCR, SNMP, UniFi, Zebra printing, BitLocker changes, auth/session changes, new offline action types, or new business workflows.
+
+### Hotfix Phase 89B Mobile Sidebar Drawer
+
+Mobile navigation should be tested as an off-canvas drawer:
+
+- At 320px, 360px, 390px, and 430px, the page content should fill the screen when the drawer is closed.
+- The mobile header and bottom `Menu` button should open the navigation drawer.
+- The drawer should slide in from the left, show a backdrop, and keep the menu scrollable.
+- Tapping the backdrop, tapping a nav link, pressing Escape, or tapping the close button should close it.
+- Desktop and wide tablet layouts should keep the normal visible sidebar.
+
+This hotfix does not change roles, permissions, routes, auth, database models, or workflows.
+
+## Phase 90A Scan, Camera, Mobile Action, and Field-Flow Blocker Fixes
+
+This phase addresses critical usability and technical blockers identified during controlled beta field testing of the app.
+
+### Key Changes
+1. **Start Camera Scan Flow**:
+   - The camera scanner component (`camera-scanner.tsx`) now stops scanning immediately upon detecting a QR code or barcode.
+   - It freezes the frame (`active = false` and `controls.stop()`) and shuts down the video media tracks immediately to turn off the physical camera light, preventing duplicate scans while loading.
+   - Handheld manual scanner and photo uploads remain available as robust fallbacks.
+   - Changed the Quick Scan panel (`quick-scan-panel.tsx`) scanner trigger call to close the scanner overlay immediately on detection, showing the review card instantly.
+2. **Top-Right Header Scan Button**:
+   - The top-right Scan button in the mobile header correctly navigates to the `/scan` route. It is keyboard-accessible, has a clear target, and is not blocked by the navigation drawer or z-index constraints.
+3. **Photo Checklist Camera Preview**:
+   - Changed the video element stream binding in `camera-capture.tsx` from a race-prone `setTimeout` to a React callback ref (`videoRef`). This guarantees the media stream binds to the video tag as soon as it mounts, resolving the black screen preview issue.
+   - Implemented constraint fallback: falls back gracefully to any generic camera if the ideal environmental/rear camera constraint fails.
+4. **Mobile Asset/Device Action Menu Redesign**:
+   - Removed the giant fixed bottom action panel (`lg:hidden`) from the device details page (`app/devices/[id]/page.tsx`) that obstructed notes/history and decommission options.
+   - Replaced it with a clean, responsive, in-page **Asset Actions** card.
+     - Displays primary actions (**Scan label** and **Move / Relocate**) directly.
+     - Collapses secondary actions (Edit, Map, Tasks, RMA, etc.) under an expandable **More Actions** drawer using HTML `<details>`.
+     - Isolates the **Decommission** action in a separated **Danger Zone** panel.
+   - Hidden the desktop `PageHeader`'s action bar on mobile viewports using Tailwind classes (`hidden lg:flex`) to prevent action duplication.
+5. **UI Preview Lab Updates**:
+   - Appended static, safe visual samples to `/admin/ui-preview` for:
+     - Scan result review card
+     - Camera scanner fallback/error card
+     - Manual scan input fallback
+     - Mobile collapsible actions menu (with More actions and Danger Zone)
+     - Phone-first scan checklist workflow example
+6. **Test Suite Alignments**:
+   - Updated the unit tests in `tests/phase42-pwa-camera.test.ts` to assert that the scanner stops and cleans up tracks upon successful detection. All 449 tests pass successfully.
+
+## Phase 90B Admin Center, Master Data, Controlled Lists, IP Ranges, and Settings Rework
+
+Phase 90B introduces the Admin Center and Master Data taxonomies foundation to prevent dirty data from inconsistent free-text inputs, and simplifies settings overview flows.
+
+### Key Changes
+1. **Admin Center Dashboard**:
+   - Created `/admin` which acts as the central admin-only dashboard, organizing Users, Master Data, Network/IP, Email, Defaults, and Operations in a clean phone-first card layout.
+2. **Master Data Taxonomy**:
+   - Added the `ControlledValue` model and implemented `/admin/master-data` UI with automatic idempotent seeding of defaults (Asset Categories, Areas/Departments, Task Categories, Stock Categories, Printer Consumables) on first visit.
+   - Enforces case-insensitive duplicate checks and blocks deletion of values in use by active devices, tasks, or stock items.
+3. **Settings Page Rework**:
+   - Redesigned `/settings` to act as a system status and diagnostic overview (session, SMTP, and database stats) with clear redirection to the Admin Center.
+4. **Network / IP Range Management**:
+   - Reworked IP range management under `/admin/ip-ranges` with strict overlap validations on create/update and checks to prevent hard deleting subnets that have devices assigned.
+5. **Email & Notifications Section**:
+   - Implemented `/admin/email-notifications` to verify SMTP connectivity parameters cleanly (hiding secrets) and configure automated notification rules. Added an admin-only POST endpoint at `/api/admin/test-email` to send transport validation test emails.
+6. **Defaults & Explanations**:
+   - Created inventory and stock/maintenance defaults documentation pages. Refactored `/zones` to clearly explain maps, physical AP anchors, expected zones, and auto-resolving movement alerts.
+7. **Resource Flag**:
+   - Added a `requiresCredentials` boolean flag to the `ToolLink` resource model, updating form views, tool cards list, and schemas.
+8. **UI Preview Lab Updates**:
+   - Added static mock-ups to `/admin/ui-preview` for Master Data rows, IP range cards with overlaps, email settings, default values, and zone explanations.
+9. **Unit and Integration Tests**:
+   - Added a comprehensive test suite `tests/admin-center.test.ts` to test duplicate master data blocking, used-value deletions, range overlaps, and resource flags. All 454 tests pass.
+
+### Known Limitations & External Blockers
+- **Real Phone/Camera Validation**: While verified via automated unit testing and browser simulation, physical phone camera permissions, HTTPS local DNS resolution, and PWA shortcut behaviors require local deployment verification.
+- **SMTP credentials**: SMTP transport diagnostics are supported; real SMTP credentials must be configured on deployment.
+- **BITLOCKER_VAULT_SECRET**: Vault secret must be securely configured in the approved password manager before entering production recovery keys.
+
+## Phase 90C Inventory Intake, Bulk Asset Intake, Flash Pairing, and Sled/iPod/iPhone Mapping Rework
+
+This phase improves the inventory intake workflows, adds a new Pair Companion Devices flow, provides default charger tracking for laptops, introduces Mode B mapping csv/tsv import/paste for bulk receive, and updates the Data Quality check routines.
+
+### Key Changes
+1. **Intake Hub 7-Card Layout**:
+   - Replaced the previous 4-card intake layout on `/intake` with a 7-card layout: Add One Asset, Bulk Receive Serialized Assets, Pair Companion Devices, Inventory Count / Audit, Photo Follow-Up, Print Labels, and Import History.
+   - Added a "What's the difference?" section to clarify workflows (e.g., Bulk Receive vs. Count / Audit vs. Pair Companion Devices).
+2. **Smart Asset Tag Suggestion**:
+   - Automatically suggests next sequential asset tags based on category prefix (e.g. `GHT-LP-001` for LAPTOP, `GHT-SLD-001` for SCANNER, `GHT-IPO-001` for PHONE) using a `/api/devices/suggest-tag` API endpoint.
+3. **Laptop Charger Tracking**:
+   - Added a nullable `chargerIncluded` Boolean to the `Device` model. Laptops default to "Has charger" checked during intake, which can be deselected.
+4. **Bulk Receive Mode B Mapping**:
+   - Added Mode A (Range Generate) / Mode B (Mapping Paste) tab selection to bulk intake. Mode B allows copy-pasting CSV/TSV data matching serials to asset tags and companion devices, validates client-side, and shows validation badges (Ready, Duplicate, ExistingAsset, ExistingSerial, PairedMissing, Needs Review).
+5. **Pair Companion Devices / Flash Pairing**:
    - Added `/intake/pair` to allow quick scanner/manual pairing of existing companion devices (sleds with iPods/iPhones). Warns users if either device is already paired and allows one-click override.
 6. **Data Quality Enhancements**:
    - Added checks for serialized categories missing serial numbers (LAPTOP, SCANNER, PHONE), laptops missing charger status (`chargerIncluded` is null), and active device relationships with status `NEEDS_REVIEW`.
@@ -971,3 +1166,67 @@ This phase improves the inventory intake workflows, adds a new Pair Companion De
    - Added static mock-ups to `/admin/ui-preview` for Phase 90C companion pairing, tag suggestions, charger status checkbox, and bulk intake mapping formats.
 8. **Unit and Integration Tests**:
    - Added comprehensive test cases in `tests/intake.test.ts` and `tests/device-pairing.test.ts` verifying tag suggestions, CSV parsers, mapping validation, pairing conflicts, and database migrations. All 464 tests pass.
+
+## Phase 90D Stock Movement, Restock, Physical Count, Barcode/QR Codes, and Label Generator Rework
+
+This phase separates stock creation from restocking, introduces the guided label generator workflow, implements precise range padding generators, supports stock shelf labels, and cleanses the printable label view.
+
+### Key Changes
+1. **Stockroom 4-Action Dashboard**:
+   - Updated `/stock` to feature four prominent operational action cards: Add New Stock Type, Restock Inventory, Issue / Loan Item, and Physical Count.
+2. **Restock Workflow**:
+   - Created `/stock/restock` to manage restocks independently from stock creation.
+   - Provides live previews showing current vs. target stock quantities.
+   - Restocks require linking to a purchase factura and are saved with the `RESTOCK` movement type.
+3. **Physical Count & Stock Audit**:
+   - Created `/stock/count` to run physical audits.
+   - Calculates deltas automatically and warns the user with prominent red alerts when registered stock is reduced.
+   - Requires choosing an adjustment reason (`DAMAGED` or `LOST`) when lowering stock.
+4. **Label Generator Workflow Hub**:
+   - Redesigned `/labels` into a guided workflow hub offering 6 print options: Existing Assets, Stock Items, Range / Pattern, Batch Sheet, Manual List, and Alias-linked Labels.
+5. **Sequential Range Generator with Custom Padding**:
+   - Updated the range generator to strictly respect padding choices. Previews sequential ranges (e.g. J01, J001, STK-0001) with live count indicators.
+6. **Stock Shelf Label Support**:
+   - Added support for printing stock labels (e.g., STK-XXXX) mapped directly to shelf barcodes.
+7. **Clean Print CSS Viewports**:
+   - Appended `@media print` styling rules in `app/globals.css` to hide header navigation sidebar layouts, borders, and margins, ensuring clean label sheets.
+8. **UI Preview Lab Updates**:
+   - Appended static previews for the Restock flow, Physical Count Delta alerts, and guided workflow cards to the UI Preview Lab.
+9. **Unit Tests**:
+   - Created `tests/stock-movements-labels.test.ts` to verify stock calculations, range padding generators, and API route structures. All 473 tests pass successfully.
+
+## Phase 90E Assignments, Asset Loans, RMA, Badge Scan, Asset Scan, Email Rules, and Transfer Warning Rework
+
+This phase transforms the Assignments, Quick Loans, and RMA screens into scan-first, mobile-friendly, safe, and operationally realistic workflows for beta field testing.
+
+### Key Changes
+1. **Scan-First & Mobile-Friendly Assignment Form**:
+   - Redesigned `/assignments/new` to be scan-first and phone-friendly. Removed the giant scrollable list of all available assets.
+   - Users scan or type asset tags / serial numbers to add them to a compact, persistent list of selected items.
+   - Includes checkbox toggles for "Laptop Charger Included" directly on laptop cards.
+2. **Employee Badge Scan & Lookup**:
+   - Added a Badge ID scan/manual lookup field to find active employees or temporary borrowers using the `/api/scan-lookup` endpoint.
+   - If a badge/name search is unsuccessful, authorized IT staff/admins are offered inline creation forms to add a new Employee or Temporary Borrower profile with explicit confirmation.
+3. **Already Assigned & Overwrite Transfer Warnings**:
+   - The `/api/assignments` endpoint now checks if selected assets are already assigned or loaned.
+   - If conflicts exist, the API returns a 422 warning, and the UI displays a clear conflict card showing who currently holds the asset.
+   - Requires explicit checkbox confirmation ("Confirm Transfer of Asset") to overwrite the assignment, which automatically returns the conflicting assignment or loan cleanly under a single database transaction.
+4. **Logged-in IT Tech Auto-fill**:
+   - Pre-populates the "Assigned by" field with the name of the currently logged-in user retrieved from the server session.
+5. **SMTP-Independent Email Rule Compilation**:
+   - Configured assignment email rules: receipt confirmation goes to the assignee, assignee manager, and `it.techstyle@g-global.com` (with fallback configured CCs).
+   - Configured asset loan email rules: checkout confirmation goes to the OPS mailbox (`process.env.OPS_MAILBOX` or `ops@g-global.com`), borrower manager, and `it.techstyle@g-global.com`.
+   - Creation of assignments or loans is SMTP-independent; if SMTP is not configured, the app logs a skipped email status and continues without crashing, presenting a clear warning banner to the user.
+6. **RMA Draft & Optional Metadata**:
+   - Allowed saving draft RMAs with empty metadata fields (carrier, tracking, destination, vendor, contact) without failing database schema constraints.
+7. **RMA Category Filter Fix**:
+   - Corrected the category filter in `/components/rma-form.tsx` to strictly match the selected category enums or labels, resolving the bug where choosing "Phones" would display "Access Points".
+8. **RMA Scan-First Device Selection & Damage Notes**:
+   - Replaced checkbox-grid selectors with a scan-first device selector, allowing bulk scanners to add devices to the active RMA case.
+   - Each selected RMA device includes a damage note input and a photo status checkbox ("Photo Attached").
+9. **RMA Export Columns Enhancement**:
+   - Updated the `rma-items` export endpoint (`app/api/export/[type]/route.ts`) to output: RMA number, RMA title, status, asset tag, serial number, category/type, brand, model, location/area, damage/issue note, photo attached/needed, destination, vendor, contact, carrier, tracking, sent date, and notes.
+10. **UI Preview Lab Updates**:
+    - Added static safe mocks at `/admin/ui-preview` for: Badge Scan & Lookup, Temporary Borrower creation, Overwrite Transfer confirmations, SMTP skipped warnings, Loan Selected list, RMA drafts, and RMA Export table columns.
+11. **Unit Tests**:
+    - Appended unit tests in `tests/assignments.test.ts` to test transfer validation rules, and in `tests/rma.test.ts` to test category filters and draft validation. All 476 tests pass successfully.

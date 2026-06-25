@@ -10,10 +10,16 @@ import { assignmentResponsibleLabel } from "@/lib/assignment-views";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ emailWarning?: string }>;
+};
 
-export default async function AssignmentDetailPage({ params }: Props) {
+export default async function AssignmentDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { emailWarning } = await searchParams;
+  const showEmailSkippedWarning = emailWarning === "skipped";
+
   const assignment = await prisma.assignment.findUnique({
     where: { id },
     include: { employee: true, items: { include: { asset: true } } },
@@ -25,6 +31,16 @@ export default async function AssignmentDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
+      {showEmailSkippedWarning && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex items-start gap-3 shadow-sm">
+          <div className="shrink-0 text-amber-700 font-semibold text-lg">⚠️</div>
+          <div>
+            <p className="font-semibold text-amber-950">Assignment created</p>
+            <p className="mt-0.5 text-amber-800">Email skipped because SMTP is not configured.</p>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         title={assignment.assignmentNumber}
         description={`Responsible: ${responsibleLabel} on ${assignment.assignmentDate.toLocaleString()}`}

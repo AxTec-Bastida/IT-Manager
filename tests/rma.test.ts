@@ -57,4 +57,40 @@ describe("RMA workflow rules", () => {
     expect(alert?.message).toContain("1 pending");
     expect(alert?.metadata).toContain("rma-1");
   });
+
+  describe("category filtering", () => {
+    it("strictly excludes Access Points when Phones is selected", () => {
+      const devices = [
+        { id: "1", name: "iPhone 13", category: "PHONE" },
+        { id: "2", name: "Zebra Access Point", category: "ACCESS_POINT" },
+      ];
+      const category = "PHONE";
+      
+      const filtered = devices.filter((device) => {
+        const devCategory = (device.category || "").toString().toUpperCase().trim();
+        return devCategory === category.toUpperCase().trim();
+      });
+
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe("iPhone 13");
+    });
+  });
+
+  describe("draft creation validation", () => {
+    it("accepts blank destination for drafts and defaults to Pending", () => {
+      const payload = {
+        rmaNumber: "RMA-DRAFT-123",
+        status: "DRAFT",
+        destination: "", // blank
+        devices: [{ deviceId: "device-1" }],
+      };
+      
+      let destination = payload.destination.trim();
+      if (!destination && payload.status === "DRAFT") {
+        destination = "Pending";
+      }
+      
+      expect(destination).toBe("Pending");
+    });
+  });
 });

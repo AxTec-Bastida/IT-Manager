@@ -73,4 +73,29 @@ describe("assignment validation", () => {
     expect(itemReturnStatusForCondition("NOT_WORKING")).toBe("DAMAGED");
     expect(itemReturnStatusForCondition("MISSING_ACCESSORIES")).toBe("MISSING_ACCESSORIES");
   });
+
+  describe("transfer validation", () => {
+    it("permits IN_USE_ASSIGNED and LOANED_OUT if confirmTransfer is true", () => {
+      const assigned = asset("IN_USE_ASSIGNED");
+      const loaned = asset("LOANED_OUT");
+      
+      // Normally blocked
+      expect(canAssignAsset(assigned).ok).toBe(false);
+      expect(canAssignAsset(loaned).ok).toBe(false);
+
+      // Helper mock mimicking the route logic
+      const validateWithTransfer = (items: Device[], confirmTransfer: boolean) => {
+        const validationAssets = items.map(a => {
+          if (confirmTransfer && (a.status === "IN_USE_ASSIGNED" || a.status === "LOANED_OUT")) {
+            return { ...a, status: "AVAILABLE" as const };
+          }
+          return a;
+        });
+        return validateAssignmentAssets(validationAssets);
+      };
+
+      expect(validateWithTransfer([assigned, loaned], true).ok).toBe(true);
+      expect(validateWithTransfer([assigned, loaned], false).ok).toBe(false);
+    });
+  });
 });

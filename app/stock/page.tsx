@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ElementType } from "react";
-import { Archive, BatteryCharging, Cable, Package, PackageCheck, Plus, Search, SlidersHorizontal, Zap } from "lucide-react";
+import { Archive, BatteryCharging, Cable, Package, PackageCheck, Search, SlidersHorizontal, Zap, ClipboardList, TrendingUp, PackagePlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -87,22 +87,40 @@ export default async function StockPage({ searchParams }: Props) {
         title="Stockroom"
         description="What we have on hand: quantity-based consumables, accessories/peripherals, printer supplies, maintenance supplies, and spare parts."
         action={
-          <div className="grid gap-2 sm:flex">
-            <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-              <Search size={16} />
-              Scan stock
-            </Link>
-            <Link href="/stock/issue" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-              <PackageCheck size={16} />
-              Issue / loan item
-            </Link>
-            <Link href="/stock/new" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-              <Plus size={16} />
-              Add stock item
-            </Link>
-          </div>
+          <Link href="/scan" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <Search size={16} />
+            Stock code / SKU / Barcode lookup
+          </Link>
         }
       />
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StockActionCard
+          href="/stock/new"
+          title="Add New Stock Item"
+          description="Create a new stock item type, such as USB-C Charger, Mouse, Toner, or Label Roll."
+          icon={PackagePlus}
+        />
+        <StockActionCard
+          href="/stock/restock"
+          title="Restock Existing Item"
+          description="Add quantity to an item already tracked in stock."
+          icon={TrendingUp}
+        />
+        <StockActionCard
+          href="/stock/issue"
+          title="Issue / Return Stock"
+          description="Give consumables to a user/team or return usable stock."
+          icon={PackageCheck}
+        />
+        <StockActionCard
+          href="/stock/count"
+          title="Physical Count / Adjustment"
+          description="Correct system quantity after counting shelves or finding damaged/lost items."
+          icon={ClipboardList}
+        />
+      </section>
+
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StockSignalCard href="/stock?lowOnly=true" label="Low stock" value={lowStockCount} helper="At or below minimum" />
@@ -296,3 +314,23 @@ function stockPageHref(params: Record<string, string | string[] | undefined>, pa
   next.set("page", String(page));
   return `/stock?${next.toString()}`;
 }
+
+function StockActionCard({ href, title, description, icon: Icon }: { href: string; title: string; description: string; icon: ElementType }) {
+  return (
+    <Link href={href} className="flex flex-col h-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-300 transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 rounded-lg p-2.5 bg-slate-950 text-white">
+          <Icon size={20} />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-slate-950 text-sm">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500 leading-normal">{description}</p>
+        </div>
+      </div>
+      <div className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md bg-slate-950 px-4 text-xs font-semibold text-white hover:bg-slate-800 mt-auto">
+        Open
+      </div>
+    </Link>
+  );
+}
+

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, Edit, PackageCheck, PackagePlus, ReceiptText } from "lucide-react";
+import { ClipboardList, Edit, PackageCheck, PackagePlus, ReceiptText, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -56,10 +56,16 @@ export default async function StockDetailPage({ params }: Props) {
               PO Note
             </Link>
             {stockItem.active ? (
-              <Link href={`/stock/issue?stockItemId=${stockItem.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                <PackageCheck size={16} />
-                Issue / Loan
-              </Link>
+              <>
+                <Link href={`/stock/issue?stockItemId=${stockItem.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <PackageCheck size={16} />
+                  Issue / Loan
+                </Link>
+                <Link href={`/labels?mode=stock&stockItemId=${stockItem.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <Printer size={16} />
+                  Print Label
+                </Link>
+              </>
             ) : null}
             <Link href={`/stock/${stockItem.id}/edit`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
               <Edit size={16} />
@@ -184,7 +190,7 @@ export default async function StockDetailPage({ params }: Props) {
                   <p className="text-slate-500">{movement.createdAt.toLocaleString()}</p>
                 </div>
                 <p className="text-slate-600">
-                  {movement.previousQuantity} to {movement.newQuantity} ({movement.quantity})
+                  Qty: {movement.previousQuantity} &rarr; {movement.newQuantity} ({movement.newQuantity - movement.previousQuantity > 0 ? `+${movement.quantity}` : movement.newQuantity - movement.previousQuantity < 0 ? `-${movement.quantity}` : "0"})
                   {movement.asset ? ` / ${movement.asset.name}` : ""}
                   {movement.employee ? ` / ${movement.employee.fullName}` : ""}
                   {movement.factura ? ` / ${movement.factura.facturaNumber}` : ""}

@@ -149,7 +149,14 @@ export async function POST(request: NextRequest) {
     ? await prisma.employee.findMany({
         where: {
           status: "ACTIVE",
-          OR: terms.flatMap((term) => [{ employeeId: term }, { employeeId: { contains: term } }, { fullName: { contains: term } }, { email: { contains: term } }]),
+          OR: terms.flatMap((term) => [
+            { employeeId: term },
+            { employeeId: { contains: term } },
+            { badgeId: term },
+            { badgeId: { contains: term } },
+            { fullName: { contains: term } },
+            { email: { contains: term } }
+          ]),
         },
         include: {
           assignedDevices: { select: { id: true, name: true, assetTag: true }, orderBy: { updatedAt: "desc" }, take: 10 },

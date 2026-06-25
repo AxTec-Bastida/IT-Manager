@@ -13,7 +13,7 @@ type Props = { searchParams: Promise<Record<string, string | undefined>> };
 export default async function LabelPrintPage({ searchParams }: Props) {
   if (!(await hasPagePermission("labels.print"))) return <ForbiddenPanel message="Printing labels requires Auditor, IT Staff, or Admin access." />;
   const query = await searchParams;
-  const mode = query.mode === "range" || query.mode === "manual" || query.mode === "alias-linked" || query.mode === "batch" || query.mode === "calibration" ? query.mode : "existing";
+  const mode = query.mode === "range" || query.mode === "manual" || query.mode === "alias-linked" || query.mode === "batch" || query.mode === "calibration" || query.mode === "stock" ? query.mode : "existing";
   const options = normalizeLabelOptions(query);
   const items = await labelsForPrint(mode, query);
   const isBatch = mode === "batch";
@@ -45,6 +45,36 @@ export default async function LabelPrintPage({ searchParams }: Props) {
 }
 
 async function labelsForPrint(mode: LabelMode | "alias-linked" | "calibration", query: Record<string, string | undefined>): Promise<LabelItem[]> {
+  if (mode === "stock") {
+    const stockItemId = query.stockItemId;
+    const q = query.q?.trim();
+    const where = {
+      active: true,
+      ...(stockItemId ? { id: stockItemId } : {}),
+      ...(q ? {
+        OR: [
+          { name: { contains: q } },
+          { barcodeValue: { contains: q } },
+          { sku: { contains: q } }
+        ]
+      } : {})
+    };
+    const stockItems = await prisma.stockItem.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take: 500,
+    });
+    return stockItems.map((item) => ({
+      assetTag: item.barcodeValue || item.sku || `STK-${item.id.slice(0, 8)}`,
+      visibleText: item.name,
+      encodedValue: item.barcodeValue || item.sku || `STK-${item.id}`,
+      serialNumber: item.sku || null,
+      assetName: `${item.name}${item.storageLocation ? ` (${item.storageLocation})` : ""}`,
+      existsInInventory: true,
+      matchNote: `Stock shelf label`
+    }));
+  }
+
   if (mode === "range") {
     return generateRangeLabels({
       prefix: query.prefix || "",

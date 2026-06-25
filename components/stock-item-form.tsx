@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { DeviceCategory, Factura, StockItem } from "@prisma/client";
@@ -10,14 +12,50 @@ type Props = {
   stockItem?: StockItem | null;
   defaults?: { currency?: string; minimumQuantity?: number };
   facturas?: Factura[];
+  deviceModels?: string[];
+  stockItems?: string[];
 };
 
-export function StockItemForm({ stockItem, defaults, facturas = [] }: Props) {
+export function StockItemForm({ stockItem, defaults, facturas = [], deviceModels = [], stockItems = [] }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [barcodeValue, setBarcodeValue] = useState(stockItem?.barcodeValue ?? "");
+  const [generating, setGenerating] = useState(false);
+  const [compatibleModels, setCompatibleModels] = useState(stockItem?.compatibleModels ?? "");
+
   const inputClass = "w-full min-h-14 rounded-md sm:min-h-12 border border-slate-300 bg-white px-3 py-2 text-base text-slate-950 shadow-sm focus:border-slate-950 focus:outline-none sm:text-sm";
   const labelClass = "space-y-1 text-sm font-medium text-slate-700";
+
+  async function generateCode() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/stock/generate-code");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.suggested) {
+          setBarcodeValue(data.suggested);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to generate stock code", err);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const handleSelectModel = (val: string) => {
+    if (!val) return;
+    const current = compatibleModels.trim();
+    if (current) {
+      const parts = current.split(",").map((p) => p.trim());
+      if (!parts.includes(val)) {
+        setCompatibleModels(`${current}, ${val}`);
+      }
+    } else {
+      setCompatibleModels(val);
+    }
+  };
 
   async function onSubmit(formData: FormData) {
     setSaving(true);
@@ -50,12 +88,31 @@ export function StockItemForm({ stockItem, defaults, facturas = [] }: Props) {
             <input className={inputClass} name="name" defaultValue={stockItem?.name ?? ""} required placeholder="Zebra ZT411 printhead" />
           </label>
           <label className={labelClass}>
-            SKU / barcode
-            <input className={inputClass} name="sku" defaultValue={stockItem?.sku ?? ""} placeholder="SKU or scanned label value" />
+            SKU / Vendor part number
+            <input className={inputClass} name="sku" defaultValue={stockItem?.sku ?? ""} placeholder="e.g. 800015-101" />
           </label>
           <label className={labelClass}>
-            Scan code
-            <input className={inputClass} name="barcodeValue" defaultValue={stockItem?.barcodeValue ?? ""} placeholder="KEYBOARD, STOCK:KEYBOARD, MOUSE" />
+            Stock code / SKU / Barcode
+            <div className="flex gap-2">
+              <input
+                className={inputClass}
+                name="barcodeValue"
+                value={barcodeValue}
+                onChange={(e) => setBarcodeValue(e.target.value)}
+                placeholder="e.g. STK-0001"
+              />
+              <button
+                type="button"
+                onClick={generateCode}
+                disabled={generating}
+                className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0"
+              >
+                {generating ? "Generating..." : "Generate"}
+              </button>
+            </div>
+            <span className="text-[11px] text-slate-500 block mt-1">
+              Printed on a barcode/QR label or scanned when issuing/restocking. Click Generate if blank.
+            </span>
           </label>
           <label className={labelClass}>
             Category
@@ -149,10 +206,59 @@ export function StockItemForm({ stockItem, defaults, facturas = [] }: Props) {
             <input className="size-4 rounded border-slate-300" name="active" type="checkbox" defaultChecked={stockItem?.active ?? true} />
             Active item
           </label>
-          <label className={`${labelClass} lg:col-span-2`}>
-            Compatible models
-            <input className={inputClass} name="compatibleModels" defaultValue={stockItem?.compatibleModels ?? ""} placeholder="ZT410, ZT411, GK420d" />
-          </label>
+          <div className={`${labelClass} lg:col-span-2 space-y-2`}>
+            <label className="block text-sm font-medium text-slate-700">
+              Compatible models
+              <input
+                className={inputClass}
+                name="compatibleModels"
+                value={compatibleModels}
+                onChange={(e) => setCompatibleModels(e.target.value)}
+                placeholder="e.g. ZT410, ZT411, GK420d"
+              />
+            </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="space-y-1 text-xs text-slate-500 font-semibold">
+                Add existing asset model:
+                <select
+                  className="w-full min-h-10 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                  onChange={(e) => {
+                    handleSelectModel(e.target.value);
+                    e.target.value = "";
+                  }}
+                  defaultValue=""
+                >
+                  <option value="">-- Select Model --</option>
+                  {deviceModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-slate-500 font-semibold">
+                Add existing stock item:
+                <select
+                  className="w-full min-h-10 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                  onChange={(e) => {
+                    handleSelectModel(e.target.value);
+                    e.target.value = "";
+                  }}
+                  defaultValue=""
+                >
+                  <option value="">-- Select Stock Item --</option>
+                  {stockItems.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <span className="text-[11px] text-slate-500 block">
+              Type manually or select from existing values to append. Separate multiple values with commas.
+            </span>
+          </div>
           <label className={`${labelClass} lg:col-span-2`}>
             Notes
             <textarea className={inputClass} name="notes" rows={4} defaultValue={stockItem?.notes ?? ""} />

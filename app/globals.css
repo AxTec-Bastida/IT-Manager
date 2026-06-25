@@ -165,3 +165,25 @@ details > summary::-webkit-details-marker {
     font-size: 14px;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    background-image: none !important;
+  }
+  header,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+}
+

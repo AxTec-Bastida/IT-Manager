@@ -17,11 +17,17 @@ import {
 import { activeAssetLoanStatuses, borrowerLabel, isAssetLoanOverdue } from "@/lib/asset-loans";
 import { hasPagePermission } from "@/lib/page-permissions";
 
-type Context = { params: Promise<{ id: string }> };
+type Context = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ emailWarning?: string }>;
+};
 
-export default async function LoanDetailPage({ params }: Context) {
+export default async function LoanDetailPage({ params, searchParams }: Context) {
   if (!(await hasPagePermission("loans.write"))) return <ForbiddenPanel message="Asset loan records require IT Staff or Admin access." />;
   const { id } = await params;
+  const { emailWarning } = await searchParams;
+  const showEmailSkippedWarning = emailWarning === "skipped";
+
   const loan = await prisma.assetLoan.findUnique({ where: { id }, include: { employee: true, temporaryBorrower: true, items: { include: { device: true } } } });
   if (!loan) notFound();
   const displayStatus = isAssetLoanOverdue(loan) ? "OVERDUE" : loan.status;
@@ -30,6 +36,15 @@ export default async function LoanDetailPage({ params }: Context) {
 
   return (
     <div className="space-y-5">
+      {showEmailSkippedWarning && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex items-start gap-3 shadow-sm">
+          <div className="shrink-0 text-amber-700 font-semibold text-lg">⚠️</div>
+          <div>
+            <p className="font-semibold text-amber-950">Loan created</p>
+            <p className="mt-0.5 text-amber-800">Email skipped because SMTP is not configured.</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href="/loans" className="text-sm font-semibold text-slate-600 hover:text-slate-950">Asset Loans</Link>

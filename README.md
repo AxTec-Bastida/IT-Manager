@@ -2856,3 +2856,36 @@ What changed:
 - **UI Preview Lab Updates**: Added static mock-ups to `/admin/ui-preview` for Phase 90C companion pairing, tag suggestions, charger status checkbox, and bulk intake mapping formats.
 - **Unit and Integration Tests**: Added comprehensive test suites in `tests/intake.test.ts` and `tests/device-pairing.test.ts` verifying tag suggestions, CSV parsers, mapping validation, pairing conflicts, and database migrations. All 464 tests pass.
 
+## Phase 90D: Stock Movement, Restock, Physical Count, Barcode/QR Codes, and Label Generator Rework
+
+Phase 90D separates stock creation from restocking, introduces the guided label generator workflow, implements precise range padding generators, supports stock shelf labels, and cleanses the printable label view.
+
+What changed:
+- **Stockroom 4-Action Dashboard**: Updated `/stock` to feature four prominent operational action cards: Add New Stock Type, Restock Inventory, Issue / Loan Item, and Physical Count.
+- **Restock Workflow**: Created `/stock/restock` to manage restocks independently from stock creation. Provides live previews showing current vs. target stock quantities. Restocks require linking to a purchase factura and are saved with the `RESTOCK` movement type.
+- **Physical Count & Stock Audit**: Created `/stock/count` to run physical audits. Calculates deltas automatically and warns the user with prominent red alerts when registered stock is reduced. Requires choosing an adjustment reason (`DAMAGED` or `LOST`) when lowering stock.
+- **Label Generator Workflow Hub**: Redesigned `/labels` into a guided workflow hub offering 6 print options: Existing Assets, Stock Items, Range / Pattern, Batch Sheet, Manual List, and Alias-linked Labels.
+- **Sequential Range Generator with Custom Padding**: Updated the range generator to strictly respect padding choices. Previews sequential ranges (e.g. J01, J001, STK-0001) with live count indicators.
+- **Stock Shelf Label Support**: Added support for printing stock labels (e.g., STK-XXXX) mapped directly to shelf barcodes.
+- **Clean Print CSS Viewports**: Appended `@media print` styling rules in `app/globals.css` to hide header navigation sidebar layouts, borders, and margins, ensuring clean label sheets.
+- **UI Preview Lab Updates**: Appended static previews for the Restock flow, Physical Count Delta alerts, and guided workflow cards to the UI Preview Lab.
+- **Unit Tests**: Created `tests/stock-movements-labels.test.ts` to verify stock calculations, range padding generators, and API route structures. All 473 tests pass successfully.
+
+## Phase 90E: Assignments, Asset Loans, RMA, Badge Scan, Asset Scan, Email Rules, and Transfer Warning Rework
+
+Phase 90E transforms the Assignments, Quick Loans, and RMA screens into scan-first, mobile-friendly, safe, and operationally realistic workflows for beta field testing.
+
+What changed:
+- **Scan-First & Mobile-Friendly Assignment Form**: Redesigned `/assignments/new` to be scan-first and phone-friendly. Removed the giant scrollable list of all available assets. Users scan or type asset tags / serial numbers to add them to a compact, persistent list of selected items. Includes checkbox toggles for "Laptop Charger Included" directly on laptop cards.
+- **Employee Badge Scan & Lookup**: Added a Badge ID scan/manual lookup field to find active employees or temporary borrowers using the `/api/scan-lookup` endpoint. If a badge/name search is unsuccessful, authorized IT staff/admins are offered inline creation forms to add a new Employee or Temporary Borrower profile with explicit confirmation.
+- **Already Assigned & Overwrite Transfer Warnings**: The `/api/assignments` endpoint now checks if selected assets are already assigned or loaned. If conflicts exist, the API returns a 422 warning, and the UI displays a clear conflict card showing who currently holds the asset. Requires explicit checkbox confirmation ("Confirm Transfer of Asset") to overwrite the assignment, which automatically returns the conflicting assignment or loan cleanly under a single database transaction.
+- **Logged-in IT Tech Auto-fill**: Pre-populates the "Assigned by" field with the name of the currently logged-in user retrieved from the server session.
+- **SMTP-Independent Email Rule Compilation**: Configured assignment email rules: receipt confirmation goes to the assignee, assignee manager, and `it.techstyle@g-global.com` (with fallback configured CCs). Configured asset loan email rules: checkout confirmation goes to the OPS mailbox (`process.env.OPS_MAILBOX` or `ops@g-global.com`), borrower manager, and `it.techstyle@g-global.com`. Creation of assignments or loans is SMTP-independent; if SMTP is not configured, the app logs a skipped email status and continues without crashing, presenting a clear warning banner to the user.
+- **RMA Draft & Optional Metadata**: Allowed saving draft RMAs with empty metadata fields (carrier, tracking, destination, vendor, contact) without failing database schema constraints.
+- **RMA Category Filter Fix**: Corrected the category filter in `/components/rma-form.tsx` to strictly match the selected category enums or labels, resolving the bug where choosing "Phones" would display "Access Points".
+- **RMA Scan-First Device Selection & Damage Notes**: Replaced checkbox-grid selectors with a scan-first device selector, allowing bulk scanners to add devices to the active RMA case. Each selected RMA device includes a damage note input and a photo status checkbox ("Photo Attached").
+- **RMA Export Columns Enhancement**: Updated the `rma-items` export endpoint (`app/api/export/[type]/route.ts`) to output: RMA number, RMA title, status, asset tag, serial number, category/type, brand, model, location/area, damage/issue note, photo attached/needed, destination, vendor, contact, carrier, tracking, sent date, and notes.
+- **UI Preview Lab Updates**: Added static safe mocks at `/admin/ui-preview` for: Badge Scan & Lookup, Temporary Borrower creation, Overwrite Transfer confirmations, SMTP skipped warnings, Loan Selected list, RMA drafts, and RMA Export table columns.
+- **Unit Tests**: Appended unit tests in `tests/assignments.test.ts` to test transfer validation rules, and in `tests/rma.test.ts` to test category filters and draft validation. All 476 tests pass successfully.
+
+
