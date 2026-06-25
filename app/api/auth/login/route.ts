@@ -7,7 +7,7 @@ function redirectWithError(request: NextRequest, message: string, nextPath?: str
   const url = appUrl("/login", request.url);
   url.searchParams.set("error", message);
   if (nextPath) url.searchParams.set("next", nextPath);
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, { status: 303 });
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const response = NextResponse.redirect(appUrl(nextPath, request.url));
+  const response = NextResponse.redirect(appUrl(nextPath, request.url), { status: 303 });
   response.cookies.set(sessionCookieName, session.token, getSessionCookieOptions(session.expiresAt));
   return response;
 }
