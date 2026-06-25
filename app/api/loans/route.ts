@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/api";
 import { activeAssetLoanStatuses, createAssetLoan, isAssetLoanOverdue } from "@/lib/asset-loans";
 import { assetLoanSchema } from "@/lib/validation";
 import { requirePermission } from "@/lib/auth";
-import { sendAssetLoanWorkflowEmail } from "@/lib/email-workflows";
+import { autoWorkflowEmailEnabled, sendAssetLoanWorkflowEmail, skippedAutoWorkflowEmail } from "@/lib/email-workflows";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     const parsed = assetLoanSchema.parse({ ...payload, assetIds: Array.isArray(payload.assetIds) ? payload.assetIds : [] });
     const loan = await createAssetLoan(prisma, parsed);
-    const emailResult = await sendAssetLoanWorkflowEmail(prisma, loan.id, "checkout");
+    const settings = await prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+    const emailResult = autoWorkflowEmailEnabled(settings, "asset-loan-checkout")
+      ? await sendAssetLoanWorkflowEmail(prisma, loan.id, "checkout")
+      : skippedAutoWorkflowEmail("asset-loan-checkout");
     return NextResponse.json({ loan, emailResult }, { status: 201 });
   } catch (error) {
     return handleApiError(error);

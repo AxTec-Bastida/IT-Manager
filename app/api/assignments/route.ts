@@ -4,7 +4,7 @@ import { handleApiError, jsonError } from "@/lib/api";
 import { assignmentSchema } from "@/lib/validation";
 import { nextAssignmentNumber, validateAssignmentAssets, assignmentStatusForItems } from "@/lib/assignments";
 import { requirePermission, makeActivityActor } from "@/lib/auth";
-import { sendAssignmentWorkflowEmail } from "@/lib/email-workflows";
+import { autoWorkflowEmailEnabled, sendAssignmentWorkflowEmail, skippedAutoWorkflowEmail } from "@/lib/email-workflows";
 import { assetLoanStatusForItems } from "@/lib/asset-loans";
 
 export async function GET() {
@@ -210,7 +210,10 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    const emailResult = await sendAssignmentWorkflowEmail(prisma, assignment.id, "receipt");
+    const settings = await prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+    const emailResult = autoWorkflowEmailEnabled(settings, "assignment-receipt")
+      ? await sendAssignmentWorkflowEmail(prisma, assignment.id, "receipt")
+      : skippedAutoWorkflowEmail("assignment-receipt");
 
     return NextResponse.json({ assignment, emailResult }, { status: 201 });
   } catch (error) {

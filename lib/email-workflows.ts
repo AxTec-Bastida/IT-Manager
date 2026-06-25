@@ -1,4 +1,4 @@
-import type { EmailLogType, PrismaClient } from "@prisma/client";
+import type { AppSettings, EmailLogType, PrismaClient } from "@prisma/client";
 import { buildAssetLoanCheckoutEmail, buildAssetLoanReturnEmail, buildAssignmentReceiptEmail, buildAssignmentReturnEmail, buildRmaClosedEmail, buildRmaFollowUpEmail, buildRmaSentEmail, buildStockIssueEmail, buildStockReturnEmail } from "./email-templates";
 import { getMailConfig, sendAndLogEmail, workflowCc, type MailSendInput } from "./mail";
 
@@ -9,6 +9,22 @@ export type WorkflowEmailResult = {
   error?: string;
   logId?: string;
 };
+
+export type AutoWorkflowEmail = "assignment-receipt" | "asset-loan-checkout";
+
+export function autoWorkflowEmailEnabled(
+  settings: Pick<AppSettings, "autoSendAssignmentReceipts" | "autoSendAssetLoanReceipts">,
+  workflow: AutoWorkflowEmail,
+) {
+  if (workflow === "assignment-receipt") return settings.autoSendAssignmentReceipts;
+  if (workflow === "asset-loan-checkout") return settings.autoSendAssetLoanReceipts;
+  return false;
+}
+
+export function skippedAutoWorkflowEmail(workflow: AutoWorkflowEmail): WorkflowEmailResult {
+  const label = workflow === "assignment-receipt" ? "assignment receipts" : "asset loan receipts";
+  return skipped(`Automatic ${label} are disabled. Use the manual email action if a receipt is needed.`);
+}
 
 export async function sendAssignmentWorkflowEmail(prisma: PrismaClient, assignmentId: string, kind: "receipt" | "return", recipientOverride?: string | null): Promise<WorkflowEmailResult> {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, include: { employee: true, items: { include: { asset: true } } } });

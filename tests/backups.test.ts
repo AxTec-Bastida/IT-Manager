@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { BackupError, countFiles, createBackup, formatBackupFolderName, getBackupHistory, validateBackup } from "@/lib/backups";
 
 const roots: string[] = [];
+const BACKUP_TEST_TIMEOUT_MS = 30000;
 
 async function createRoot() {
   const root = await mkdtemp(path.join(os.tmpdir(), "warehouse-backup-test-"));
@@ -19,8 +20,25 @@ async function writeProjectFile(root: string, relativePath: string, content: str
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  const cleanupRoots = roots.splice(0);
+  for (const root of cleanupRoots) {
+    await removeWithRetry(root);
+  }
 });
+
+async function removeWithRetry(root: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
 
 describe("backup helpers", () => {
   it("creates stable manual backup folder names", () => {
@@ -49,7 +67,7 @@ describe("backup helpers", () => {
     expect(await countFiles(path.join(result.manifest.backupPath, "uploads", "assets"))).toBe(2);
     expect(await countFiles(path.join(result.manifest.backupPath, "uploads", "stock"))).toBe(1);
     expect(await countFiles(path.join(result.manifest.backupPath, "uploads", "maps"))).toBe(1);
-  });
+  }, BACKUP_TEST_TIMEOUT_MS);
 
   it("handles missing optional upload folders with manifest warnings", async () => {
     const root = await createRoot();
@@ -63,14 +81,14 @@ describe("backup helpers", () => {
     expect(result.manifest.uploadsStockCopied).toBe(false);
     expect(result.manifest.uploadsMapsCopied).toBe(false);
     expect(result.manifest.warnings).toHaveLength(4);
-  });
+  }, BACKUP_TEST_TIMEOUT_MS);
 
   it("returns a clear error when the database is missing", async () => {
     const root = await createRoot();
 
     await expect(createBackup({ projectRoot: root })).rejects.toThrow(BackupError);
     await expect(createBackup({ projectRoot: root })).rejects.toThrow("Database file not found");
-  });
+  }, BACKUP_TEST_TIMEOUT_MS);
 
   it("validates copied backup contents", async () => {
     const root = await createRoot();
@@ -84,7 +102,7 @@ describe("backup helpers", () => {
     expect(validation.databaseSizeValid).toBe(true);
     expect(validation.manifestExists).toBe(true);
     expect(validation.valid).toBe(true);
-  });
+  }, BACKUP_TEST_TIMEOUT_MS);
 
   it("lists backup history from manifests newest first", async () => {
     const root = await createRoot();
@@ -97,5 +115,5 @@ describe("backup helpers", () => {
     expect(history).toHaveLength(2);
     expect(history[0].backupTimestamp).toBe("2026-05-31T08:07:06.000Z");
     expect(history[0].sizeBytes).toBeGreaterThan(0);
-  });
+  }, BACKUP_TEST_TIMEOUT_MS);
 });

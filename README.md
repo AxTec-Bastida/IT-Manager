@@ -2018,7 +2018,7 @@ Scheduled jobs intentionally do not:
 - Authenticate to UniFi.
 - Modify UniFi clients, VLANs, APs, switch ports, firewall rules, Wi-Fi networks, or controller settings.
 - Mark assets offline just because ping or network data is missing.
-- Send automatic email unless a future explicit auto-send setting is wired in.
+- Send automatic email from scheduled jobs; workflow receipt emails remain manual-first unless an Admin explicitly enables the matching auto-send setting.
 - Send labels directly to printers.
 - Auto-fix imported data, orphaned loan statuses, duplicate IPs, or retired-phone IP/MAC review items.
 
@@ -2135,6 +2135,8 @@ Manual email buttons are available on:
 - Asset loan detail: checkout receipt and return confirmation when returned items exist.
 - Stock issue detail: handout/loan receipt and return confirmation when returned quantity exists.
 - RMA detail: sent summary, follow-up reminder, and closed summary when returned/closed.
+
+Admin-controlled auto-send settings are available under `/admin/email-notifications` for assignment receipts, asset loan receipts, stock issue receipts, RMA emails, return confirmations, and overdue reminder emails. These settings default to off; when they are off, creation workflows return a clear skipped email result and the saved record is not affected.
 
 Recipient behavior:
 

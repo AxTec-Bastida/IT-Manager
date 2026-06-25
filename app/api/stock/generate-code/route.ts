@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
+import { handleApiError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,6 @@ export async function GET() {
 
     return NextResponse.json({ suggested });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to generate stock code." }, { status: 500 });
+    return handleApiError(error);
   }
 }
