@@ -948,3 +948,26 @@ Phase 90B introduces the Admin Center and Master Data taxonomies foundation to p
 - **Real Phone/Camera Validation**: While verified via automated unit testing and browser simulation, physical phone camera permissions, HTTPS local DNS resolution, and PWA shortcut behaviors require local deployment verification.
 - **SMTP credentials**: SMTP transport diagnostics are supported; real SMTP credentials must be configured on deployment.
 - **BITLOCKER_VAULT_SECRET**: Vault secret must be securely configured in the approved password manager before entering production recovery keys.
+
+## Phase 90C Inventory Intake, Bulk Asset Intake, Flash Pairing, and Sled/iPod/iPhone Mapping Rework
+
+This phase improves the inventory intake workflows, adds a new Pair Companion Devices flow, provides default charger tracking for laptops, introduces Mode B mapping csv/tsv import/paste for bulk receive, and updates the Data Quality check routines.
+
+### Key Changes
+1. **Intake Hub 7-Card Layout**:
+   - Replaced the previous 4-card intake layout on `/intake` with a 7-card layout: Add One Asset, Bulk Receive Serialized Assets, Pair Companion Devices, Inventory Count / Audit, Photo Follow-Up, Print Labels, and Import History.
+   - Added a "What's the difference?" section to clarify workflows (e.g., Bulk Receive vs. Count / Audit vs. Pair Companion Devices).
+2. **Smart Asset Tag Suggestion**:
+   - Automatically suggests next sequential asset tags based on category prefix (e.g. `GHT-LP-001` for LAPTOP, `GHT-SLD-001` for SCANNER, `GHT-IPO-001` for PHONE) using a `/api/devices/suggest-tag` API endpoint.
+3. **Laptop Charger Tracking**:
+   - Added a nullable `chargerIncluded` Boolean to the `Device` model. Laptops default to "Has charger" checked during intake, which can be deselected.
+4. **Bulk Receive Mode B Mapping**:
+   - Added Mode A (Range Generate) / Mode B (Mapping Paste) tab selection to bulk intake. Mode B allows copy-pasting CSV/TSV data matching serials to asset tags and companion devices, validates client-side, and shows validation badges (Ready, Duplicate, ExistingAsset, ExistingSerial, PairedMissing, Needs Review).
+5. **Pair Companion Devices / Flash Pairing**:
+   - Added `/intake/pair` to allow quick scanner/manual pairing of existing companion devices (sleds with iPods/iPhones). Warns users if either device is already paired and allows one-click override.
+6. **Data Quality Enhancements**:
+   - Added checks for serialized categories missing serial numbers (LAPTOP, SCANNER, PHONE), laptops missing charger status (`chargerIncluded` is null), and active device relationships with status `NEEDS_REVIEW`.
+7. **UI Preview Lab Updates**:
+   - Added static mock-ups to `/admin/ui-preview` for Phase 90C companion pairing, tag suggestions, charger status checkbox, and bulk intake mapping formats.
+8. **Unit and Integration Tests**:
+   - Added comprehensive test cases in `tests/intake.test.ts` and `tests/device-pairing.test.ts` verifying tag suggestions, CSV parsers, mapping validation, pairing conflicts, and database migrations. All 464 tests pass.

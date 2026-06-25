@@ -77,12 +77,23 @@ describe("data quality review helpers", () => {
       { ...baseDevice, id: "a", assetTag: null },
       { ...baseDevice, id: "b", serialNumber: null },
       { ...baseDevice, id: "c", model: null, location: null, areaDepartment: null },
+      { ...baseDevice, id: "laptop-1", category: "LAPTOP", serialNumber: null, chargerIncluded: null },
+      { ...baseDevice, id: "scanner-1", category: "SCANNER", serialNumber: null },
+      { ...baseDevice, id: "phone-1", category: "PHONE", serialNumber: null },
+      {
+        ...baseDevice,
+        id: "needs-review-1",
+        sourceRelationships: [{ relationshipType: "IPOD_SLED_PAIR", status: "NEEDS_REVIEW", targetDeviceId: "other" }],
+      },
     ]);
 
     expect(missing.missingAssetTag).toHaveLength(1);
-    expect(missing.missingSerial).toHaveLength(1);
+    expect(missing.missingSerial).toHaveLength(4);
     expect(missing.missingModel).toHaveLength(1);
     expect(missing.missingLocation).toHaveLength(1);
+    expect(missing.missingSerialRequired).toHaveLength(3);
+    expect(missing.laptopMissingCharger).toHaveLength(1);
+    expect(missing.relationshipNeedsReview).toHaveLength(1);
   });
 
   it("flags generic peripheral-like devices for stock vs asset review", () => {

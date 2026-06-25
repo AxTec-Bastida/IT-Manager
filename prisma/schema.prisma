@@ -587,6 +587,7 @@ model Device {
   repairNotes                   String?
   chargerStatus                 String?                      @default("HEALTHY")
   chargerNotes                  String?
+  chargerIncluded               Boolean?
   blackTonerLevel               Int?
   cyanTonerLevel                Int?
   magentaTonerLevel             Int?

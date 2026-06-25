@@ -33,7 +33,6 @@ export function EmailSettingsForm({
   const [autoSendOverdueReminderEmails, setAutoSendOverdueReminderEmails] = useState(settings.autoSendOverdueReminderEmails);
 
   const checkboxClass = "flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition cursor-pointer";
-  const labelClass = "text-sm font-semibold text-slate-700 block mb-1";
 
   async function handleSendTest(e: React.FormEvent) {
     e.preventDefault();

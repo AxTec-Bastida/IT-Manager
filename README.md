@@ -1386,6 +1386,7 @@ Production update rule:
 - `/intake` phone-first Inventory Intake hub for new inventory creation.
 - `/intake/assets/new` single serialized asset intake with optional recommended photos.
 - `/intake/assets/bulk` bulk serialized asset intake with preview, duplicate checks, and label/missing-photo next steps.
+- `/intake/pair` pair existing companion devices, such as sleds with iPods/iPhones.
 - `/intake/stock` receive quantity-based stock items or add quantity to an existing stock item with movement history.
 - `/devices` searchable/filterable asset inventory with mobile cards and desktop table.
 - `/devices/new` add an asset or reservation.
@@ -2840,4 +2841,18 @@ What changed:
 - **Resource Flag**: Added a `requiresCredentials` boolean flag to the `ToolLink` resource model, updating form views, tool cards list, and schemas.
 - **UI Preview Lab Updates**: Added static mock-ups to `/admin/ui-preview` for Master Data rows, IP range cards with overlaps, email settings, default values, and zone explanations.
 - **Unit and Integration Tests**: Added a comprehensive test suite `tests/admin-center.test.ts` to test duplicate master data blocking, used-value deletions, range overlaps, and resource flags.
+
+## Phase 90C: Inventory Intake, Bulk Asset Intake, Flash Pairing, and Sled/iPod/iPhone Mapping Rework
+
+Phase 90C improves the inventory intake workflows, adds a new Pair Companion Devices flow, provides default charger tracking for laptops, introduces Mode B mapping csv/tsv import/paste for bulk receive, and updates the Data Quality check routines.
+
+What changed:
+- **Intake Hub 7-card layout**: Replaced the previous 4-card intake layout on `/intake` with a 7-card layout containing: Add One Asset, Bulk Receive Serialized Assets, Pair Companion Devices, Inventory Count / Audit, Photo Follow-Up, Print Labels, and Import History. Added a "What's the difference?" section.
+- **Smart Asset Tag Suggestion**: Automatically suggests next sequential asset tags based on category prefix (e.g. `GHT-LP-001` for LAPTOP, `GHT-SLD-001` for SCANNER, `GHT-IPO-001` for PHONE) using a `/api/devices/suggest-tag` API endpoint.
+- **Laptop Charger Tracking**: Added a nullable `chargerIncluded` Boolean to `Device` model. Laptops default to "Has charger" checked during intake, which can be deselected.
+- **Bulk Receive Mode B Mapping**: Added a Mode A/B tab selection to bulk intake. Mode B allows copy-pasting CSV/TSV data matching serials to asset tags and companion devices, validates client-side, and shows validation badges (Ready, Duplicate, ExistingAsset, ExistingSerial, PairedMissing, Needs Review).
+- **Pair Companion Devices / Flash Pairing**: Added `/intake/pair` to allow quick scanner/manual pairing of existing companion devices (sleds with iPods/iPhones). Warns users if either device is already paired and allows one-click override.
+- **Data Quality Enhancements**: Added checks for serialized categories missing serial numbers (LAPTOP, SCANNER, PHONE), laptops missing charger status (`chargerIncluded` is null), and active device relationships with status `NEEDS_REVIEW`.
+- **UI Preview Lab Updates**: Added static mock-ups to `/admin/ui-preview` for Phase 90C companion pairing, tag suggestions, charger status checkbox, and bulk intake mapping formats.
+- **Unit and Integration Tests**: Added comprehensive test suites in `tests/intake.test.ts` and `tests/device-pairing.test.ts` verifying tag suggestions, CSV parsers, mapping validation, pairing conflicts, and database migrations. All 464 tests pass.
 

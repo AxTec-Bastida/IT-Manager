@@ -463,12 +463,15 @@ export default async function DataQualityPage() {
         )}
       </ReviewSection>
 
-      <ReviewSection title="Missing Critical Fields" description="Review lists for asset tags, serial numbers, models, and location/area." action={<ExportLink type="missing-asset-tags" label="Export missing tags" />}>
+      <ReviewSection title="Missing Critical Fields" description="Review lists for asset tags, serial numbers, models, location/area, required serials, chargers, and pairings." action={<ExportLink type="missing-asset-tags" label="Export missing tags" />}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MissingFieldCard title="Missing asset tag" count={review.missing.missingAssetTag.length} assets={review.missing.missingAssetTag} exportType="missing-asset-tags" />
           <MissingFieldCard title="Missing serial" count={review.missing.missingSerial.length} assets={review.missing.missingSerial} exportType="missing-serials" />
           <MissingFieldCard title="Missing model" count={review.missing.missingModel.length} assets={review.missing.missingModel} />
           <MissingFieldCard title="Missing location/area" count={review.missing.missingLocation.length} assets={review.missing.missingLocation} />
+          <MissingFieldCard title="Missing serial (Required)" count={review.missing.missingSerialRequired.length} assets={review.missing.missingSerialRequired} exportType="missing-serial-required" />
+          <MissingFieldCard title="Laptop missing charger status" count={review.missing.laptopMissingCharger.length} assets={review.missing.laptopMissingCharger} exportType="laptop-missing-charger" />
+          <MissingFieldCard title="Pairing status needs review" count={review.missing.relationshipNeedsReview.length} assets={review.missing.relationshipNeedsReview} exportType="relationship-needs-review" />
         </div>
       </ReviewSection>
 

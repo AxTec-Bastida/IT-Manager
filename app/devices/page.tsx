@@ -81,7 +81,7 @@ export default async function DevicesPage({ searchParams }: Props) {
               <ScanLine size={16} />
               Scan label
             </ActionLink>
-            <ActionLink href="/devices/new" variant="primary">
+            <ActionLink href="/intake/assets/new" variant="primary">
               <Plus size={16} />
               Add asset
             </ActionLink>

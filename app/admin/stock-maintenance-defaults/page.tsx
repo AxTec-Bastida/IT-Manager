@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { hasPageRole } from "@/lib/page-permissions";
-import { Wrench, ArrowRight, HelpCircle, Info, Settings } from "lucide-react";
+import { Wrench, ArrowRight, Info, Settings } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export default async function AdminStockMaintenanceDefaultsPage() {
               </div>
               <div className="py-3 flex justify-between text-sm">
                 <span className="text-slate-600 font-medium">Required Task Category for Repaired Assets</span>
-                <span className="font-semibold text-slate-950">"Maintenance"</span>
+                <span className="font-semibold text-slate-950">&quot;Maintenance&quot;</span>
               </div>
             </div>
 

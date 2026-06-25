@@ -65,7 +65,7 @@ export default async function DashboardPage() {
   const dailyActions = [
     { title: "Scan an asset", helper: "Scan, check status, take action.", href: "/scan", icon: ScanLine, primary: true },
     { title: "Search inventory", helper: "Find devices, owners, locations.", href: "/devices", icon: Database },
-    { title: "Add asset", helper: "Create a new inventory record.", href: "/devices/new", icon: Plus },
+    { title: "Add asset", helper: "Create a new inventory record.", href: "/intake/assets/new", icon: Plus },
     { title: "Assign equipment", helper: "Start or review assignments.", href: "/assignments", icon: ClipboardCheck },
     { title: "Loan serialized asset", helper: activeAssetLoans ? `${activeAssetLoans} active asset loan${activeAssetLoans === 1 ? "" : "s"}.` : "Temporary checkout for devices.", href: "/loans/quick-checkout", icon: ClipboardList },
     { title: "Use stock", helper: activeStockLoans ? `${activeStockLoans} active stock loan${activeStockLoans === 1 ? "" : "s"}.` : "Check, add, or hand out items.", href: "/stock/issue", icon: Package },
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
               <ScanLine size={16} />
               Quick Scan
             </Link>
-            <Link className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700 hover:bg-slate-100 sm:min-h-12 sm:text-sm" href="/devices/new">
+            <Link className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700 hover:bg-slate-100 sm:min-h-12 sm:text-sm" href="/intake/assets/new">
               <Plus size={16} />
               Add Asset
             </Link>

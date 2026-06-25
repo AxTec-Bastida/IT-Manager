@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { hasPageRole } from "@/lib/page-permissions";
-import { Sliders, HelpCircle, CheckCircle, Info } from "lucide-react";
+import { Sliders, CheckCircle, Info } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export default async function AdminInventoryDefaultsPage() {
               </div>
               <div className="py-3 flex justify-between text-sm">
                 <span className="text-slate-600 font-medium">Laptop Charger Default</span>
-                <span className="font-semibold text-slate-950">"Has Charger" checked by default</span>
+                <span className="font-semibold text-slate-950">&quot;Has Charger&quot; checked by default</span>
               </div>
               <div className="py-3 flex justify-between text-sm">
                 <span className="text-slate-600 font-medium">Photo Intake Requirement</span>

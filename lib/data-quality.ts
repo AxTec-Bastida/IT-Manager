@@ -46,6 +46,7 @@ type ReviewDevice = {
   maintenanceDueAt?: Date | string | null;
   lastCleanedAt?: Date | string | null;
   cleaningIntervalDays?: number | null;
+  chargerIncluded?: boolean | null;
   maintenanceRecords?: Array<{ id: string; maintenanceType: MaintenanceType; result: MaintenanceResult; performedAt: Date | string; nextDueAt?: Date | string | null; notes?: string | null }>;
   purchaseDate?: Date | null;
   warrantyExpiresAt?: Date | null;
@@ -170,6 +171,16 @@ export function summarizeMissingFields(devices: ReviewDevice[]) {
     missingModel: devices.filter((device) => !device.model),
     missingLocation: devices.filter((device) => !device.location && !device.areaDepartment),
     missingStatusOrCondition: [],
+    missingSerialRequired: devices.filter((device) =>
+      ["LAPTOP", "SCANNER", "PHONE"].includes(device.category) && !device.serialNumber
+    ),
+    laptopMissingCharger: devices.filter((device) =>
+      device.category === "LAPTOP" && device.chargerIncluded === null
+    ),
+    relationshipNeedsReview: devices.filter((device) =>
+      (device.sourceRelationships ?? []).some((r) => r.status === "NEEDS_REVIEW") ||
+      (device.targetRelationships ?? []).some((r) => r.status === "NEEDS_REVIEW")
+    ),
   };
 }
 
@@ -631,6 +642,7 @@ export async function getDataQualityReview() {
         },
         lastCleanedAt: true,
         cleaningIntervalDays: true,
+        chargerIncluded: true,
         maintenanceRecords: { select: { id: true, maintenanceType: true, result: true, performedAt: true, nextDueAt: true, notes: true }, orderBy: { performedAt: "desc" }, take: 10 },
       },
     }),
@@ -851,6 +863,9 @@ export async function getDataQualityExportRows(type: string) {
   }
   if (type === "missing-asset-tags") return assetRows(review.missing.missingAssetTag);
   if (type === "missing-serials") return assetRows(review.missing.missingSerial);
+  if (type === "missing-serial-required") return assetRows(review.missing.missingSerialRequired);
+  if (type === "laptop-missing-charger") return assetRows(review.missing.laptopMissingCharger);
+  if (type === "relationship-needs-review") return assetRows(review.missing.relationshipNeedsReview);
   if (type === "static-missing-ip-mac") return assetRows([...review.staticNetwork.missingIp, ...review.staticNetwork.missingMac]);
   if (type === "mobile-network-violations") return assetRows(review.mobile.violations);
   if (type === "stock-review") {

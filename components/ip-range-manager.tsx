@@ -10,7 +10,7 @@ type IpRangeWithCount = IpRange & {
   _count?: {
     devices: number;
   };
-  devices?: any[];
+  devices?: unknown[];
 };
 
 export function IpRangeManager({ initialRanges }: { initialRanges: IpRangeWithCount[] }) {

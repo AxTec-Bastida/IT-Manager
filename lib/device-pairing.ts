@@ -99,6 +99,69 @@ export async function replacePhoneSledPairing(
   });
 }
 
+export async function checkExistingPairing(
+  prisma: Prisma.TransactionClient,
+  deviceId: string,
+): Promise<{ isPaired: boolean; pairedDeviceId: string | null; pairedDeviceTag: string | null; relationshipType: string | null }> {
+  const rel = await prisma.deviceRelationship.findFirst({
+    where: {
+      OR: [{ sourceDeviceId: deviceId }, { targetDeviceId: deviceId }],
+      relationshipType: { in: [...phoneSledRelationshipTypes] },
+      status: "ACTIVE",
+    },
+  });
+  if (!rel) return { isPaired: false, pairedDeviceId: null, pairedDeviceTag: null, relationshipType: null };
+  const pairedDeviceId = rel.sourceDeviceId === deviceId ? rel.targetDeviceId : rel.sourceDeviceId;
+  // Get paired device tag separately
+  const pairedDevice = await prisma.device.findUnique({ where: { id: pairedDeviceId }, select: { assetTag: true } });
+  return {
+    isPaired: true,
+    pairedDeviceId,
+    pairedDeviceTag: pairedDevice?.assetTag ?? null,
+    relationshipType: rel.relationshipType,
+  };
+}
+
+export async function createFlashPairing(
+  prisma: Prisma.TransactionClient,
+  sourceId: string,
+  targetId: string,
+  notes: string,
+) {
+  const [sourceDevice, targetDevice] = await Promise.all([
+    prisma.device.findUnique({
+      where: { id: sourceId },
+      select: { id: true, name: true, assetTag: true, category: true, brand: true, model: true, serialNumber: true },
+    }),
+    prisma.device.findUnique({
+      where: { id: targetId },
+      select: { id: true, name: true, assetTag: true, category: true, brand: true, model: true, serialNumber: true },
+    }),
+  ]);
+
+  if (!sourceDevice) throw new ClientInputError("Source device not found.", 404);
+  if (!targetDevice) throw new ClientInputError("Target device not found.", 404);
+
+  const [existingSourcePair, existingTargetPair] = await Promise.all([
+    checkExistingPairing(prisma, sourceId),
+    checkExistingPairing(prisma, targetId),
+  ]);
+
+  const result = await replacePhoneSledPairing(prisma, sourceDevice, targetDevice.id, notes);
+
+  return {
+    relationship: result,
+    warnings: [
+      ...(existingSourcePair.isPaired
+        ? [`${sourceDevice.assetTag ?? sourceDevice.name} was previously paired with ${existingSourcePair.pairedDeviceTag}. Pairing replaced.`]
+        : []),
+      ...(existingTargetPair.isPaired
+        ? [`${targetDevice.assetTag ?? targetDevice.name} was previously paired with ${existingTargetPair.pairedDeviceTag}. Pairing replaced.`]
+        : []),
+    ],
+  };
+}
+
 function pairText(device: PairableDevice) {
   return [device.name, device.assetTag, device.category, device.brand, device.model]
     .filter(Boolean)

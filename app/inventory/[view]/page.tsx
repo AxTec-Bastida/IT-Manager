@@ -89,7 +89,7 @@ export default async function InventoryCategoryPage({ params, searchParams }: Pr
               <ScanLine size={16} />
               Scan
             </ActionLink>
-            <ActionLink href="/devices/new" variant="primary">
+            <ActionLink href="/intake/assets/new" variant="primary">
               <Plus size={16} />
               Add asset
             </ActionLink>

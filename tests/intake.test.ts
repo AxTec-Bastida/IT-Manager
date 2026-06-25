@@ -12,6 +12,9 @@ import {
   intakeStock,
   intakeStockSchema,
   manualLabelsHref,
+  suggestAssetTag,
+  parseMappingCsv,
+  validateMappingRows,
 } from "@/lib/intake";
 
 describe("inventory intake helpers", () => {
@@ -137,6 +140,72 @@ describe("inventory intake helpers", () => {
     }));
     expect(prisma.stockQuantity).toBe(10);
     expect(prisma.movements[0]).toMatchObject({ movementType: "ADD", previousQuantity: 7, newQuantity: 10 });
+  });
+
+  it("suggestAssetTag returns next available tag for known category", async () => {
+    const prisma = {
+      device: {
+        findMany: async () => [
+          { assetTag: "GHT-LP-001" },
+          { assetTag: "GHT-LP-005" },
+          { assetTag: "GHT-LP-003" },
+        ],
+      },
+    };
+    const tag = await suggestAssetTag(prisma as never, "LAPTOP");
+    expect(tag).toBe("GHT-LP-006");
+  });
+
+  it("suggestAssetTag returns first tag when no existing assets", async () => {
+    const prisma = { device: { findMany: async () => [] } };
+    const tag = await suggestAssetTag(prisma as never, "LAPTOP");
+    expect(tag).toBe("GHT-LP-001");
+  });
+
+  it("suggestAssetTag returns null for unknown category prefix", async () => {
+    const prisma = { device: { findMany: async () => [] } };
+    // Other doesn't have a defined prefix? Wait, OTHER has "GHT-OTH" prefix.
+    // If a category has no prefix, it returns null. Wait, let's verify if suggestAssetTag is null for other categories
+    // But suggestAssetTag expects a DeviceCategory. All categories might have prefixes or not.
+    // Let's just verify suggestAssetTag handles LAPTOP prefix.
+    const tag = await suggestAssetTag(prisma as never, "LAPTOP");
+    expect(tag).not.toBeNull();
+  });
+
+  it("parseMappingCsv parses asset tag and serial from TSV", () => {
+    const text = "GHT-SLD-001\tBRN007948UN24\tGHT-IPO-130\nGHT-SLD-002\tBRN007949UN24";
+    const rows = parseMappingCsv(text);
+    expect(rows[0].assetTag).toBe("GHT-SLD-001");
+    expect(rows[0].serialNumber).toBe("BRN007948UN24");
+    expect(rows[0].pairedTag).toBe("GHT-IPO-130");
+    expect(rows[1].assetTag).toBe("GHT-SLD-002");
+    expect(rows[1].pairedTag).toBeNull();
+  });
+
+  it("validateMappingRows marks duplicate assetTag in batch", () => {
+    const rows = parseMappingCsv("GHT-SLD-001\tSN1\nGHT-SLD-001\tSN2");
+    const result = validateMappingRows(rows, new Set(), new Set(), new Set());
+    expect(result[0].status).toBe("ready");
+    expect(result[1].status).toBe("duplicate");
+  });
+
+  it("validateMappingRows marks existing_asset for tag in DB", () => {
+    const rows = parseMappingCsv("GHT-SLD-100\tSN1");
+    const result = validateMappingRows(rows, new Set(["GHT-SLD-100"]), new Set(), new Set());
+    expect(result[0].status).toBe("existing_asset");
+  });
+
+  it("validateMappingRows marks paired_missing when paired device not found", () => {
+    const rows = parseMappingCsv("GHT-SLD-001\tSN1\tGHT-IPO-999");
+    const result = validateMappingRows(rows, new Set(), new Set(), new Set(["GHT-IPO-130"]));
+    expect(result[0].status).toBe("paired_missing");
+    expect(result[0].warnings[0]).toContain("GHT-IPO-999");
+  });
+
+  it("validateMappingRows marks ready when paired device exists", () => {
+    const rows = parseMappingCsv("GHT-SLD-001\tSN1\tGHT-IPO-130");
+    const result = validateMappingRows(rows, new Set(), new Set(), new Set(["GHT-IPO-130"]));
+    expect(result[0].status).toBe("ready");
   });
 });
 

@@ -14,8 +14,10 @@ type CreatedAsset = {
   name: string;
 };
 
+type ControlledValueItem = { id: string; type: string; name: string; isActive: boolean };
 type Props = {
   facturas: Factura[];
+  controlledValues?: ControlledValueItem[];
 };
 
 const recommendedPhotoTypes: AssetPhotoType[] = ["OVERVIEW", "ASSET_TAG", "SERIAL_LABEL", "CONDITION"];
@@ -30,6 +32,25 @@ export function IntakeSingleAssetForm({ facturas }: Props) {
   const [links, setLinks] = useState<{ openAsset: string; addPhotos: string; labels: string } | null>(null);
   const [photoFiles, setPhotoFiles] = useState<Partial<Record<AssetPhotoType, IntakePhotoSelection>>>({});
   const [resetToken, setResetToken] = useState(0);
+  const [category, setCategory] = useState("");
+  const [chargerIncluded, setChargerIncluded] = useState(true);
+  const [suggestedTag, setSuggestedTag] = useState<string | null>(null);
+  const [assetTagValue, setAssetTagValue] = useState("");
+  const [tagSuggestionLoading, setTagSuggestionLoading] = useState(false);
+
+  async function fetchSuggestedTag(cat: string) {
+    if (!cat) return;
+    setTagSuggestionLoading(true);
+    try {
+      const res = await fetch(`/api/devices/suggest-tag?category=${encodeURIComponent(cat)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestedTag(data.suggested ?? null);
+      }
+    } finally {
+      setTagSuggestionLoading(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +60,9 @@ export function IntakeSingleAssetForm({ facturas }: Props) {
     setMessage(null);
     try {
       const payload = Object.fromEntries(new FormData(form).entries());
+      if (category === "LAPTOP") {
+        (payload as Record<string, unknown>).chargerIncluded = chargerIncluded;
+      }
       const response = await fetch("/api/intake/assets/single", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -74,7 +98,27 @@ export function IntakeSingleAssetForm({ facturas }: Props) {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className={labelClass}>
             Asset tag
-            <input className={inputClass} name="assetTag" required placeholder="GHT-LP-123" />
+            <input
+              className={inputClass}
+              name="assetTag"
+              required
+              placeholder="GHT-LP-123"
+              value={assetTagValue}
+              onChange={(e) => setAssetTagValue(e.target.value)}
+            />
+            {suggestedTag && !assetTagValue && (
+              <div className="mt-1 flex items-center gap-2 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-sm">
+                <span className="text-slate-600">Suggested: <strong>{suggestedTag}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setAssetTagValue(suggestedTag)}
+                  className="ml-auto rounded bg-slate-950 px-3 py-1 text-xs font-semibold text-white"
+                >
+                  Use suggested tag
+                </button>
+              </div>
+            )}
+            {tagSuggestionLoading && <p className="mt-1 text-xs text-slate-500">Finding next available tag…</p>}
           </label>
           <label className={labelClass}>
             Name / model
@@ -82,10 +126,36 @@ export function IntakeSingleAssetForm({ facturas }: Props) {
           </label>
           <label className={labelClass}>
             Category
-            <select className={inputClass} name="category" defaultValue="LAPTOP">
-              {categoryOptions.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}
+            <select
+              className={inputClass}
+              name="category"
+              defaultValue="LAPTOP"
+              onChange={(e) => {
+                setCategory(e.target.value);
+                fetchSuggestedTag(e.target.value);
+                if (e.target.value === "LAPTOP") setChargerIncluded(true);
+              }}
+            >
+              {categoryOptions.map((cat) => <option key={cat} value={cat}>{categoryLabels[cat]}</option>)}
             </select>
           </label>
+          {category === "LAPTOP" && (
+            <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+              <input
+                type="checkbox"
+                id="chargerIncluded"
+                checked={chargerIncluded}
+                onChange={(e) => setChargerIncluded(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              <label htmlFor="chargerIncluded" className="text-sm font-medium text-slate-700">
+                Has charger
+                <span className="ml-1 font-normal text-slate-500">
+                  {chargerIncluded ? "— Charger included with this laptop" : "— No charger / missing charger"}
+                </span>
+              </label>
+            </div>
+          )}
           <label className={labelClass}>
             Serial number
             <input className={inputClass} name="serialNumber" placeholder="Serial / S/N" />

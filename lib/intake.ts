@@ -6,6 +6,42 @@ import { stockItemSchema } from "@/lib/validation";
 
 export const BULK_INTAKE_MAX_COUNT = 500;
 
+export const CATEGORY_TAG_PREFIXES: Partial<Record<DeviceCategory, string>> = {
+  LAPTOP: "GHT-LP",
+  PHONE: "GHT-IPO",
+  THERMAL_PRINTER: "GHT-PRN",
+  MFP_PRINTER: "GHT-PRN",
+  OTHER_PRINTER: "GHT-PRN",
+  SCANNER: "GHT-SLD",
+  SCALE: "GHT-SCL",
+  MONITOR: "GHT-MON",
+  ACCESS_POINT: "GHT-AP",
+  OTHER: "GHT-OTH",
+};
+
+export async function suggestAssetTag(
+  prisma: { device: { findMany: (args: { where: { assetTag: { startsWith: string } }; select: { assetTag: boolean }; orderBy: { assetTag: "desc" } }) => Promise<Array<{ assetTag: string | null }>> } },
+  category: DeviceCategory,
+): Promise<string | null> {
+  const prefix = CATEGORY_TAG_PREFIXES[category];
+  if (!prefix) return null;
+  const existing = await prisma.device.findMany({
+    where: { assetTag: { startsWith: prefix } },
+    select: { assetTag: true },
+    orderBy: { assetTag: "desc" },
+  });
+  let maxNum = 0;
+  for (const { assetTag } of existing) {
+    if (!assetTag) continue;
+    const suffix = assetTag.slice(prefix.length).replace(/^[-_]/, "");
+    const n = parseInt(suffix, 10);
+    if (!isNaN(n) && n > maxNum) maxNum = n;
+  }
+  const next = maxNum + 1;
+  const padding = 3;
+  return `${prefix}-${String(next).padStart(padding, "0")}`;
+}
+
 const optionalText = z.string().trim().optional().nullable().transform((value) => value || null);
 const optionalDate = z.string().optional().nullable().transform((value) => (value ? new Date(value) : null));
 const optionalNumber = z.preprocess((value) => (value === "" || value == null ? null : value), z.coerce.number().nullable());
@@ -31,6 +67,7 @@ export const intakeSingleAssetSchema = z.object({
   usefulLifeMonths: optionalInt.refine((value) => value == null || value >= 1, "Useful life must be at least 1 month."),
   residualPercent: optionalNumber.refine((value) => value == null || (value >= 0 && value <= 100), "Residual percent must be between 0 and 100."),
   notes: optionalText,
+  chargerIncluded: z.boolean().nullable().optional(),
 });
 
 export const intakeBulkAssetSchema = z.object({
@@ -168,6 +205,128 @@ type ActivityActor = {
   actorRole?: AppRole | null;
 };
 
+export type MappingRow = {
+  rowNum: number;
+  assetTag: string;
+  serialNumber: string | null;
+  pairedTag: string | null;
+  area: string | null;
+  location: string | null;
+  reference: string | null;
+  notes: string | null;
+  brand: string | null;
+  model: string | null;
+};
+
+export type MappingRowStatus = "ready" | "duplicate" | "existing_asset" | "existing_serial" | "paired_missing" | "error" | "needs_review";
+
+export type ValidatedMappingRow = MappingRow & {
+  status: MappingRowStatus;
+  warnings: string[];
+};
+
+export function parseMappingCsv(text: string): MappingRow[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  // Detect if first line is a header row
+  const firstLower = lines[0].toLowerCase();
+  const hasHeader = firstLower.includes("asset") || firstLower.includes("serial") || firstLower.includes("tag");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  // Normalize header for column mapping (use first line if header, otherwise use positional)
+  const headerCols = hasHeader
+    ? lines[0].split(/[,\t]/).map((c) => c.trim().toLowerCase())
+    : ["asset tag", "serial number", "paired tag", "area", "location", "reference", "notes", "brand", "model"];
+
+  const col = (name: string) => {
+    const idx = headerCols.findIndex((h) => h.includes(name));
+    return idx;
+  };
+
+  const colAssetTag = Math.max(col("asset"), col("tag"), 0);
+  const colSerial = Math.max(col("serial"), 1);
+  const colPaired = col("paired");
+  const colArea = col("area");
+  const colLocation = col("location");
+  const colRef = col("ref");
+  const colNotes = col("notes");
+  const colBrand = col("brand");
+  const colModel = col("model");
+
+  const getCol = (parts: string[], idx: number) => (idx >= 0 && idx < parts.length ? parts[idx].trim() || null : null);
+
+  return dataLines.map((line, i) => {
+    const parts = line.split(/[,\t]/);
+    return {
+      rowNum: i + (hasHeader ? 2 : 1),
+      assetTag: getCol(parts, colAssetTag) ?? "",
+      serialNumber: getCol(parts, colSerial),
+      pairedTag: colPaired >= 0 ? getCol(parts, colPaired) : null,
+      area: colArea >= 0 ? getCol(parts, colArea) : null,
+      location: colLocation >= 0 ? getCol(parts, colLocation) : null,
+      reference: colRef >= 0 ? getCol(parts, colRef) : null,
+      notes: colNotes >= 0 ? getCol(parts, colNotes) : null,
+      brand: colBrand >= 0 ? getCol(parts, colBrand) : null,
+      model: colModel >= 0 ? getCol(parts, colModel) : null,
+    };
+  });
+}
+
+export function validateMappingRows(
+  rows: MappingRow[],
+  existingAssetTags: Set<string>,
+  existingSerials: Set<string>,
+  existingPairedTags: Set<string>,
+): ValidatedMappingRow[] {
+  const seenTags = new Set<string>();
+  const seenSerials = new Set<string>();
+
+  return rows.map((row) => {
+    const warnings: string[] = [];
+    let status: MappingRowStatus = "ready";
+
+    if (!row.assetTag) {
+      return { ...row, status: "error", warnings: ["Asset tag is required."] };
+    }
+
+    const tag = row.assetTag.trim();
+
+    if (seenTags.has(tag)) {
+      status = "duplicate";
+      warnings.push(`Duplicate asset tag in this batch: ${tag}`);
+    } else {
+      seenTags.add(tag);
+    }
+
+    if (status === "ready" && existingAssetTags.has(tag)) {
+      status = "existing_asset";
+      warnings.push(`Asset tag already exists in inventory: ${tag}`);
+    }
+
+    if (row.serialNumber) {
+      const sn = row.serialNumber.trim();
+      if (seenSerials.has(sn)) {
+        if (status === "ready") status = "needs_review";
+        warnings.push(`Duplicate serial number in this batch: ${sn}`);
+      } else {
+        seenSerials.add(sn);
+      }
+      if (existingSerials.has(sn)) {
+        if (status === "ready") status = "existing_serial";
+        warnings.push(`Serial number already exists in inventory: ${sn}`);
+      }
+    }
+
+    if (row.pairedTag && !existingPairedTags.has(row.pairedTag.trim())) {
+      if (status === "ready") status = "paired_missing";
+      warnings.push(`Paired device not found: ${row.pairedTag}`);
+    }
+
+    return { ...row, status, warnings };
+  });
+}
+
 export async function createSingleIntakeAsset(prisma: IntakePrisma, input: IntakeSingleAssetInput, actor: ActivityActor = {}) {
   const existing = await prisma.device.findFirst({ where: { assetTag: input.assetTag } });
   if (existing) throw new ClientInputError(`Asset tag ${input.assetTag} already exists.`);
@@ -188,6 +347,7 @@ export async function createSingleIntakeAsset(prisma: IntakePrisma, input: Intak
       warrantyExpiresAt: input.warrantyExpiresAt,
       facturaId: input.facturaId,
       notes: appendIntakeNote(input.notes, "Created through single asset intake."),
+      chargerIncluded: input.chargerIncluded ?? null,
     },
   });
   if (input.purchaseValue) {

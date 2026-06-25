@@ -8,14 +8,17 @@ import { hasPagePermission } from "@/lib/page-permissions";
 
 export const dynamic = "force-dynamic";
 
-export default async function SingleAssetIntakePage() {
-  if (!(await hasPagePermission("inventory.write"))) return <ForbiddenPanel message="Single asset intake requires IT Staff or Admin access." />;
-  const facturas = await prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 });
+export default async function AddOneAssetPage() {
+  if (!(await hasPagePermission("inventory.write"))) return <ForbiddenPanel message="Adding assets requires IT Staff or Admin access." />;
+  const [facturas, controlledValues] = await Promise.all([
+    prisma.factura.findMany({ orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }], take: 100 }),
+    prisma.controlledValue.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+  ]);
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Single Asset Intake"
-        description="Create one serialized asset with details and optional evidence photos now."
+        title="Add One Asset"
+        description="Create one serialized device with full details. Use Bulk Receive for many devices at once."
         action={
           <Link href="/intake" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
             <ArrowLeft size={16} />
@@ -23,7 +26,7 @@ export default async function SingleAssetIntakePage() {
           </Link>
         }
       />
-      <IntakeSingleAssetForm facturas={facturas} />
+      <IntakeSingleAssetForm facturas={facturas} controlledValues={controlledValues} />
     </div>
   );
 }

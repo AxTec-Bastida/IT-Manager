@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ClientInputError } from "@/lib/api";
-import { chargerStatusValues, getPhoneSledRelationshipType, resolvePhoneSledPair } from "@/lib/device-pairing";
+import { chargerStatusValues, checkExistingPairing, getPhoneSledRelationshipType, resolvePhoneSledPair } from "@/lib/device-pairing";
 import { deviceSchema } from "@/lib/validation";
 
 const ipod = {
@@ -58,5 +58,37 @@ describe("device phone/sled pairing guardrails", () => {
     const base = { name: "iPod Touch", category: "PHONE", status: "ACTIVE" };
     expect(deviceSchema.safeParse({ ...base, chargerStatus: "DAMAGED" }).success).toBe(true);
     expect(deviceSchema.safeParse({ ...base, chargerStatus: "BROKEN" }).success).toBe(false);
+  });
+});
+
+describe("flash pairing helpers", () => {
+  it("checkExistingPairing returns not paired when no relationship exists", async () => {
+    const prisma = {
+      deviceRelationship: {
+        findFirst: async () => null,
+      },
+    };
+    const result = await checkExistingPairing(prisma as never, "device-1");
+    expect(result.isPaired).toBe(false);
+    expect(result.pairedDeviceId).toBeNull();
+  });
+
+  it("checkExistingPairing returns paired info when relationship exists", async () => {
+    const prisma = {
+      deviceRelationship: {
+        findFirst: async () => ({
+          id: "rel-1",
+          sourceDeviceId: "device-1",
+          targetDeviceId: "device-2",
+          relationshipType: "IPOD_SLED_PAIR",
+        }),
+      },
+      device: {
+        findUnique: async () => ({ assetTag: "GHT-SLD-130" }),
+      },
+    };
+    const result = await checkExistingPairing(prisma as never, "device-1");
+    expect(result.isPaired).toBe(true);
+    expect(result.pairedDeviceTag).toBe("GHT-SLD-130");
   });
 });

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, LockKeyhole, Package, ShieldAlert, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, LockKeyhole, Package, ShieldAlert, XCircle, Boxes, Handshake, FileSpreadsheet, Plus, Search } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/badge";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { PageHeader } from "@/components/page-header";
@@ -430,7 +430,7 @@ export default async function UiPreviewPage() {
             </div>
             <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs text-rose-950 space-y-2">
               <p className="font-bold">Unknown Value Blocked</p>
-              <p>Type "Server" is not a controlled value. Non-admin users are blocked from adding custom categories on forms.</p>
+              <p>Type &quot;Server&quot; is not a controlled value. Non-admin users are blocked from adding custom categories on forms.</p>
             </div>
           </MobileCard>
 
@@ -488,6 +488,147 @@ export default async function UiPreviewPage() {
               <div className="p-2.5 bg-slate-50 rounded border border-slate-100 flex items-center justify-between">
                 <span className="font-bold text-slate-900">Requires user credentials flag</span>
                 <Badge tone="security">Credentials Required</Badge>
+              </div>
+            </div>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
+      <PreviewSection title="Phase 90C Inventory Intake, Pairing & Sled Patterns" description="Static preview samples for the 7-card intake hub, smart asset tag suggestions, charger tracking, companion device pairing, and CSV bulk mapping.">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Intake Hub 7-Card Preview */}
+          <MobileCard className="space-y-3 md:col-span-2">
+            <h3 className="font-semibold text-slate-950">Intake Hub Cards Sample</h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-3 flex gap-3">
+                <div className="rounded bg-slate-950 p-2 text-white"><Plus size={16} /></div>
+                <div>
+                  <p className="font-bold text-sm text-slate-900">Add One Asset</p>
+                  <p className="text-xs text-slate-500">Create one serialized device with full details.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3 flex gap-3">
+                <div className="rounded bg-slate-950 p-2 text-white"><Boxes size={16} /></div>
+                <div>
+                  <p className="font-bold text-sm text-slate-900">Bulk Receive Serialized Assets</p>
+                  <p className="text-xs text-slate-500">Match internal asset tags to serials in bulk.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3 flex gap-3">
+                <div className="rounded bg-slate-950 p-2 text-white"><Handshake size={16} /></div>
+                <div>
+                  <p className="font-bold text-sm text-slate-900">Pair Companion Devices</p>
+                  <p className="text-xs text-slate-500">Pair existing sleds with iPods/iPhones.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-3">
+                <div className="rounded bg-amber-100 p-2 text-amber-900"><FileSpreadsheet size={16} /></div>
+                <div>
+                  <p className="font-bold text-sm text-slate-900">Import History</p>
+                  <p className="text-xs text-slate-500">Admin only. Review legacy sheets.</p>
+                </div>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Tag suggestion card */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Smart Asset Tag Suggestion</h3>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-600">Asset Tag</label>
+              <input readOnly value="" placeholder="GHT-LP-..." className="min-h-10 w-full rounded border border-slate-300 px-3 text-sm bg-white" />
+              <div className="flex items-center gap-2 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
+                <span className="text-slate-600">Suggested: <strong>GHT-LP-012</strong></span>
+                <button type="button" className="ml-auto rounded bg-slate-950 px-2 py-1 font-semibold text-white">Use suggested tag</button>
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Charger Tracking Option */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Laptop Charger Option</h3>
+            <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300" />
+              <label className="text-sm font-medium text-slate-700">
+                Has charger
+                <span className="ml-1 font-normal text-slate-500 block text-xs">— Charger included with this laptop</span>
+              </label>
+            </div>
+          </MobileCard>
+
+          {/* Bulk mode tab selector */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Bulk Mode Selectors</h3>
+            <div className="flex border-b border-slate-200">
+              <button type="button" className="border-b-2 border-slate-950 px-4 py-2 text-sm font-medium text-slate-950">Mode A: Sequence Range</button>
+              <button type="button" className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-slate-400">Mode B: CSV Mapping</button>
+            </div>
+          </MobileCard>
+
+          {/* Mapping CSV Preview and Validation */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Bulk CSV Upload Validation</h3>
+            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden text-xs">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
+                  <tr>
+                    <th className="p-2">Row</th>
+                    <th className="p-2">Tag</th>
+                    <th className="p-2">Serial</th>
+                    <th className="p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="p-2 text-slate-500">1</td>
+                    <td className="p-2 font-medium">GHT-LP-012</td>
+                    <td className="p-2 text-slate-600">GLF54B3</td>
+                    <td className="p-2"><Badge tone="success">Ready</Badge></td>
+                  </tr>
+                  <tr className="bg-amber-50/50">
+                    <td className="p-2 text-slate-500">2</td>
+                    <td className="p-2 font-medium">GHT-LP-011</td>
+                    <td className="p-2 text-slate-600">GLF54B4</td>
+                    <td className="p-2"><Badge tone="warning">Asset Exists</Badge></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </MobileCard>
+
+          {/* Companion devices pairing flow */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Companion Devices Pairing</h3>
+            <div className="space-y-2 text-xs">
+              <div className="rounded border border-green-200 bg-green-50 p-2.5 flex justify-between items-center">
+                <div>
+                  <p className="font-semibold text-slate-900">Device 1: iPod (GHT-IPO-130)</p>
+                  <p className="text-slate-500">iPod Touch 7th Gen</p>
+                </div>
+                <Badge tone="success">Selected</Badge>
+              </div>
+              <div className="rounded border border-slate-200 bg-slate-50 p-2.5 flex justify-between items-center">
+                <div>
+                  <p className="font-semibold text-slate-900">Device 2: Sled (Search or Scan)</p>
+                  <p className="text-slate-400">Scan or search the Infinite Peripherals sled...</p>
+                </div>
+                <Search size={14} className="text-slate-400" />
+              </div>
+            </div>
+          </MobileCard>
+
+          {/* Success card */}
+          <MobileCard className="space-y-3">
+            <h3 className="font-semibold text-slate-950">Post-Intake Success Card</h3>
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-xs">
+              <div className="flex items-center gap-2 text-green-800">
+                <CheckCircle2 size={16} />
+                <p className="font-bold">Asset created successfully</p>
+              </div>
+              <p className="mt-2 text-slate-600">GHT-LP-012 has been registered. You can print labels or add photos below.</p>
+              <div className="mt-3 flex gap-2">
+                <button type="button" className="rounded bg-slate-950 px-2.5 py-1.5 font-bold text-white">Generate Label</button>
+                <button type="button" className="rounded border border-slate-300 bg-white px-2.5 py-1.5 font-bold text-slate-700">Add Photos</button>
               </div>
             </div>
           </MobileCard>
