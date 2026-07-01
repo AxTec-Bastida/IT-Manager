@@ -1,5 +1,5 @@
 import type { AppSettings, EmailLogType, PrismaClient } from "@prisma/client";
-import { buildAssetLoanCheckoutEmail, buildAssetLoanReturnEmail, buildAssignmentReceiptEmail, buildAssignmentReturnEmail, buildRmaClosedEmail, buildRmaFollowUpEmail, buildRmaSentEmail, buildStockIssueEmail, buildStockReturnEmail } from "./email-templates";
+import { buildAssetLoanCheckoutEmail, buildAssetLoanReturnEmail, buildAssetLoanOverdueEmail, buildAssignmentReceiptEmail, buildAssignmentReturnEmail, buildRmaClosedEmail, buildRmaFollowUpEmail, buildRmaSentEmail, buildStockIssueEmail, buildStockReturnEmail } from "./email-templates";
 import { getMailConfig, sendAndLogEmail, workflowCc, type MailSendInput } from "./mail";
 
 export type WorkflowEmailResult = {
@@ -10,30 +10,51 @@ export type WorkflowEmailResult = {
   logId?: string;
 };
 
-export type AutoWorkflowEmail = "assignment-receipt" | "asset-loan-checkout";
+export type AutoWorkflowEmail = "assignment-receipt" | "asset-loan-checkout" | "overdue-reminder";
 
 export function autoWorkflowEmailEnabled(
-  settings: Pick<AppSettings, "autoSendAssignmentReceipts" | "autoSendAssetLoanReceipts">,
+  settings: Pick<AppSettings, "autoSendAssignmentReceipts" | "autoSendAssetLoanReceipts" | "autoSendOverdueReminderEmails">,
   workflow: AutoWorkflowEmail,
 ) {
   if (workflow === "assignment-receipt") return settings.autoSendAssignmentReceipts;
   if (workflow === "asset-loan-checkout") return settings.autoSendAssetLoanReceipts;
+  if (workflow === "overdue-reminder") return settings.autoSendOverdueReminderEmails;
   return false;
 }
 
 export function skippedAutoWorkflowEmail(workflow: AutoWorkflowEmail): WorkflowEmailResult {
-  const label = workflow === "assignment-receipt" ? "assignment receipts" : "asset loan receipts";
+  const label = workflow === "assignment-receipt" ? "assignment receipts" : workflow === "asset-loan-checkout" ? "asset loan receipts" : "overdue reminder emails";
   return skipped(`Automatic ${label} are disabled. Use the manual email action if a receipt is needed.`);
 }
 
 export async function sendAssignmentWorkflowEmail(prisma: PrismaClient, assignmentId: string, kind: "receipt" | "return", recipientOverride?: string | null): Promise<WorkflowEmailResult> {
-  const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, include: { employee: true, items: { include: { asset: true } } } });
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      employee: true,
+      items: {
+        include: {
+          asset: {
+            include: {
+              photos: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { createdAt: "desc" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  });
   if (!assignment) return skipped("Assignment not found.");
   const config = getMailConfig();
-  const to = recipientOverride || assignment.employee?.email;
+  const to = recipientOverride || assignment.emailTo || assignment.employee?.email;
   const ccEmails = [
     assignment.employee?.supervisorEmail,
     "it.techstyle@g-global.com",
+    assignment.emailCc,
     workflowCc("assignment", config)
   ].filter((e): e is string => Boolean(e && e.trim())).map(e => e.trim());
   const cc = ccEmails.length ? [...new Set(ccEmails)].join(", ") : undefined;
@@ -54,23 +75,67 @@ export async function sendAssignmentWorkflowEmail(prisma: PrismaClient, assignme
   return result;
 }
 
-export async function sendAssetLoanWorkflowEmail(prisma: PrismaClient, loanId: string, kind: "checkout" | "return", recipientOverride?: string | null): Promise<WorkflowEmailResult> {
-  const loan = await prisma.assetLoan.findUnique({ where: { id: loanId }, include: { employee: true, temporaryBorrower: true, items: { include: { device: true } } } });
+export async function sendAssetLoanWorkflowEmail(prisma: PrismaClient, loanId: string, kind: "checkout" | "return" | "overdue", recipientOverride?: string | null): Promise<WorkflowEmailResult> {
+  const loan = await prisma.assetLoan.findUnique({
+    where: { id: loanId },
+    include: {
+      employee: true,
+      temporaryBorrower: true,
+      items: {
+        include: {
+          device: {
+            include: {
+              photos: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { createdAt: "desc" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  });
   if (!loan) return skipped("Asset loan not found.");
   const config = getMailConfig();
-  const to = recipientOverride || loan.employee?.email || loan.temporaryBorrower?.email;
+  const to = recipientOverride || loan.emailTo || loan.employee?.email || loan.temporaryBorrower?.email;
   const opsMailbox = process.env.OPS_MAILBOX || "ops@g-global.com";
   const managerEmail = loan.employee?.supervisorEmail;
   const ccEmails = [
     opsMailbox,
     managerEmail,
     "it.techstyle@g-global.com",
+    loan.emailCc,
     workflowCc("loan", config)
   ].filter((e): e is string => Boolean(e && e.trim())).map(e => e.trim());
   const cc = ccEmails.length ? [...new Set(ccEmails)].join(", ") : undefined;
-  const input = kind === "return" ? buildAssetLoanReturnEmail(loan, to, cc, config) : buildAssetLoanCheckoutEmail(loan, to, cc, config);
-  const type: EmailLogType = kind === "return" ? "ASSET_LOAN_RETURN" : "ASSET_LOAN_CHECKOUT";
-  return sendAndLogEmail(prisma, type, input, { assetLoanId: loan.id, relatedDeviceId: loan.items[0]?.deviceId ?? null }, config);
+
+  let input;
+  let type: EmailLogType;
+  if (kind === "return") {
+    input = buildAssetLoanReturnEmail(loan, to, cc, config);
+    type = "ASSET_LOAN_RETURN";
+  } else if (kind === "overdue") {
+    input = buildAssetLoanOverdueEmail(loan, to, cc, config);
+    type = "OVERDUE_ASSET_LOAN_REMINDER";
+  } else {
+    input = buildAssetLoanCheckoutEmail(loan, to, cc, config);
+    type = "ASSET_LOAN_CHECKOUT";
+  }
+  const result = await sendAndLogEmail(prisma, type, input, { assetLoanId: loan.id, relatedDeviceId: loan.items[0]?.deviceId ?? null }, config);
+  if (kind === "checkout") {
+    await prisma.assetLoan.update({
+      where: { id: loan.id },
+      data: {
+        emailSentAt: result.success ? new Date() : loan.emailSentAt,
+        emailTo: input.to || null,
+        emailCc: input.cc || null,
+        emailError: result.success ? null : result.error || "Email was not sent.",
+      },
+    });
+  }
+  return result;
 }
 
 export async function sendStockIssueWorkflowEmail(prisma: PrismaClient, issueId: string, kind: "issue" | "return", recipientOverride?: string | null): Promise<WorkflowEmailResult> {

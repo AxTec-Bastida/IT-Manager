@@ -12,6 +12,8 @@ import { buildInventoryOverview, buildInventorySignals, filterInventoryAssets, g
 import { isAssetLikeAssignedValue, mobilePairingStatus } from "@/lib/mobile-legacy";
 import { installActionLabel, isInstallEligibleAsset } from "@/lib/equipment-install";
 import { isMoveUsefulAsset } from "@/lib/equipment-move";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,9 @@ type Props = { searchParams: Promise<Record<string, string | undefined>> };
 
 export default async function DevicesPage({ searchParams }: Props) {
   const params = await searchParams;
+  const locale = await getLocaleFromCookies();
+  const text = createTranslator(locale, "inventory");
+  const common = createTranslator(locale, "common");
   const allDevices = await prisma.device.findMany({
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
     include: {
@@ -58,32 +63,32 @@ export default async function DevicesPage({ searchParams }: Props) {
     params.vlan ? `VLAN ${params.vlan}` : null,
     params.employee ? `User: ${params.employee}` : null,
     params.location ? `Location: ${params.location}` : null,
-    params.assigned ? (params.assigned === "yes" ? "Assigned" : "Unassigned") : null,
-    params.hasIp ? (params.hasIp === "yes" ? "Has IP" : "No IP") : null,
-    params.hasMac ? (params.hasMac === "yes" ? "Has MAC" : "No MAC") : null,
-    params.conflict ? (params.conflict === "yes" ? "Has conflict" : "No conflict") : null,
-    params.missingPhotos === "true" ? "Missing photos" : null,
-    params.needsReview === "true" ? "Needs review" : null,
-    params.loaned === "true" ? "Loaned out" : null,
-    params.inRma === "true" ? "In RMA" : null,
-    params.missingLost === "true" ? "Missing/lost" : null,
-    params.retired === "true" ? "Retired" : null,
+    params.assigned ? (params.assigned === "yes" ? text("tableAssignedLocation").split(" / ")[0] : common("unassigned")) : null,
+    params.hasIp ? (params.hasIp === "yes" ? text("hasIp") : text("noIp")) : null,
+    params.hasMac ? (params.hasMac === "yes" ? text("hasMac") : text("noMac")) : null,
+    params.conflict ? (params.conflict === "yes" ? text("hasConflict") : text("noConflict")) : null,
+    params.missingPhotos === "true" ? common("missingPhotos") : null,
+    params.needsReview === "true" ? common("needsReview") : null,
+    params.loaned === "true" ? text("loanedOut") : null,
+    params.inRma === "true" ? text("inRma") : null,
+    params.missingLost === "true" ? text("missingLost") : null,
+    params.retired === "true" ? text("retired") : null,
   ].filter((value): value is string => Boolean(value));
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Inventory"
-        description="Choose the kind of asset you want to manage, then drill into a focused inventory view."
+        title={text("title")}
+        description={text("description")}
         action={
           <PageActions>
             <ActionLink href="/scan">
               <ScanLine size={16} />
-              Scan label
+              {text("scanLabel")}
             </ActionLink>
             <ActionLink href="/intake/assets/new" variant="primary">
               <Plus size={16} />
-              Add asset
+              {text("addAsset")}
             </ActionLink>
           </PageActions>
         }
@@ -95,12 +100,12 @@ export default async function DevicesPage({ searchParams }: Props) {
         <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
           <label className="relative">
             <Search className="absolute left-3 top-4 text-slate-400" size={16} />
-            <input name="q" defaultValue={params.q ?? ""} placeholder="Search asset, tag, serial, employee, IP, model" className="min-h-14 w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-base sm:min-h-12 sm:text-sm" />
+            <input name="q" defaultValue={params.q ?? ""} placeholder={text("searchPlaceholder")} className="min-h-14 w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-base sm:min-h-12 sm:text-sm" />
           </label>
-          <button className="min-h-14 rounded-md bg-slate-950 px-4 py-2 text-base font-semibold text-white sm:min-h-12 sm:text-sm">Search</button>
+          <button className="min-h-14 rounded-md bg-slate-950 px-4 py-2 text-base font-semibold text-white sm:min-h-12 sm:text-sm">{common("search")}</button>
           <Link href="/scan" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700 hover:bg-slate-100 sm:min-h-12 sm:text-sm">
             <ScanLine size={16} />
-            Scan
+            {common("scan")}
           </Link>
         </div>
 
@@ -126,7 +131,7 @@ export default async function DevicesPage({ searchParams }: Props) {
               </span>
             ))}
             <Link href="/devices" className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
-              Clear filters
+              {common("clearFilters")}
             </Link>
           </div>
         ) : null}
@@ -135,13 +140,13 @@ export default async function DevicesPage({ searchParams }: Props) {
           <summary className="flex min-h-12 items-center justify-between px-3 text-sm font-semibold text-slate-700">
             <span className="inline-flex items-center gap-2">
               <SlidersHorizontal size={16} />
-              Filters
+              {text("filters")}
             </span>
-            <span className="text-xs text-slate-500">{activeFilters.length ? `${activeFilters.length} active` : "Optional"}</span>
+            <span className="text-xs text-slate-500">{activeFilters.length ? common("activeCount", { count: activeFilters.length }) : common("optional")}</span>
           </summary>
           <div className="grid gap-3 border-t border-slate-200 p-3 md:grid-cols-3 xl:grid-cols-6">
             <select name="category" defaultValue={params.category ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">All categories</option>
+              <option value="">{text("allCategories")}</option>
               {categoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {categoryLabels[category]}
@@ -149,7 +154,7 @@ export default async function DevicesPage({ searchParams }: Props) {
               ))}
             </select>
             <select name="status" defaultValue={params.status ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">All statuses</option>
+              <option value="">{text("allStatuses")}</option>
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
                   {statusLabels[status]}
@@ -157,7 +162,7 @@ export default async function DevicesPage({ searchParams }: Props) {
               ))}
             </select>
             <select name="condition" defaultValue={params.condition ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">All conditions</option>
+              <option value="">{text("allConditions")}</option>
               {conditionOptions.map((condition) => (
                 <option key={condition} value={condition}>
                   {conditionLabels[condition]}
@@ -165,22 +170,22 @@ export default async function DevicesPage({ searchParams }: Props) {
               ))}
             </select>
             <select name="assigned" defaultValue={params.assigned ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">Assigned state</option>
-              <option value="yes">Assigned</option>
-              <option value="no">Unassigned</option>
+              <option value="">{text("assignedState")}</option>
+              <option value="yes">{text("tableAssignedLocation").split(" / ")[0]}</option>
+              <option value="no">{common("unassigned")}</option>
             </select>
             <select name="hasIp" defaultValue={params.hasIp ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">IP state</option>
-              <option value="yes">Has IP</option>
-              <option value="no">No IP</option>
+              <option value="">{text("ipState")}</option>
+              <option value="yes">{text("hasIp")}</option>
+              <option value="no">{text("noIp")}</option>
             </select>
             <select name="hasMac" defaultValue={params.hasMac ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">MAC state</option>
-              <option value="yes">Has MAC</option>
-              <option value="no">No MAC</option>
+              <option value="">{text("macState")}</option>
+              <option value="yes">{text("hasMac")}</option>
+              <option value="no">{text("noMac")}</option>
             </select>
             <select name="vlan" defaultValue={params.vlan ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">All VLANs</option>
+              <option value="">{text("allVlans")}</option>
               {vlans.map((vlan) => (
                 <option key={vlan} value={vlan}>
                   VLAN {vlan}
@@ -188,45 +193,45 @@ export default async function DevicesPage({ searchParams }: Props) {
               ))}
             </select>
             <select name="conflict" defaultValue={params.conflict ?? ""} className="min-h-12 rounded-md border border-slate-300 px-3 py-2 text-base sm:text-sm">
-              <option value="">Conflict status</option>
-              <option value="yes">Has conflict</option>
-              <option value="no">No conflict</option>
+              <option value="">{text("conflictStatus")}</option>
+              <option value="yes">{text("hasConflict")}</option>
+              <option value="no">{text("noConflict")}</option>
             </select>
-            <input name="employee" defaultValue={params.employee ?? ""} placeholder="Assigned user" className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
-            <input name="location" defaultValue={params.location ?? ""} placeholder="Location / area" className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
+            <input name="employee" defaultValue={params.employee ?? ""} placeholder={text("assignedUser")} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
+            <input name="location" defaultValue={params.location ?? ""} placeholder={text("locationArea")} className="min-h-12 rounded-md border border-slate-300 px-3 text-base sm:text-sm" />
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="needsReview" value="true" type="checkbox" defaultChecked={params.needsReview === "true"} />
-              Needs review
+              {common("needsReview")}
             </label>
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="missingPhotos" value="true" type="checkbox" defaultChecked={params.missingPhotos === "true"} />
-              Missing photos
+              {common("missingPhotos")}
             </label>
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="loaned" value="true" type="checkbox" defaultChecked={params.loaned === "true"} />
-              Loaned out
+              {text("loanedOut")}
             </label>
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="inRma" value="true" type="checkbox" defaultChecked={params.inRma === "true"} />
-              In RMA
+              {text("inRma")}
             </label>
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="missingLost" value="true" type="checkbox" defaultChecked={params.missingLost === "true"} />
-              Missing/lost
+              {text("missingLost")}
             </label>
             <label className="flex min-h-12 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
               <input name="retired" value="true" type="checkbox" defaultChecked={params.retired === "true"} />
-              Retired
+              {text("retired")}
             </label>
-            <button className="min-h-12 rounded-md bg-slate-950 px-4 py-2 text-base font-semibold text-white md:col-span-3 xl:col-span-6 sm:text-sm">Apply filters</button>
+            <button className="min-h-12 rounded-md bg-slate-950 px-4 py-2 text-base font-semibold text-white md:col-span-3 xl:col-span-6 sm:text-sm">{common("applyFilters")}</button>
           </div>
         </details> : null}
       </form>
 
-      {showInventoryList && isSearchMode ? <InventoryResultsSection currentView={currentView} params={params} page={page} signals={signals} conflictedIds={conflictedIds} showNetworkColumn={showNetworkColumn} bestMatch={bestMatch} /> : null}
+      {showInventoryList && isSearchMode ? <InventoryResultsSection currentView={currentView} params={params} page={page} signals={signals} conflictedIds={conflictedIds} showNetworkColumn={showNetworkColumn} bestMatch={bestMatch} text={text} common={common} /> : null}
 
       {!isSearchMode ? <section className="space-y-3">
-        <SectionTitle title="Asset groups" description="Start with the way people usually look for equipment." />
+        <SectionTitle title={text("assetGroups")} description={text("assetGroupsDescription")} />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <InventoryCard href="/inventory/laptops" icon={<Laptop size={18} />} label="Laptops / Desktops" count={overview.groups.laptops} helper="Workstations and laptop fleet" />
           <InventoryCard href="/inventory/mobile" icon={<Smartphone size={18} />} label="Mobile Devices" count={overview.groups.mobile} helper="iPods, iPhones, iPads, phones, tablets" />
@@ -242,7 +247,7 @@ export default async function DevicesPage({ searchParams }: Props) {
       </section> : null}
 
       {!isSearchMode ? <section className="space-y-3">
-        <SectionTitle title="Workflow views" description="Jump to the inventory states that usually need action." />
+        <SectionTitle title={text("workflowViews")} description={text("workflowViewsDescription")} />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <InventoryCard href="/inventory/assigned" label="Assigned" count={overview.workflows.assigned} helper="Assets currently tied to people" />
           <InventoryCard href="/inventory/available" label="Available" count={overview.workflows.available} helper="Ready to issue or deploy" />
@@ -256,7 +261,7 @@ export default async function DevicesPage({ searchParams }: Props) {
       </section> : null}
 
       {!isSearchMode ? <section className="space-y-3">
-        <SectionTitle title="Network / static views" description="Keep technical fields focused on assets where they matter." />
+        <SectionTitle title={text("networkViews")} description={text("networkViewsDescription")} />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <InventoryCard href="/inventory/network?hasIp=yes" icon={<Network size={18} />} label="Assets with IP" count={overview.network.withIp} helper="Static, printer, scale, and network candidates" />
           <InventoryCard href="/inventory/network?hasMac=yes" icon={<Network size={18} />} label="Assets with MAC" count={overview.network.withMac} helper="Hardware identifiers for networked devices" />
@@ -267,15 +272,15 @@ export default async function DevicesPage({ searchParams }: Props) {
 
       {!showInventoryList ? (
         <section className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
-          Need the raw list? Use search above or open <Link href="/devices?list=true" className="font-semibold text-slate-950 hover:underline">All Assets</Link>.
+          {text("rawListPrompt")} <Link href="/devices?list=true" className="font-semibold text-slate-950 hover:underline">{text("allAssets")}</Link>.
         </section>
       ) : null}
 
-      {showInventoryList && !isSearchMode ? <InventoryResultsSection currentView={currentView} params={params} page={page} signals={signals} conflictedIds={conflictedIds} showNetworkColumn={showNetworkColumn} /> : null}
+      {showInventoryList && !isSearchMode ? <InventoryResultsSection currentView={currentView} params={params} page={page} signals={signals} conflictedIds={conflictedIds} showNetworkColumn={showNetworkColumn} text={text} common={common} /> : null}
 
       {isSearchMode ? (
         <details className="rounded-lg border border-slate-200 bg-white p-3">
-          <summary className="min-h-11 cursor-pointer text-sm font-semibold text-slate-800">Browse inventory categories</summary>
+          <summary className="min-h-11 cursor-pointer text-sm font-semibold text-slate-800">{text("browseCategories")}</summary>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <InventoryCard href="/inventory/laptops" icon={<Laptop size={18} />} label="Laptops / Desktops" count={overview.groups.laptops} helper="Workstations and laptop fleet" />
             <InventoryCard href="/inventory/mobile" icon={<Smartphone size={18} />} label="Mobile Devices" count={overview.groups.mobile} helper="iPods, iPhones, iPads, phones, tablets" />
@@ -296,6 +301,8 @@ function InventoryResultsSection({
   conflictedIds,
   showNetworkColumn,
   bestMatch,
+  text,
+  common,
 }: {
   currentView: string;
   params: Record<string, string | undefined>;
@@ -304,42 +311,44 @@ function InventoryResultsSection({
   conflictedIds: Set<string>;
   showNetworkColumn: boolean;
   bestMatch?: InventoryAsset | null;
+  text: ReturnType<typeof createTranslator>;
+  common: ReturnType<typeof createTranslator>;
 }) {
   const isSearchMode = Boolean(params.q?.trim());
   return (
     <section className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <SectionTitle title={isSearchMode ? "Search results" : currentView === "all" ? "Inventory list" : `${inventoryViewOptions.find((option) => option.id === currentView)?.label} assets`} description={isSearchMode ? `Showing ${page.startNumber}-${page.endNumber} of ${page.totalItems} for "${params.q}". Exact tags, labels, and serials are ranked first.` : `Showing ${page.startNumber}-${page.endNumber} of ${page.totalItems} matching assets. Page size is ${page.pageSize}.`} />
+          <SectionTitle title={isSearchMode ? text("searchResults") : currentView === "all" ? text("inventoryList") : `${inventoryViewOptions.find((option) => option.id === currentView)?.label} assets`} description={isSearchMode ? text("showingSearch", { start: page.startNumber, end: page.endNumber, total: page.totalItems, query: params.q ?? "" }) : text("showingAssets", { start: page.startNumber, end: page.endNumber, total: page.totalItems, pageSize: page.pageSize })} />
           <div className="flex gap-2">
             <PageLink disabled={page.page <= 1} href={devicesHref(params, { page: String(page.page - 1) })}>
-              Previous
+              {common("previous")}
             </PageLink>
             <PageLink disabled={page.page >= page.totalPages} href={devicesHref(params, { page: String(page.page + 1) })}>
-              Next
+              {common("next")}
             </PageLink>
           </div>
         </div>
 
-        {bestMatch ? <BestMatchCard device={bestMatch} /> : null}
+        {bestMatch ? <BestMatchCard device={bestMatch} text={text} common={common} /> : null}
 
         <div className="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white lg:block">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Asset</th>
-                <th className="px-4 py-3">Tag</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Assigned / Location</th>
-                {showNetworkColumn ? <th className="px-4 py-3">Network</th> : null}
-                <th className="px-4 py-3">Attention</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3">{text("tableAsset")}</th>
+                <th className="px-4 py-3">{text("tableTag")}</th>
+                <th className="px-4 py-3">{text("tableCategory")}</th>
+                <th className="px-4 py-3">{text("tableStatus")}</th>
+                <th className="px-4 py-3">{text("tableAssignedLocation")}</th>
+                {showNetworkColumn ? <th className="px-4 py-3">{text("tableNetwork")}</th> : null}
+                <th className="px-4 py-3">{text("tableAttention")}</th>
+                <th className="px-4 py-3">{text("tableActions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {page.items.map((device) => {
                 const reviewReasons = getInventoryReviewReasons(device, signals);
-                const assignedLabel = device.employee?.fullName || (device.assignedTo && !isAssetLikeAssignedValue(device.assignedTo) ? device.assignedTo : null) || "Unassigned";
+                const assignedLabel = device.employee?.fullName || (device.assignedTo && !isAssetLikeAssignedValue(device.assignedTo) ? device.assignedTo : null) || common("unassigned");
                 const pairing = currentView === "mobile" ? mobilePairingStatus(device) : "";
                 return (
                   <tr key={device.id} className="hover:bg-slate-50">
@@ -359,21 +368,21 @@ function InventoryResultsSection({
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-800">{assignedLabel}</p>
-                      <p className="text-xs text-slate-500">{device.location || device.areaDepartment || "No location"}</p>
+                      <p className="text-xs text-slate-500">{device.location || device.areaDepartment || common("noLocation")}</p>
                       {pairing ? <p className="mt-1 text-xs font-semibold text-amber-700">{pairing}</p> : null}
                     </td>
                     {showNetworkColumn ? (
                       <td className="px-4 py-3 font-mono text-xs">
-                        <p>{device.ipAddress || "No IP"}</p>
-                        <p>{device.macAddress || "No MAC"}</p>
+                        <p>{device.ipAddress || text("noIp")}</p>
+                        <p>{device.macAddress || text("noMacTracked")}</p>
                       </td>
                     ) : null}
                     <td className="px-4 py-3">
-                      <AttentionBadges deviceId={device.id} reviewReasons={reviewReasons} conflict={conflictedIds.has(device.id)} missingPhotos={signals.missingPhotoIds.has(device.id)} />
+                      <AttentionBadges deviceId={device.id} reviewReasons={reviewReasons} conflict={conflictedIds.has(device.id)} missingPhotos={signals.missingPhotoIds.has(device.id)} common={common} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <DeviceActions device={device} missingPhotos={signals.missingPhotoIds.has(device.id)} />
+                        <DeviceActions device={device} missingPhotos={signals.missingPhotoIds.has(device.id)} text={text} common={common} />
                       </div>
                     </td>
                   </tr>
@@ -387,14 +396,14 @@ function InventoryResultsSection({
           {page.items.map((device) => {
             const reviewReasons = getInventoryReviewReasons(device, signals);
             const showNetwork = shouldShowNetworkSummary(device, currentView);
-            const assignedLabel = device.employee?.fullName || (device.assignedTo && !isAssetLikeAssignedValue(device.assignedTo) ? device.assignedTo : null) || "Unassigned";
+            const assignedLabel = device.employee?.fullName || (device.assignedTo && !isAssetLikeAssignedValue(device.assignedTo) ? device.assignedTo : null) || common("unassigned");
             const pairing = currentView === "mobile" ? mobilePairingStatus(device) : "";
             return (
               <article key={device.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-words font-semibold text-slate-950">{getAssetDisplayName(device)}</h2>
-                    <p className="font-mono text-sm text-slate-600">{device.assetTag || device.serialNumber || "No tag"}</p>
+                    <p className="font-mono text-sm text-slate-600">{device.assetTag || device.serialNumber || common("noTag")}</p>
                   </div>
                   <Badge className={statusClass(device.status)}>{statusLabel(device.status)}</Badge>
                 </div>
@@ -404,29 +413,29 @@ function InventoryResultsSection({
                   {device.model ? <span>{device.model}</span> : null}
                   {showNetwork && device.ipAddress ? <span className="font-mono">{device.ipAddress}</span> : null}
                   {showNetwork && device.macAddress ? <span className="font-mono">{device.macAddress}</span> : null}
-                  <span>{device.location || device.areaDepartment || "No location"}</span>
+                  <span>{device.location || device.areaDepartment || common("noLocation")}</span>
                   <span>{assignedLabel}</span>
                   {pairing ? <Badge className="bg-amber-100 text-amber-800 ring-amber-200">{pairing}</Badge> : null}
                 </div>
-                <AttentionBadges deviceId={device.id} reviewReasons={reviewReasons} conflict={conflictedIds.has(device.id)} missingPhotos={signals.missingPhotoIds.has(device.id)} compact />
-                <DeviceActions device={device} missingPhotos={signals.missingPhotoIds.has(device.id)} mobile />
+                <AttentionBadges deviceId={device.id} reviewReasons={reviewReasons} conflict={conflictedIds.has(device.id)} missingPhotos={signals.missingPhotoIds.has(device.id)} common={common} compact />
+                <DeviceActions device={device} missingPhotos={signals.missingPhotoIds.has(device.id)} text={text} common={common} mobile />
               </article>
             );
           })}
         </div>
 
-        {page.items.length === 0 ? <EmptyState title="No assets match this view" description="Try another view, search term, or clear the filters." action={<ActionLink href="/devices">Clear filters</ActionLink>} /> : null}
+        {page.items.length === 0 ? <EmptyState title={text("noAssetsTitle")} description={text("noAssetsDescription")} action={<ActionLink href="/devices">{common("clearFilters")}</ActionLink>} /> : null}
 
         <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Showing {page.startNumber}-{page.endNumber} of {page.totalItems}
+            {text("showingRange", { start: page.startNumber, end: page.endNumber, total: page.totalItems })}
           </span>
           <div className="flex gap-2">
             <PageLink disabled={page.page <= 1} href={devicesHref(params, { page: String(page.page - 1) })}>
-              Previous
+              {common("previous")}
             </PageLink>
             <PageLink disabled={page.page >= page.totalPages} href={devicesHref(params, { page: String(page.page + 1) })}>
-              Next
+              {common("next")}
             </PageLink>
           </div>
         </div>
@@ -456,16 +465,16 @@ function InventoryCard({ href, icon, label, count, helper, tone = "default" }: {
   );
 }
 
-function AttentionBadges({ deviceId, reviewReasons, conflict, missingPhotos, compact = false }: { deviceId: string; reviewReasons: string[]; conflict: boolean; missingPhotos: boolean; compact?: boolean }) {
+function AttentionBadges({ deviceId, reviewReasons, conflict, missingPhotos, common, compact = false }: { deviceId: string; reviewReasons: string[]; conflict: boolean; missingPhotos: boolean; common: ReturnType<typeof createTranslator>; compact?: boolean }) {
   const rawBadges = [
-    conflict ? "Conflict" : null,
-    ...reviewReasons.map((reason) => reason.replace(/\.$/, "").replace("Missing required photos", "Missing photos")),
-    missingPhotos ? "Missing photos" : null,
+    conflict ? common("conflict") : null,
+    ...reviewReasons.map((reason) => reason.replace(/\.$/, "").replace("Missing required photos", common("missingPhotos"))),
+    missingPhotos ? common("missingPhotos") : null,
   ].filter((value): value is string => Boolean(value));
   const badges = [...new Set(rawBadges)];
   const visible = badges.slice(0, compact ? 3 : 3);
   const hiddenCount = Math.max(0, badges.length - visible.length);
-  if (!badges.length) return <span className={compact ? "mt-3 block text-xs text-slate-500" : "text-xs text-slate-500"}>No review flags</span>;
+  if (!badges.length) return <span className={compact ? "mt-3 block text-xs text-slate-500" : "text-xs text-slate-500"}>{common("noReviewFlags")}</span>;
   return (
     <div className={`${compact ? "mt-3" : ""} flex flex-wrap gap-1`}>
       {visible.map((badge) => (
@@ -473,41 +482,41 @@ function AttentionBadges({ deviceId, reviewReasons, conflict, missingPhotos, com
           {badge}
         </Link>
       ))}
-      {hiddenCount ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">+{hiddenCount} more</span> : null}
+      {hiddenCount ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{common("moreCount", { count: hiddenCount })}</span> : null}
     </div>
   );
 }
 
-function BestMatchCard({ device }: { device: InventoryAsset }) {
+function BestMatchCard({ device, text, common }: { device: InventoryAsset; text: ReturnType<typeof createTranslator>; common: ReturnType<typeof createTranslator> }) {
   return (
     <article className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Best match</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">{text("bestMatch")}</p>
           <h2 className="break-words text-lg font-semibold text-slate-950">{getAssetDisplayName(device)}</h2>
-          <p className="font-mono text-sm text-slate-700">{device.assetTag || device.serialNumber || "No tag"}</p>
+          <p className="font-mono text-sm text-slate-700">{device.assetTag || device.serialNumber || common("noTag")}</p>
           <p className="mt-1 text-sm text-slate-600">{getAssetIdentityLine(device)}</p>
         </div>
         <Link href={`/devices/${device.id}`} className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-          Open best match
+          {text("openBestMatch")}
         </Link>
       </div>
     </article>
   );
 }
 
-function DeviceActions({ device, missingPhotos, mobile = false }: { device: InventoryAsset; missingPhotos: boolean; mobile?: boolean }) {
+function DeviceActions({ device, missingPhotos, text, common, mobile = false }: { device: InventoryAsset; missingPhotos: boolean; text: ReturnType<typeof createTranslator>; common: ReturnType<typeof createTranslator>; mobile?: boolean }) {
   const installEligible = isInstallEligibleAsset(device);
   const moveUseful = isMoveUsefulAsset(device);
   return (
     <div className={`grid gap-2 ${mobile ? "mt-4 grid-cols-2" : "sm:flex sm:flex-wrap"}`}>
       <Link href={`/devices/${device.id}`} className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">
-        Open
+        {common("open")}
       </Link>
       {moveUseful ? (
         <Link href={`/devices/${device.id}/move`} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100">
           <Truck size={15} />
-          Move
+          {text("move")}
         </Link>
       ) : null}
       {installEligible ? (
@@ -517,11 +526,11 @@ function DeviceActions({ device, missingPhotos, mobile = false }: { device: Inve
       ) : null}
       {missingPhotos ? (
         <Link href={`/devices/${device.id}#photos`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100">
-          Add Photo
+          {text("addPhoto")}
         </Link>
       ) : null}
       <Link href={`/tasks/new?relatedDeviceId=${device.id}`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-        Task
+        {text("task")}
       </Link>
     </div>
   );

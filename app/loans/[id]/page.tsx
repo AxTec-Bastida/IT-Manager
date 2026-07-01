@@ -28,7 +28,27 @@ export default async function LoanDetailPage({ params, searchParams }: Context) 
   const { emailWarning } = await searchParams;
   const showEmailSkippedWarning = emailWarning === "skipped";
 
-  const loan = await prisma.assetLoan.findUnique({ where: { id }, include: { employee: true, temporaryBorrower: true, items: { include: { device: true } } } });
+  const loan = await prisma.assetLoan.findUnique({
+    where: { id },
+    include: {
+      employee: true,
+      temporaryBorrower: true,
+      items: {
+        include: {
+          device: {
+            include: {
+              photos: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { createdAt: "desc" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  });
   if (!loan) notFound();
   const displayStatus = isAssetLoanOverdue(loan) ? "OVERDUE" : loan.status;
   const pending = loan.items.filter((item) => item.returnStatus === "PENDING");
@@ -84,6 +104,16 @@ export default async function LoanDetailPage({ params, searchParams }: Context) 
           <Info label="Expected return" value={dateLabel(loan.expectedReturnAt)} />
           <Info label="Actual return" value={loan.actualReturnAt ? dateLabel(loan.actualReturnAt) : "Not returned"} />
           <Info label="Terms accepted" value={loan.termsAccepted ? "Yes" : "No"} />
+          <Info
+            label="Email status"
+            value={
+              loan.emailSentAt
+                ? `Sent to ${loan.emailTo || recipient} at ${loan.emailSentAt.toLocaleString()}${loan.emailCc ? ` (CC: ${loan.emailCc})` : ""}`
+                : loan.emailError
+                ? `Error: ${loan.emailError}`
+                : "No receipt sent yet"
+            }
+          />
         </dl>
         {loan.checkoutNotes ? <p className="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-700">{loan.checkoutNotes}</p> : null}
         {loan.returnNotes ? <p className="mt-2 rounded-md bg-slate-50 p-3 text-sm text-slate-700">{loan.returnNotes}</p> : null}
@@ -119,6 +149,34 @@ export default async function LoanDetailPage({ params, searchParams }: Context) 
               </div>
               {item.accessoriesOut || item.accessoriesReturned || item.returnNotes ? (
                 <p className="mt-2 text-sm text-slate-600">Accessories: {item.accessoriesReturned || item.accessoriesOut || "None"} {item.returnNotes ? `- ${item.returnNotes}` : ""}</p>
+              ) : null}
+              {item.device.photos && item.device.photos.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Asset Photos</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                    {item.device.photos.map((photo) => (
+                      <a
+                        key={photo.id}
+                        href={photo.filePath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group relative aspect-[4/3] overflow-hidden rounded-md border border-slate-200 bg-slate-100 hover:border-slate-300 transition-colors"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.thumbnailPath || photo.filePath}
+                          alt={photo.caption || "Asset photo"}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {photo.isPrimary ? (
+                          <span className="absolute left-1 top-1 rounded bg-slate-950/80 px-1 py-0.5 text-[10px] font-semibold text-white">
+                            Primary
+                          </span>
+                        ) : null}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </div>
           ))}

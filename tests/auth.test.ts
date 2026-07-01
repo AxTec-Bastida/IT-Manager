@@ -12,6 +12,7 @@ import {
   getUserFromSessionToken,
   hashPassword,
   hashSessionToken,
+  sessionCookieName,
   sessionLifetimeMs,
   sessionLifetimeSeconds,
   shouldUseSecureSessionCookie,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/auth";
 import { handleApiError } from "@/lib/api";
 import { AuthRequiredError, ForbiddenError } from "@/lib/auth";
-import { appUrl } from "@/lib/public-url";
+import { appUrl, requestUrl } from "@/lib/public-url";
 
 function restoreSessionSecret(value: string | undefined) {
   if (value === undefined) delete process.env.SESSION_SECRET;
@@ -85,8 +86,20 @@ describe("auth helpers", () => {
 
   it("sets secure session cookies for HTTPS APP_BASE_URL and production mode", () => {
     expect(shouldUseSecureSessionCookie({ APP_BASE_URL: "https://warehouse-it.local", NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(true);
+    expect(shouldUseSecureSessionCookie({ APP_BASE_URL: "https://192.168.163.29", NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(false);
     expect(shouldUseSecureSessionCookie({ APP_BASE_URL: "http://localhost:3000", NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(false);
     expect(shouldUseSecureSessionCookie({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toBe(true);
+    expect(shouldUseSecureSessionCookie({ APP_BASE_URL: "https://192.168.163.29", SESSION_COOKIE_SECURE: "true" } as NodeJS.ProcessEnv)).toBe(true);
+  });
+
+  it("uses the request protocol for session cookie secure mode when available", () => {
+    const expiresAt = new Date("2026-06-18T12:00:00.000Z");
+    const httpsRequest = new NextRequest("https://192.168.163.29/api/auth/login");
+    const httpRequest = new NextRequest("http://localhost:3000/api/auth/login");
+
+    expect(getSessionCookieOptions(expiresAt, { APP_BASE_URL: "https://warehouse-it.local" } as NodeJS.ProcessEnv, httpsRequest).secure).toBe(true);
+    expect(getSessionCookieOptions(expiresAt, { APP_BASE_URL: "https://192.168.163.29" } as NodeJS.ProcessEnv, httpsRequest).secure).toBe(false);
+    expect(getSessionCookieOptions(expiresAt, { APP_BASE_URL: "https://192.168.163.29" } as NodeJS.ProcessEnv, httpRequest).secure).toBe(false);
   });
 
   it("creates DB-backed sessions with a hashed token", async () => {
@@ -164,16 +177,49 @@ describe("auth proxy and API errors", () => {
     expect(url.toString()).toBe("https://warehouse-it.local/dashboard");
   });
 
-  it("uses the public APP_BASE_URL for logout redirects", async () => {
+  it("keeps logout redirects on the same origin so host-only cookies clear correctly", async () => {
     const previous = process.env.APP_BASE_URL;
     process.env.APP_BASE_URL = "https://warehouse-it.local";
 
     const response = await logoutGET(new NextRequest("http://localhost:3000/logout"));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://warehouse-it.local/login");
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login");
 
     if (previous === undefined) delete process.env.APP_BASE_URL;
     else process.env.APP_BASE_URL = previous;
+  });
+
+  it("does not clear the session cookie when logout is prefetched", async () => {
+    const request = new NextRequest("https://192.168.163.29/logout", {
+      headers: { "next-router-prefetch": "1" },
+    });
+    request.cookies.set(sessionCookieName, "prefetch-session-token");
+
+    const response = await logoutGET(request);
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://192.168.163.29/login");
+    expect(response.headers.get("set-cookie") ?? "").not.toContain(`${sessionCookieName}=`);
+  });
+
+  it("uses forwarded HTTPS host for auth redirects behind Caddy", () => {
+    const request = new NextRequest("http://localhost:3000/api/auth/login", {
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-host": "192.168.163.29",
+        "x-forwarded-proto": "https",
+      },
+    });
+
+    expect(requestUrl("/intake", request).toString()).toBe("https://192.168.163.29/intake");
+  });
+
+  it("does not force secure session cookies for local HTTP configuration just because a request was forwarded over HTTPS", () => {
+    const expiresAt = new Date("2026-06-18T12:00:00.000Z");
+    const request = new NextRequest("http://localhost:3000/api/auth/login", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+
+    expect(getSessionCookieOptions(expiresAt, { APP_BASE_URL: "http://localhost:3000" } as NodeJS.ProcessEnv, request).secure).toBe(false);
   });
 
   it("redirects page requests without a session cookie to login", () => {

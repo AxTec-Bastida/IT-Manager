@@ -22,7 +22,23 @@ export default async function AssignmentDetailPage({ params, searchParams }: Pro
 
   const assignment = await prisma.assignment.findUnique({
     where: { id },
-    include: { employee: true, items: { include: { asset: true } } },
+    include: {
+      employee: true,
+      items: {
+        include: {
+          asset: {
+            include: {
+              photos: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { createdAt: "desc" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
   });
   if (!assignment) notFound();
   const hasReturnedItems = assignment.items.some((item) => item.returnedAt || item.returnStatus !== "NOT_RETURNED");
@@ -125,6 +141,34 @@ export default async function AssignmentDetailPage({ params, searchParams }: Pro
                 </div>
                 <Badge className={statusTone[item.asset.status]}>{statusLabels[item.asset.status]}</Badge>
               </div>
+              {item.asset.photos && item.asset.photos.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Asset Photos</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                    {item.asset.photos.map((photo) => (
+                      <a
+                        key={photo.id}
+                        href={photo.filePath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group relative aspect-[4/3] overflow-hidden rounded-md border border-slate-200 bg-slate-100 hover:border-slate-300 transition-colors"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.thumbnailPath || photo.filePath}
+                          alt={photo.caption || "Asset photo"}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {photo.isPrimary ? (
+                          <span className="absolute left-1 top-1 rounded bg-slate-950/80 px-1 py-0.5 text-[10px] font-semibold text-white">
+                            Primary
+                          </span>
+                        ) : null}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <Link href={`/devices/${item.asset.id}`} className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-3 font-semibold text-white hover:bg-slate-800">
                   Open asset

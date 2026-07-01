@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { AlertTriangle, History, Printer, Scale, Wrench } from "lucide-react";
+import { AlertTriangle, History, Printer, Scale, Wrench, Scan, Smartphone } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { PageHeader } from "@/components/page-header";
 import { ActionLink, EmptyState, MobileCard, PageActions } from "@/components/ui-patterns";
 import { categoryLabels, maintenanceTypeLabels } from "@/lib/constants";
-import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel, maintenanceStatusTone, summarizeMaintenanceReview } from "@/lib/maintenance";
+import { buildMaintenanceSummary, maintenanceResultLabels, maintenanceStatusLabel, maintenanceStatusTone, summarizeMaintenanceReview, supportsMaintenanceFocus } from "@/lib/maintenance";
 import { hasPagePermission } from "@/lib/page-permissions";
 import { prisma } from "@/lib/prisma";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
@@ -13,15 +13,16 @@ export const dynamic = "force-dynamic";
 
 export default async function MaintenanceHubPage() {
   if (!(await hasPagePermission("inventory.read"))) return <ForbiddenPanel message="Maintenance history requires inventory access." />;
-  const [assets, recent, openTasks] = await Promise.all([
+  const [rawAssets, recent, openTasks] = await Promise.all([
     prisma.device.findMany({
-      where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE"] } },
+      where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "OTHER"] } },
       include: { maintenanceRecords: { orderBy: { performedAt: "desc" }, take: 10 } },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
     prisma.maintenanceRecord.findMany({ include: { asset: true, stockItem: true }, orderBy: { performedAt: "desc" }, take: 8 }),
     prisma.task.findMany({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, category: { in: ["MAINTENANCE", "REPAIR_RMA", "ASSET_FOLLOW_UP"] } }, include: { relatedDevice: true }, orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }], take: 8 }),
   ]);
+  const assets = rawAssets.filter(supportsMaintenanceFocus);
   const review = summarizeMaintenanceReview(assets);
   const failed = review.failedNeedsFollowUp;
 
@@ -38,13 +39,15 @@ export default async function MaintenanceHubPage() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <SummaryCard icon={<Printer size={18} />} label="Printers" value={review.printers.length} helper={`${review.printersMissingHistory.length} with no history`} href="/maintenance/printers" />
-        <SummaryCard icon={<Scale size={18} />} label="Scales" value={review.scales.length} helper={`${review.scalesMissingHistory.length} with no checks`} href="/maintenance/scales" />
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <SummaryCard icon={<Printer size={18} />} label="Printers" value={review.printers.length} helper={`${review.printersMissingHistory.length} no history`} href="/maintenance/printers" />
+        <SummaryCard icon={<Scale size={18} />} label="Scales" value={review.scales.length} helper={`${review.scalesMissingHistory.length} no checks`} href="/maintenance/scales" />
+        <SummaryCard icon={<Scan size={18} />} label="Scanners" value={review.scanners.length} helper={`${review.scannersMissingHistory.length} no checks`} />
+        <SummaryCard icon={<Smartphone size={18} />} label="Sleds" value={review.sleds.length} helper={`${review.sledsMissingHistory.length} no checks`} />
         <SummaryCard icon={<AlertTriangle size={18} />} label="Overdue" value={review.overdue.length} helper={`${review.dueSoon.length} due soon`} tone={review.overdue.length ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"} />
-        <SummaryCard icon={<AlertTriangle size={18} />} label="No Schedule" value={review.noSchedule.length} helper="Needs due date after baseline" tone={review.noSchedule.length ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"} />
-        <SummaryCard icon={<Wrench size={18} />} label="Excluded" value={review.excluded.length} helper="Retired/decommissioned" />
-        <SummaryCard icon={<Wrench size={18} />} label="Open Tasks" value={openTasks.length} helper="Maintenance / repair follow-ups" href="/tasks?category=MAINTENANCE" />
+        <SummaryCard icon={<AlertTriangle size={18} />} label="No Schedule" value={review.noSchedule.length} helper="Needs due date" tone={review.noSchedule.length ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"} />
+        <SummaryCard icon={<Wrench size={18} />} label="Excluded" value={review.excluded.length} helper="Retired/disposed" />
+        <SummaryCard icon={<Wrench size={18} />} label="Open Tasks" value={openTasks.length} helper="Follow-ups" href="/tasks?category=MAINTENANCE" />
       </section>
 
       <section className="grid gap-3 lg:grid-cols-2">

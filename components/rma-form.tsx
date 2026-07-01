@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import type { Device, RmaCase } from "@prisma/client";
-import { Save, Search, Trash2, AlertTriangle, Check } from "lucide-react";
+import { Save, Search, Trash2, AlertTriangle, Check, Camera } from "lucide-react";
 import { categoryLabels } from "@/lib/constants";
+import { CameraScanner } from "@/components/camera-scanner";
 
 type DeviceOption = Pick<
   Device,
@@ -80,6 +81,7 @@ export function RmaForm({
   const [scanError, setScanError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const inputClass =
     "w-full min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none";
@@ -303,8 +305,16 @@ export function RmaForm({
                   handleScanLookup(scanInput);
                 }
               }}
-              className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-none"
+              className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-10 text-sm focus:outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              title="Scan with camera"
+            >
+              <Camera size={14} />
+            </button>
           </div>
           <button
             type="button"
@@ -458,6 +468,17 @@ export function RmaForm({
         <Save size={18} />
         {saving ? "Saving..." : rma ? "Save RMA Case" : "Create RMA Case"}
       </button>
+      {scannerOpen ? (
+        <CameraScanner
+          title="Scan device tag or serial"
+          onDetected={async (detectedValue) => {
+            setScanInput(detectedValue);
+            setScannerOpen(false);
+            await handleScanLookup(detectedValue);
+          }}
+          onClose={() => setScannerOpen(false)}
+        />
+      ) : null}
     </form>
   );
 }

@@ -14,8 +14,8 @@ type DisplayAsset = {
   movementAlertsEnabled?: boolean | null;
 };
 
-const identityCategories = new Set(["LAPTOP", "DESKTOP", "PHONE", "TABLET", "MONITOR", "SCANNER", "SCALE"]);
-const mobileCategories = new Set(["PHONE", "TABLET"]);
+const identityCategories = new Set(["LAPTOP", "DESKTOP", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET", "MONITOR", "SCANNER", "SLED", "SCALE"]);
+const mobileCategories = new Set(["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
 
 export function getAssetDisplayName(asset: DisplayAsset) {
   const name = cleanText(asset.name);
@@ -61,10 +61,11 @@ export function isSuspiciousImportedName(asset: DisplayAsset) {
   const accessPointName = name.startsWith("access point") || name === "access point" || name.includes(" access point ");
   if (!accessPointName) return false;
   if (category === "ACCESS_POINT") return model.includes("latitude") || assetTag.startsWith("ght-lp");
-  return ["LAPTOP", "DESKTOP", "PHONE", "TABLET", "OTHER"].includes(category) || model.includes("latitude");
+  return ["LAPTOP", "DESKTOP", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET", "SLED", "OTHER"].includes(category) || model.includes("latitude");
 }
 
 export function isSledAsset(asset: DisplayAsset) {
+  if (cleanText(asset.category) === "SLED") return true;
   const text = `${asset.assetTag ?? ""} ${asset.name ?? ""} ${asset.model ?? ""} ${asset.brand ?? ""}`.toLowerCase();
   return text.includes("ght-sld") || text.includes("source: sled") || /\bsled\b/.test(text) || text.includes("infinea") || text.includes("infinite peripherals");
 }

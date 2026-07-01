@@ -16,8 +16,8 @@ export const decommissionReasonLabels: Record<AssetDecommissionReason, string> =
 export const notesRequiredReasons = new Set<AssetDecommissionReason>(["LOST", "STOLEN", "DISPOSED", "DESTROYED"]);
 export const adminOnlyReasons = new Set<AssetDecommissionReason>(["LOST", "STOLEN", "DESTROYED"]);
 
-export const mobileOrComputerCategories = new Set<DeviceCategory>(["LAPTOP", "DESKTOP", "PHONE", "TABLET"]);
-export const peripheralChecklistCategories = new Set<DeviceCategory>(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "DOCKING_STATION"]);
+export const mobileOrComputerCategories = new Set<DeviceCategory>(["LAPTOP", "DESKTOP", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
+export const peripheralChecklistCategories = new Set<DeviceCategory>(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "SLED", "DOCKING_STATION"]);
 
 export type DecommissionChecklistItem = {
   id: string;

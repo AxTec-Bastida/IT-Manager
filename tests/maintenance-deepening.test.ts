@@ -4,6 +4,8 @@ import {
   buildMaintenanceSummary,
   defaultMaintenanceTypeForAsset,
   defaultNextDueAt,
+  isScannerAsset,
+  isSledAsset,
   maintenanceProfileForAsset,
   scheduleStatus,
   summarizeMaintenanceReview,
@@ -110,6 +112,70 @@ describe("printer and scale maintenance helpers", () => {
     expect(summary.lastResult).toBe("PASS");
     expect(summary.nextDueAt?.toISOString().slice(0, 10)).toBe("2026-08-30");
     expect(summary.status).toBe("OK");
+  });
+});
+
+describe("scanner and sled maintenance helpers", () => {
+  const scanner = {
+    id: "scanner-1",
+    name: "Symbol Barcode Scanner",
+    assetTag: "GHT-SCN-001",
+    category: "SCANNER" as const,
+    maintenanceDueAt: null,
+    lastCleanedAt: null,
+    cleaningIntervalDays: null,
+    maintenanceRecords: [],
+  };
+
+  const sled = {
+    id: "sled-1",
+    name: "Infinite Peripherals Sled Device",
+    assetTag: "GHT-SLD-001",
+    category: "OTHER" as const,
+    brand: "Infinite Peripherals",
+    model: "Infinea Tab",
+    maintenanceDueAt: null,
+    lastCleanedAt: null,
+    cleaningIntervalDays: null,
+    maintenanceRecords: [],
+  };
+
+  it("identifies scanner and sled assets correctly", () => {
+    expect(isScannerAsset(scanner)).toBe(true);
+    expect(isSledAsset(sled)).toBe(true);
+    expect(isScannerAsset(sled)).toBe(false);
+    expect(isSledAsset(scanner)).toBe(false);
+  });
+
+  it("uses INSPECTION as default maintenance type for scanners and sleds", () => {
+    expect(defaultMaintenanceTypeForAsset(scanner)).toBe("INSPECTION");
+    expect(defaultNextDueAt(scanner, new Date("2026-06-01T08:00:00.000Z"))?.toISOString().slice(0, 10)).toBe("2026-11-28");
+  });
+
+  it("uses longer stock/spare profiles for scanners/sleds and shorter profiles for active ones", () => {
+    const performedAt = new Date("2026-06-01T08:00:00.000Z");
+    const activeScanner = { ...scanner, status: "IN_USE" as const };
+    const stockScanner = { ...scanner, status: "AVAILABLE" as const };
+    const activeSled = { ...sled, status: "IN_USE" as const };
+    const spareSled = { ...sled, status: "RESERVED" as const };
+
+    expect(maintenanceProfileForAsset(activeScanner).intervalDays).toBe(180);
+    expect(maintenanceProfileForAsset(stockScanner).intervalDays).toBe(365);
+    expect(maintenanceProfileForAsset(activeSled).intervalDays).toBe(180);
+    expect(maintenanceProfileForAsset(spareSled).intervalDays).toBe(365);
+
+    expect(defaultNextDueAt(activeScanner, performedAt)?.toISOString().slice(0, 10)).toBe("2026-11-28");
+    expect(defaultNextDueAt(stockScanner, performedAt)?.toISOString().slice(0, 10)).toBe("2027-06-01");
+    expect(defaultNextDueAt(activeSled, performedAt)?.toISOString().slice(0, 10)).toBe("2026-11-28");
+    expect(defaultNextDueAt(spareSled, performedAt)?.toISOString().slice(0, 10)).toBe("2027-06-01");
+  });
+
+  it("summarizes missing history for active scanners and sleds in maintenance review", () => {
+    const review = summarizeMaintenanceReview([scanner, sled], new Date("2026-06-16T12:00:00.000Z"));
+    expect(review.scanners.map((a) => a.id)).toContain("scanner-1");
+    expect(review.sleds.map((a) => a.id)).toContain("sled-1");
+    expect(review.scannersMissingHistory.map((a) => a.id)).toContain("scanner-1");
+    expect(review.sledsMissingHistory.map((a) => a.id)).toContain("sled-1");
   });
 });
 

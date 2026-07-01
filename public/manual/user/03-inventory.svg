@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Inventory browsing</title>
+  <desc id="desc">Inventory hub and focused category views.</desc>
+  <rect width="1200" height="520" rx="28" fill="#f8fafc"/>
+  <defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity=".10"/></filter></defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="70" y="66" font-size="34" font-weight="700" fill="#0f172a">Inventory Browsing</text>
+    <text x="70" y="100" font-size="18" fill="#475569">Open a focused view first. Search inside that view before searching everything.</text>
+    <g filter="url(#shadow)">
+      <rect x="70" y="140" width="240" height="126" rx="18" fill="#fff" stroke="#bfdbfe"/>
+      <text x="96" y="187" font-size="24" font-weight="700" fill="#1e3a8a">Asset Groups</text>
+      <text x="96" y="224" font-size="16" fill="#475569">Laptops, mobile, printers,</text>
+      <text x="96" y="249" font-size="16" fill="#475569">scales, scanners, network</text>
+      <rect x="350" y="140" width="240" height="126" rx="18" fill="#fff" stroke="#bbf7d0"/>
+      <text x="376" y="187" font-size="24" font-weight="700" fill="#14532d">Workflow Views</text>
+      <text x="376" y="224" font-size="16" fill="#475569">Assigned, loaned, RMA,</text>
+      <text x="376" y="249" font-size="16" fill="#475569">available, retired, missing</text>
+      <rect x="630" y="140" width="240" height="126" rx="18" fill="#fff" stroke="#fde68a"/>
+      <text x="656" y="187" font-size="24" font-weight="700" fill="#78350f">Compliance</text>
+      <text x="656" y="224" font-size="16" fill="#475569">Needs review and</text>
+      <text x="656" y="249" font-size="16" fill="#475569">missing photos</text>
+      <rect x="910" y="140" width="220" height="126" rx="18" fill="#fff" stroke="#ddd6fe"/>
+      <text x="936" y="187" font-size="24" font-weight="700" fill="#581c87">Network</text>
+      <text x="936" y="224" font-size="16" fill="#475569">IP, MAC, duplicate IP,</text>
+      <text x="936" y="249" font-size="16" fill="#475569">static candidates</text>
+      <rect x="155" y="315" width="890" height="84" rx="20" fill="#0f172a"/>
+      <text x="600" y="350" font-size="23" font-weight="700" text-anchor="middle" fill="#fff">Filtered Asset List</text>
+      <text x="600" y="380" font-size="17" text-anchor="middle" fill="#cbd5e1">Mobile cards first. Desktop table only where it helps.</text>
+    </g>
+  </g>
+</svg>

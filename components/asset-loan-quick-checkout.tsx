@@ -3,14 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Laptop, Package, PackageCheck, RotateCcw, Search, ScanLine, User, UserPlus, Users, X, Zap } from "lucide-react";
+import { Camera, CheckCircle2, ExternalLink, Laptop, Package, PackageCheck, RotateCcw, Search, ScanLine, User, UserPlus, Users, X, Zap } from "lucide-react";
 import { Badge } from "@/components/badge";
 import { categoryLabels, conditionLabels, statusLabels, statusTone } from "@/lib/constants";
 import { canAddQuickCheckoutAsset, expectedReturnDate, hasAssignedAssetWarning, quickCheckoutAssetWarning } from "@/lib/quick-checkout";
 import { chipButtonClass } from "@/lib/ui-classes";
+import { CameraScanner } from "@/components/camera-scanner";
 
-type SuggestionEmployee = { kind: "employee"; id: string; fullName: string; employeeId?: string | null; department?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[] };
-type SuggestionTemp = { kind: "temporary"; id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[] };
+type SuggestionEmployee = { kind: "employee"; id: string; fullName: string; employeeId?: string | null; department?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[]; email?: string | null; supervisorEmail?: string | null };
+type SuggestionTemp = { kind: "temporary"; id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[]; email?: string | null };
 type SuggestionDevice = { kind: "device" } & QuickAsset;
 type Suggestion = SuggestionEmployee | SuggestionTemp | SuggestionDevice;
 
@@ -24,6 +25,8 @@ type Borrower =
       openHref: string;
       activeAssetLoans?: number;
       activeStockLoans?: number;
+      email?: string | null;
+      supervisorEmail?: string | null;
     }
   | {
       kind: "temporary";
@@ -35,6 +38,7 @@ type Borrower =
       activeAssetLoans?: number;
       activeStockLoans?: number;
       needsReview?: boolean;
+      email?: string | null;
     };
 
 type QuickAsset = {
@@ -75,6 +79,7 @@ type Props = {
 export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets = [] }: Props) {
   const router = useRouter();
   const [scanValue, setScanValue] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [borrower, setBorrower] = useState<Borrower | null>(initialBorrower);
   const [assets, setAssets] = useState<QuickAsset[]>(initialAssets);
   const [expectedReturnAt, setExpectedReturnAt] = useState(expectedReturnDate(3));
@@ -87,6 +92,10 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
   const [serializedSuggestions, setSerializedSuggestions] = useState<QuickAsset[]>([]);
   const [stockWorkflowQuery, setStockWorkflowQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customEmailTo, setCustomEmailTo] = useState("");
+  const [customEmailCc, setCustomEmailCc] = useState("");
+  const resolvedEmailTo = customEmailTo.trim() || borrower?.email || initialBorrower?.email || "";
+
   // Walk-up badge scan state
   const [walkUpScan, setWalkUpScan] = useState<string | null>(null);
   const [creatingWalkUp, setCreatingWalkUp] = useState(false);
@@ -312,6 +321,8 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
         allowAssigned,
         assetIds: assets.map((asset) => asset.id),
         conditionOut: assets[0]?.condition || "GOOD",
+        emailTo: resolvedEmailTo || undefined,
+        emailCc: customEmailCc || undefined,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -365,11 +376,19 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
                 else if (e.key === "Enter" && suggestionIndex >= 0) { e.preventDefault(); pickSuggestion(suggestions[suggestionIndex]); }
                 else if (e.key === "Escape") closeSuggestions();
               }}
-              className="min-h-16 w-full rounded-lg border border-slate-300 pl-10 pr-3 text-base"
+              className="min-h-16 w-full rounded-lg border border-slate-300 pl-10 pr-14 text-base"
               placeholder="Scan or type employee, temp borrower, badge ID, or asset"
               autoFocus
               autoComplete="off"
             />
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="absolute right-3 top-[14px] flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              title="Scan through phone camera"
+            >
+              <Camera size={18} />
+            </button>
             {/* Autocomplete dropdown */}
             {showSuggestions && (
               <div
@@ -595,6 +614,66 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
         <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-600">Due date: <span className="font-semibold text-slate-950">{expectedReturnAt}</span></p>
       </section>
 
+      {borrower && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+          <div>
+            <h2 className="font-semibold text-base text-slate-950">Email Confirmation Settings</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Define recipient and CC addresses for the checkout notification.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-semibold text-slate-700 block">
+              Send receipt to
+              <input
+                className="w-full min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none mt-1"
+                value={customEmailTo}
+                onChange={(e) => setCustomEmailTo(e.target.value)}
+                placeholder={borrower.email || "Optional recipient override"}
+              />
+            </label>
+
+            <label className="space-y-1 text-xs font-semibold text-slate-700 block">
+              CC recipient list (comma separated)
+              <input
+                className="w-full min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none mt-1"
+                value={customEmailCc}
+                onChange={(e) => setCustomEmailCc(e.target.value)}
+                placeholder="hr@example.com, director@example.com"
+              />
+            </label>
+          </div>
+
+          {/* Dynamic preview list */}
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs">
+            <p className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">Email Notification Routing Preview</p>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              <div>
+                <span className="text-slate-500 font-medium">To (Borrower):</span>
+                <span className="font-semibold text-slate-800 ml-1 block truncate font-mono">
+                  {resolvedEmailTo || "(no recipient email)"}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">CC (Directs, Managers & IT):</span>
+                <span className="font-semibold text-slate-800 ml-1 block font-mono">
+                  {[
+                    "ops@g-global.com",
+                    borrower.kind === "employee" ? borrower.supervisorEmail ?? "" : "",
+                    "it.techstyle@g-global.com",
+                    customEmailCc
+                  ]
+                    .filter((email): email is string => Boolean(email && email.trim()))
+                    .map((email) => email.trim())
+                    .join(", ") || "(No CC lists)"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {assignedWarning ? (
         <label className="flex min-h-14 items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-950">
           <input type="checkbox" checked={allowAssigned} onChange={(event) => setAllowAssigned(event.target.checked)} className="mt-1 size-5" />
@@ -615,11 +694,21 @@ export function AssetLoanQuickCheckout({ initialBorrower = null, initialAssets =
           </button>
         </div>
       </div>
+      {scannerOpen ? (
+        <CameraScanner
+          title="Quick checkout scan"
+          onDetected={(value) => {
+            scan(value);
+            setScannerOpen(false);
+          }}
+          onClose={() => setScannerOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function employeeToBorrower(employee: { id: string; fullName: string; employeeId?: string | null; department?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[] }): Borrower {
+function employeeToBorrower(employee: { id: string; fullName: string; employeeId?: string | null; department?: string | null; stockIssues?: unknown[]; assetLoans?: unknown[]; email?: string | null; supervisorEmail?: string | null }): Borrower {
   return {
     kind: "employee",
     id: employee.id,
@@ -629,10 +718,12 @@ function employeeToBorrower(employee: { id: string; fullName: string; employeeId
     openHref: `/employees/${employee.id}`,
     activeAssetLoans: employee.assetLoans?.length ?? 0,
     activeStockLoans: employee.stockIssues?.length ?? 0,
+    email: employee.email,
+    supervisorEmail: employee.supervisorEmail,
   };
 }
 
-function temporaryToBorrower(borrower: { id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[] }): Borrower {
+function temporaryToBorrower(borrower: { id: string; tempId: string; name: string; department?: string | null; area?: string | null; needsReview?: boolean; stockIssues?: unknown[]; assetLoans?: unknown[]; email?: string | null }): Borrower {
   return {
     kind: "temporary",
     id: borrower.id,
@@ -643,6 +734,7 @@ function temporaryToBorrower(borrower: { id: string; tempId: string; name: strin
     activeAssetLoans: borrower.assetLoans?.length ?? 0,
     activeStockLoans: borrower.stockIssues?.length ?? 0,
     needsReview: borrower.needsReview ?? false,
+    email: borrower.email,
   };
 }
 

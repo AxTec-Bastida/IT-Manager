@@ -6,6 +6,7 @@ describe("task helpers", () => {
     expect(cleanTaskCategory("INVENTORY")).toBe("ASSET_FOLLOW_UP");
     expect(cleanTaskCategory("STOCK")).toBe("STOCK_CONSUMABLES");
     expect(cleanTaskCategory("RMA")).toBe("REPAIR_RMA");
+    expect(cleanTaskCategory("MAINTENANCE")).toBe("MAINTENANCE");
   });
 
   it("suggests task categories from source context", () => {
@@ -13,6 +14,13 @@ describe("task helpers", () => {
     expect(suggestedTaskCategoryFromSource({ stockItemId: "stock-1" })).toBe("STOCK_CONSUMABLES");
     expect(suggestedTaskCategoryFromSource({ auditId: "audit-1" })).toBe("AUDIT_FINDING");
     expect(suggestedTaskCategoryFromSource({ alertType: "WARRANTY_EXPIRING" })).toBe("WARRANTY_FACTURA");
+  });
+
+  it("suggests MAINTENANCE category from maintenance source and alert types", () => {
+    expect(suggestedTaskCategoryFromSource({ sourceType: "maintenance" })).toBe("MAINTENANCE");
+    expect(suggestedTaskCategoryFromSource({ alertType: "PRINTER_TONER_LOW" })).toBe("MAINTENANCE");
+    expect(suggestedTaskCategoryFromSource({ alertType: "SCALE_CLEANING_REQUIRED" })).toBe("MAINTENANCE");
+    expect(suggestedTaskCategoryFromSource({ alertType: "MAINTENANCE_DUE" })).toBe("MAINTENANCE");
   });
 
   it("uses AppUser assignment snapshots while preserving legacy assignee text when unassigned", () => {

@@ -12,8 +12,8 @@ export default async function NewLoanPage({ searchParams }: { searchParams?: Pro
   const initialEmployeeId = typeof params.employeeId === "string" ? params.employeeId : "";
   const initialTemporaryBorrowerId = typeof params.temporaryBorrowerId === "string" ? params.temporaryBorrowerId : "";
   const [employees, temporaryBorrowers, devices] = await Promise.all([
-    prisma.employee.findMany({ where: { status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true, employeeId: true, department: true } }),
-    prisma.temporaryBorrower.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, tempId: true, name: true, department: true, area: true } }),
+    prisma.employee.findMany({ where: { status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true, employeeId: true, department: true, email: true, supervisorEmail: true } }),
+    prisma.temporaryBorrower.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, tempId: true, name: true, department: true, area: true, email: true } }),
     prisma.device.findMany({
       where: { status: { notIn: blockedAssetLoanStatuses } },
       include: { employee: { select: { fullName: true } } },

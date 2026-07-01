@@ -1,0 +1,4 @@
+ALTER TABLE "AssetLoan" ADD COLUMN "emailSentAt" DATETIME;
+ALTER TABLE "AssetLoan" ADD COLUMN "emailTo" TEXT;
+ALTER TABLE "AssetLoan" ADD COLUMN "emailCc" TEXT;
+ALTER TABLE "AssetLoan" ADD COLUMN "emailError" TEXT;

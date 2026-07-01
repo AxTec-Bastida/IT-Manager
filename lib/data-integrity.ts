@@ -32,7 +32,7 @@ export function detectNegativeStock(records: Array<{ id: string; quantityOnHand:
 
 export function detectMobileTrackingViolations(records: MobileTrackingRecord[]) {
   return records
-    .filter((record) => ["PHONE", "TABLET"].includes(record.category))
+    .filter((record) => ["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"].includes(record.category))
     .flatMap((record) => {
       if (record.ipAddress || record.macAddress) return [{ id: record.id, reason: "IP/MAC present" }];
       if (record.usesStaticIp || record.movementAlertsEnabled) return [{ id: record.id, reason: "Network tracking enabled" }];

@@ -1001,6 +1001,62 @@ export default async function UiPreviewPage() {
         </div>
       </PreviewSection>
 
+      <PreviewSection title="Phase 90J bilingual i18n patterns" description="Static examples for local English/Spanish labels, fallback behavior, enum display labels, and data that must not be translated.">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <MobileCard className="space-y-3">
+            <Badge tone="info">Language switcher</Badge>
+            <h3 className="font-semibold text-slate-950">English / Español</h3>
+            <p className="text-sm text-slate-600">POST /api/language stores the warehouse_locale cookie and reloads the current route without changing auth or permissions.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button className="min-h-11 rounded-md border border-slate-300 bg-white text-sm font-semibold text-slate-700">English</button>
+              <button className="min-h-11 rounded-md bg-slate-950 text-sm font-semibold text-white">Español</button>
+            </div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="inventory">Translated UI chrome</Badge>
+            <h3 className="font-semibold text-slate-950">Inventario</h3>
+            <p className="text-sm text-slate-600">Elige el tipo de activo que quieres administrar y entra a una vista enfocada.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button className="min-h-11 rounded-md bg-slate-950 text-sm font-semibold text-white">Escanear etiqueta</button>
+              <button className="min-h-11 rounded-md border border-slate-300 bg-white text-sm font-semibold text-slate-700">Agregar activo</button>
+            </div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="success">Enum display mapping</Badge>
+            <p className="text-sm text-slate-600">Machine value remains <code>ACTIVE</code>. Display label can be translated safely.</p>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="success">Active</Badge>
+              <Badge tone="success">Activo</Badge>
+            </div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="warning">Do not translate user data</Badge>
+            <p className="text-sm text-slate-600">Asset tags, serials, IPs, names, notes, factura data, and activity payloads remain exactly as stored.</p>
+            <KeyValueGrid
+              items={[
+                { label: "Asset tag", value: "GHT-LP-011" },
+                { label: "Serial", value: "GLC7MG3" },
+                { label: "Employee", value: "Luis Rodriguez" },
+              ]}
+            />
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="pending">English fallback</Badge>
+            <p className="text-sm text-slate-600">If a Spanish key is missing, the app falls back to English instead of crashing or showing a raw key.</p>
+            <div className="rounded-md bg-slate-50 p-3 text-sm">Fallback: Inventory Count / Audit</div>
+          </MobileCard>
+          <MobileCard className="space-y-3">
+            <Badge tone="info">Manual links</Badge>
+            <h3 className="font-semibold text-slate-950">Manual de Usuario Warehouse IT</h3>
+            <p className="text-sm text-slate-600">Resources includes English and Spanish manual links. Spanish docs are maintained manually.</p>
+            <ActionGrid>
+              <ActionLink href="/manual/user">English manual</ActionLink>
+              <ActionLink href="/manual/user?lang=es" variant="primary">Manual español</ActionLink>
+            </ActionGrid>
+          </MobileCard>
+        </div>
+      </PreviewSection>
+
       <AlertPanel title="Restricted page" tone="warning">
         <LockKeyhole size={16} className="mr-1 inline" />
         This preview lab is linked under Admin and guarded by <code>hasPageRole(&quot;ADMIN&quot;)</code>.

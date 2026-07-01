@@ -13,11 +13,13 @@ import {
   Trash2,
   AlertTriangle,
   UserPlus,
-  Mail
+  Mail,
+  Camera
 } from "lucide-react";
 import { SignaturePad } from "@/components/signature-pad";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
 import { ScanAutocomplete } from "@/components/scan-autocomplete";
+import { CameraScanner } from "@/components/camera-scanner";
 
 export type TransferConflict = {
   assetId: string;
@@ -88,6 +90,11 @@ export function AssignmentForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [smtpStatus, setSmtpStatus] = useState<{ configured: boolean } | null>(null);
+
+  const [assigneeScannerOpen, setAssigneeScannerOpen] = useState(false);
+  const [assetScannerOpen, setAssetScannerOpen] = useState(false);
+  const [customEmailTo, setCustomEmailTo] = useState("");
+  const [customEmailCc, setCustomEmailCc] = useState("");
 
   // Load SMTP config status
   useEffect(() => {
@@ -415,8 +422,16 @@ export function AssignmentForm({
                       handleBadgeLookup(badgeScanInput);
                     }
                   }}
-                  className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:border-slate-900 focus:outline-none"
+                  className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-10 text-sm focus:border-slate-900 focus:outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setAssigneeScannerOpen(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  title="Scan assignee badge"
+                >
+                  <Camera size={14} />
+                </button>
               </div>
               <button
                 type="button"
@@ -682,8 +697,16 @@ export function AssignmentForm({
                   handleAssetScanLookup(assetScanInput);
                 }
               }}
-              className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-none"
+              className="w-full min-h-11 rounded-lg border border-slate-300 pl-9 pr-10 text-sm focus:outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setAssetScannerOpen(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              title="Scan asset badge"
+            >
+              <Camera size={14} />
+            </button>
           </div>
           <button
             type="button"
@@ -843,23 +866,50 @@ export function AssignmentForm({
           />
         </label>
 
-        {/* Email rules preview */}
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1.5">
-          <p className="font-bold text-slate-900 flex items-center gap-1.5">
-            <Mail size={14} className="text-slate-500" />
-            Email Notification Preview
+        {/* Email settings and preview */}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-3">
+          <p className="font-bold text-slate-900 flex items-center gap-1.5 text-sm">
+            <Mail size={16} className="text-slate-500" />
+            Email Confirmation Settings
           </p>
-          {smtpStatus?.configured === false ? (
-            <p className="text-amber-800">
-              ⚠️ SMTP is not configured. Email confirmation will be skipped.
+          {smtpStatus?.configured === false && (
+            <p className="text-amber-800 font-medium">
+              ⚠️ Note: SMTP is not configured. Email confirmation will be logged but not sent.
             </p>
-          ) : (
-            <div className="text-slate-600 space-y-0.5">
-              <p>• Assignee: {selectedEmployee?.email || "(no email)"}</p>
-              <p>• Supervisor: {selectedEmployee?.supervisorEmail || "(no supervisor email)"}</p>
-              <p>• CC: it.techstyle@g-global.com</p>
-            </div>
           )}
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="font-semibold text-slate-700">Send confirmation to</span>
+              <input
+                type="email"
+                name="emailTo"
+                placeholder={selectedEmployee?.email || "No assignee email on file"}
+                value={customEmailTo}
+                onChange={(e) => setCustomEmailTo(e.target.value)}
+                className="w-full min-h-9 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-950 focus:outline-none"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-semibold text-slate-700">Additional CC list (comma-separated)</span>
+              <input
+                type="text"
+                name="emailCc"
+                placeholder="e.g. hr@g-global.com, ops@g-global.com"
+                value={customEmailCc}
+                onChange={(e) => setCustomEmailCc(e.target.value)}
+                className="w-full min-h-9 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-950 focus:outline-none"
+              />
+            </label>
+            <div className="rounded-md border border-slate-200 bg-white p-2.5 space-y-1 text-[11px] text-slate-500">
+              <p className="font-semibold text-slate-700 uppercase tracking-wider text-[9px]">Notification routing chain:</p>
+              <p>• <strong>To:</strong> {customEmailTo || selectedEmployee?.email || "(no recipient address)"}</p>
+              <p>• <strong>CC:</strong> {[
+                selectedEmployee?.supervisorEmail,
+                "it.techstyle@g-global.com",
+                customEmailCc,
+              ].filter((e): e is string => Boolean(e && e.trim())).map(e => e.trim()).join(", ") || "(no CC addresses)"}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -874,6 +924,29 @@ export function AssignmentForm({
           ? "Confirm Transfer & Submit"
           : "Submit assignment"}
       </button>
+      {assigneeScannerOpen ? (
+        <CameraScanner
+          title="Scan assignee badge"
+          onDetected={(value) => {
+            setBadgeScanInput(value);
+            handleBadgeLookup(value);
+            setAssigneeScannerOpen(false);
+          }}
+          onClose={() => setAssigneeScannerOpen(false)}
+        />
+      ) : null}
+
+      {assetScannerOpen ? (
+        <CameraScanner
+          title="Scan asset barcode"
+          onDetected={(value) => {
+            setAssetScanInput(value);
+            handleAssetScanLookup(value);
+            setAssetScannerOpen(false);
+          }}
+          onClose={() => setAssetScannerOpen(false)}
+        />
+      ) : null}
     </form>
   );
 }

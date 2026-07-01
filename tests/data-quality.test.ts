@@ -277,7 +277,7 @@ describe("data quality review helpers", () => {
       id: "scale",
       category: "SCALE",
       isFixedAsset: true,
-      photos: [{ photoType: "OVERVIEW", mimeType: "image/jpeg", sizeBytes: 3_000_000 }, { photoType: "ASSET_TAG" }, { photoType: "SERIAL_LABEL" }, { photoType: "CONDITION" }],
+      photos: [{ photoType: "OVERVIEW", mimeType: "image/jpeg", sizeBytes: 3_000_000 }, { photoType: "ASSET_TAG" }, { photoType: "CONDITION" }],
     };
 
     const summary = summarizePhotoCompliance([complete, fixedMissing]);

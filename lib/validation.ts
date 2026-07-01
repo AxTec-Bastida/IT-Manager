@@ -217,6 +217,8 @@ export const assignmentSchema = z.object({
   termsText: optionalText,
   notes: optionalText,
   status: z.nativeEnum(AssignmentStatus).default("ACTIVE"),
+  emailTo: optionalText,
+  emailCc: optionalText,
   assetIds: z.array(z.string().min(1)).min(1, "Select at least one asset."),
   confirmTransfer: z.boolean().optional(),
 }).superRefine((value, context) => {
@@ -320,6 +322,8 @@ export const assetLoanSchema = z
     assetIds: z.array(z.string().min(1)).min(1, "Select at least one asset."),
     conditionOut: z.nativeEnum(DeviceCondition).optional().nullable().transform((value) => value || "GOOD"),
     accessoriesOut: optionalText,
+    emailTo: optionalText,
+    emailCc: optionalText,
   })
   .superRefine((value, context) => {
     if (!value.employeeId && !value.temporaryBorrowerId) {

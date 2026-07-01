@@ -11,12 +11,12 @@ type PairableDevice = Pick<Device, "id" | "name" | "assetTag" | "category" | "br
 
 export function isMobilePairAsset(device: PairableDevice) {
   const text = pairText(device);
-  return device.category === "PHONE" || text.includes("ipod") || text.includes("iphone") || text.includes("ght-ipo") || text.includes("ght-iph");
+  return ["PHONE", "IPOD", "IPHONE"].includes(device.category) || text.includes("ipod") || text.includes("iphone") || text.includes("ght-ipo") || text.includes("ght-iph");
 }
 
 export function getPhoneSledRelationshipType(device: PairableDevice): DeviceRelationshipType {
   const text = pairText(device);
-  return text.includes("iphone") || text.includes("ght-iph") ? "IPHONE_SLED_PAIR" : "IPOD_SLED_PAIR";
+  return device.category === "IPHONE" || text.includes("iphone") || text.includes("ght-iph") ? "IPHONE_SLED_PAIR" : "IPOD_SLED_PAIR";
 }
 
 export function resolvePhoneSledPair(source: PairableDevice, target: PairableDevice) {

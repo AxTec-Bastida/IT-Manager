@@ -8,11 +8,15 @@ export const BULK_INTAKE_MAX_COUNT = 500;
 
 export const CATEGORY_TAG_PREFIXES: Partial<Record<DeviceCategory, string>> = {
   LAPTOP: "GHT-LP",
-  PHONE: "GHT-IPO",
+  PHONE: "GHT-PH",
+  IPOD: "GHT-IPO",
+  IPHONE: "GHT-IPH",
+  IPAD: "GHT-IPA",
   THERMAL_PRINTER: "GHT-PRN",
   MFP_PRINTER: "GHT-PRN",
   OTHER_PRINTER: "GHT-PRN",
-  SCANNER: "GHT-SLD",
+  SCANNER: "GHT-SCN",
+  SLED: "GHT-SLD",
   SCALE: "GHT-SCL",
   MONITOR: "GHT-MON",
   ACCESS_POINT: "GHT-AP",

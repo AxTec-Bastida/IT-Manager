@@ -13,99 +13,118 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { ForbiddenPanel } from "@/components/forbidden-panel";
 import { hasPagePermission, hasPageRole } from "@/lib/page-permissions";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntakeHubPage() {
+  const locale = await getLocaleFromCookies();
+  const text = createTranslator(locale, "intake");
+  const common = createTranslator(locale, "common");
   const [canInventoryWrite, canStockWrite, canUseLegacyImport] = await Promise.all([
     hasPagePermission("inventory.write"),
     hasPagePermission("stock.write"),
     hasPageRole("ADMIN"),
   ]);
   if (!canInventoryWrite && !canStockWrite) {
-    return <ForbiddenPanel message="Inventory intake requires IT Staff or Admin access." />;
+    return <ForbiddenPanel message={text("forbidden")} />;
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Inventory Intake"
-        description="Choose the fastest path for what needs to be done today."
+        title={text("title")}
+        description={text("description")}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <IntakeCard
           href="/intake/assets/new"
-          title="Add One Asset"
-          description="Use when one laptop, printer, sled, scanner, iPod, iPhone, access point, scale, or other serialized device needs to be created now."
+          title={text("addOneAsset")}
+          description={text("addOneAssetDescription")}
           icon={PackagePlus}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         <IntakeCard
           href="/intake/assets/bulk"
-          title="Bulk Receive Serialized Assets"
-          description="Use when receiving many serialized devices and matching internal asset tags to serial numbers."
+          title={text("bulkReceive")}
+          description={text("bulkReceiveDescription")}
           icon={Boxes}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         <IntakeCard
           href="/intake/pair"
-          title="Pair Companion Devices"
-          description="Use when pairing existing devices, such as a sled with an iPod or iPhone. Both devices must already exist in inventory."
+          title={text("pairCompanionDevices")}
+          description={text("pairCompanionDevicesDescription")}
           icon={Handshake}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         <IntakeCard
           href="/audits"
-          title="Inventory Count / Audit"
-          description="Use when walking the warehouse and checking existing assets from a count sheet. Different from Bulk Receive — this checks assets that already exist, not new arrivals."
+          title={text("inventoryAudit")}
+          description={text("inventoryAuditDescription")}
           icon={ClipboardList}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         <IntakeCard
           href="/photos/compliance"
-          title="Photo Follow-Up"
-          description="Use after intake or counts to capture missing overview, label, or damage photos for assets that were created without photos."
+          title={text("photoFollowUp")}
+          description={text("photoFollowUpDescription")}
           icon={Camera}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         <IntakeCard
           href="/labels"
-          title="Print Labels"
-          description="Print labels for new, selected, or missing-label assets."
+          title={text("printLabels")}
+          description={text("printLabelsDescription")}
           icon={Tags}
           disabled={!canInventoryWrite}
+          actionLabel={common("open")}
+          disabledLabel={common("notAllowed")}
         />
         {canUseLegacyImport && (
           <IntakeCard
             href="/import/legacy-sheet"
-            title="Import History"
-            description="Admin only. Review previous intake, import, or legacy workbook batches."
+            title={text("importHistory")}
+            description={text("importHistoryDescription")}
             icon={FileSpreadsheet}
             disabled={false}
             secondary
+            actionLabel={common("open")}
+            disabledLabel={common("notAllowed")}
           />
         )}
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        <h2 className="font-semibold text-slate-950">What&apos;s the difference?</h2>
+        <h2 className="font-semibold text-slate-950">{text("whatsDifference")}</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="rounded-md bg-slate-50 p-3">
-            <p className="font-semibold text-slate-950">Bulk Receive Serialized Assets</p>
-            <p className="mt-1">Use when a shipment of new devices arrives and you need to create asset records and match serial numbers. Creates new inventory.</p>
+            <p className="font-semibold text-slate-950">{text("bulkReceiveShort")}</p>
+            <p className="mt-1">{text("bulkReceiveShortDescription")}</p>
           </div>
           <div className="rounded-md bg-slate-50 p-3">
-            <p className="font-semibold text-slate-950">Inventory Count / Audit</p>
-            <p className="mt-1">Use when walking the warehouse to verify what is already in the system. Checks existing inventory, does not create new records.</p>
+            <p className="font-semibold text-slate-950">{text("auditShort")}</p>
+            <p className="mt-1">{text("auditShortDescription")}</p>
           </div>
           <div className="rounded-md bg-slate-50 p-3">
-            <p className="font-semibold text-slate-950">Pair Companion Devices</p>
-            <p className="mt-1">Use when both a sled and an iPod/iPhone already exist in inventory and you want to link them together. Scan or search for both devices.</p>
+            <p className="font-semibold text-slate-950">{text("pairShort")}</p>
+            <p className="mt-1">{text("pairShortDescription")}</p>
           </div>
           <div className="rounded-md bg-slate-50 p-3">
-            <p className="font-semibold text-slate-950">Add One Asset vs. Bulk Receive</p>
-            <p className="mt-1">Add One Asset is for a single device with full details now. Bulk Receive is for many devices where you may fill serials later.</p>
+            <p className="font-semibold text-slate-950">{text("singleVsBulk")}</p>
+            <p className="mt-1">{text("singleVsBulkDescription")}</p>
           </div>
         </div>
       </section>
@@ -113,11 +132,11 @@ export default async function IntakeHubPage() {
       <div className="grid gap-2 sm:grid-cols-2">
         <Link href="/devices" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
           <Database size={16} />
-          Browse Inventory
+          {text("browseInventory")}
         </Link>
         <Link href="/stock" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100">
           <Tags size={16} />
-          Stockroom
+          {text("stockroom")}
         </Link>
       </div>
     </div>
@@ -131,6 +150,8 @@ function IntakeCard({
   icon: Icon,
   disabled,
   secondary = false,
+  actionLabel,
+  disabledLabel,
 }: {
   href: string;
   title: string;
@@ -138,6 +159,8 @@ function IntakeCard({
   icon: LucideIcon;
   disabled?: boolean;
   secondary?: boolean;
+  actionLabel: string;
+  disabledLabel: string;
 }) {
   const content = (
     <div className={`h-full rounded-lg border p-4 shadow-sm transition-colors ${
@@ -157,7 +180,7 @@ function IntakeCard({
       <div className={`mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md px-4 text-sm font-semibold ${
         disabled ? "bg-slate-100 text-slate-400" : "bg-slate-950 text-white"
       }`}>
-        {disabled ? "Not allowed" : "Open"}
+        {disabled ? disabledLabel : actionLabel}
       </div>
     </div>
   );

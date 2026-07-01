@@ -1,5 +1,5 @@
 import type { AssetLoanReturnCondition, DeviceCondition, RmaCaseStatus, RmaItemResult, StockIssueType, StockReturnCondition } from "@prisma/client";
-import { getAppBaseUrl, htmlList, htmlTable, textLine, type MailConfig, type MailSendInput } from "./mail";
+import { escapeHtml, getAppBaseUrl, htmlList, htmlTable, textLine, type MailConfig, type MailSendInput } from "./mail";
 
 type DeviceSummary = {
   id: string;
@@ -7,6 +7,7 @@ type DeviceSummary = {
   assetTag?: string | null;
   serialNumber?: string | null;
   model?: string | null;
+  photos?: Array<{ filePath: string; thumbnailPath?: string | null; caption?: string | null }> | null;
 };
 
 export type AssignmentEmailData = {
@@ -18,6 +19,7 @@ export type AssignmentEmailData = {
   targetName?: string | null;
   targetPath?: string | null;
   targetType?: string | null;
+  signatureData?: string | null;
   employee?: { fullName: string; email?: string | null } | null;
   items: Array<{
     assignedCondition?: DeviceCondition | null;
@@ -36,6 +38,7 @@ export type AssetLoanEmailData = {
   actualReturnAt?: Date | null;
   checkoutNotes?: string | null;
   returnNotes?: string | null;
+  signatureData?: string | null;
   employee?: { fullName: string; email?: string | null } | null;
   temporaryBorrower?: { name: string; email?: string | null } | null;
   items: Array<{
@@ -89,7 +92,7 @@ export function buildAssignmentReceiptEmail(assignment: AssignmentEmailData, to:
   const link = `${getAppBaseUrl(config)}/assignments/${assignment.id}`;
   const assetLines = assignment.items.map((item) => `${item.asset.name} / ${item.asset.assetTag || "No tag"} / ${item.asset.serialNumber || "No serial"} / ${item.asset.model || "No model"} / Condition: ${item.assignedCondition || "-"}`);
   const responsible = assignmentResponsibility(assignment);
-  return compose({
+  const mailInput = compose({
     to,
     cc,
     subject: `Assignment receipt ${assignment.assignmentNumber}`,
@@ -104,13 +107,14 @@ export function buildAssignmentReceiptEmail(assignment: AssignmentEmailData, to:
     bullets: assetLines,
     link,
   });
+  return enrichAssignmentEmail(mailInput, assignment, config);
 }
 
 export function buildAssignmentReturnEmail(assignment: AssignmentEmailData, to: string | null | undefined, cc?: string | null, config?: MailConfig): MailSendInput {
   const link = `${getAppBaseUrl(config)}/assignments/${assignment.id}`;
   const returned = assignment.items.filter((item) => item.returnedAt || item.returnedCondition || item.returnNotes);
   const responsible = assignmentResponsibility(assignment);
-  return compose({
+  const mailInput = compose({
     to,
     cc,
     subject: `Assignment return confirmation ${assignment.assignmentNumber}`,
@@ -119,6 +123,7 @@ export function buildAssignmentReturnEmail(assignment: AssignmentEmailData, to: 
     bullets: returned.map((item) => `${item.asset.name} / ${item.asset.assetTag || "No tag"} / Return condition: ${item.returnedCondition || "-"} / Returned: ${formatDateTime(item.returnedAt)} / Notes: ${item.returnNotes || "-"}`),
     link,
   });
+  return enrichAssignmentEmail(mailInput, assignment, config);
 }
 
 function assignmentResponsibility(assignment: AssignmentEmailData) {
@@ -128,7 +133,7 @@ function assignmentResponsibility(assignment: AssignmentEmailData) {
 export function buildAssetLoanCheckoutEmail(loan: AssetLoanEmailData, to: string | null | undefined, cc?: string | null, config?: MailConfig): MailSendInput {
   const borrower = assetLoanBorrower(loan);
   const link = `${getAppBaseUrl(config)}/loans/${loan.id}`;
-  return compose({
+  const mailInput = compose({
     to,
     cc,
     subject: `Asset loan checkout ${loan.loanNumber}`,
@@ -144,6 +149,7 @@ export function buildAssetLoanCheckoutEmail(loan: AssetLoanEmailData, to: string
     bullets: loan.items.map((item) => `${item.device.name} / ${item.device.assetTag || "No tag"} / ${item.device.serialNumber || "No serial"} / Condition out: ${item.conditionOut || "-"}`),
     link,
   });
+  return enrichAssetLoanEmail(mailInput, loan, config);
 }
 
 export function buildAssetLoanReturnEmail(loan: AssetLoanEmailData, to: string | null | undefined, cc?: string | null, config?: MailConfig): MailSendInput {
@@ -161,6 +167,30 @@ export function buildAssetLoanReturnEmail(loan: AssetLoanEmailData, to: string |
       ["Return notes", loan.returnNotes || "-"],
     ],
     bullets: returned.map((item) => `${item.device.name} / ${item.device.assetTag || "No tag"} / Return condition: ${item.conditionIn || "-"} / Returned: ${formatDateTime(item.returnedAt)} / Notes: ${item.returnNotes || "-"}`),
+    link,
+  });
+}
+
+export function buildAssetLoanOverdueEmail(loan: AssetLoanEmailData, to: string | null | undefined, cc?: string | null, config?: MailConfig): MailSendInput {
+  const borrower = assetLoanBorrower(loan);
+  const link = `${getAppBaseUrl(config)}/loans/${loan.id}`;
+  const isOverdue = new Date(loan.expectedReturnAt).getTime() < new Date().setHours(0, 0, 0, 0);
+  const subjectPrefix = isOverdue ? "OVERDUE REMINDER" : "DUE DATE REMINDER";
+  return compose({
+    to,
+    cc,
+    subject: `${subjectPrefix}: Asset loan ${loan.loanNumber}`,
+    title: `${subjectPrefix}: Asset loan ${loan.loanNumber}`,
+    rows: [
+      ["Borrower", borrower],
+      ["Borrower type", loan.employee ? "Employee" : "Temporary borrower"],
+      ["Loan start", formatDateTime(loan.loanStartAt)],
+      ["Expected return", formatDateTime(loan.expectedReturnAt)],
+      ["Status", isOverdue ? "OVERDUE" : "DUE TODAY"],
+      ["Loan link", link],
+      ["Notes", loan.checkoutNotes || "-"],
+    ],
+    bullets: loan.items.map((item) => `${item.device.name} / ${item.device.assetTag || "No tag"} / ${item.device.serialNumber || "No serial"} / Condition out: ${item.conditionOut || "-"}`),
     link,
   });
 }
@@ -296,4 +326,206 @@ function daysActive(sentAt?: Date | null) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86_400_000));
+}
+
+function enrichAssignmentEmail(
+  mailInput: MailSendInput,
+  assignment: AssignmentEmailData,
+  config?: MailConfig
+): MailSendInput {
+  const baseUrl = getAppBaseUrl(config);
+
+  const getAbsoluteUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${baseUrl}${cleanPath}`;
+  };
+
+  // 1. Gather all photos
+  const allPhotos = assignment.items.flatMap((item) =>
+    (item.asset.photos || []).map((photo) => ({
+      photo,
+      assetName: item.asset.name,
+      tag: item.asset.assetTag,
+    }))
+  );
+
+  let photosHtml = "";
+  let photosText = "";
+  if (allPhotos.length > 0) {
+    photosText = "\nEquipment Photos:\n" + allPhotos.map(({ photo, assetName, tag }) => {
+      const label = [assetName, tag ? `(${tag})` : null, photo.caption].filter(Boolean).join(" - ");
+      const url = getAbsoluteUrl(photo.filePath);
+      return `- ${label}: ${url}`;
+    }).join("\n") + "\n";
+
+    photosHtml = `
+<h2 style="font-size:16px;margin-top:18px">Equipment Photos</h2>
+<div style="margin-top:8px">
+  ${allPhotos
+    .map(({ photo, assetName, tag }) => {
+      const imgSrc = getAbsoluteUrl(photo.thumbnailPath || photo.filePath);
+      const label = [assetName, tag ? `(${tag})` : null, photo.caption].filter(Boolean).join(" - ");
+      const safeImgSrc = escapeHtml(imgSrc);
+      const safeLabel = escapeHtml(label);
+      return `
+        <div style="display:inline-block;margin-right:12px;margin-bottom:12px;vertical-align:top;width:150px;font-family:Arial,sans-serif">
+          <div style="width:150px;height:112px;overflow:hidden;border:1px solid #cbd5e1;border-radius:6px;background-color:#f1f5f9">
+            <img src="${safeImgSrc}" alt="${safeLabel}" style="width:150px;height:112px;object-fit:cover" />
+          </div>
+          <p style="font-size:11px;color:#475569;margin-top:4px;margin-bottom:0;line-height:1.2;word-break:break-word">${safeLabel}</p>
+        </div>
+      `;
+    })
+    .join("")}
+</div>
+`;
+  }
+
+  // 2. Signature
+  let signatureHtml = "";
+  let signatureText = "";
+  const safeSignatureData = safeInlineSignatureData(assignment.signatureData);
+  if (safeSignatureData) {
+    signatureText = "\nSignature captured and stored on record.\n";
+    signatureHtml = `
+<h2 style="font-size:16px;margin-top:18px">Signature</h2>
+<img src="${escapeHtml(safeSignatureData)}" alt="Signature" style="max-width:300px;border:1px solid #cbd5e1;border-radius:6px;background-color:#ffffff;display:block;margin-top:8px" />
+`;
+  }
+
+  // Append to plain text
+  let newText = mailInput.text;
+  if (photosText || signatureText) {
+    newText = mailInput.text.replace(
+      /(\nOpen:)/,
+      () => `${photosText}${signatureText}\nOpen:`
+    );
+  }
+
+  // Append to HTML right before the Open record link
+  let newHtml = mailInput.html;
+  const targetTag = `<p style="margin-top:18px">`;
+  if (newHtml.includes(targetTag)) {
+    newHtml = newHtml.replace(
+      targetTag,
+      () => `${photosHtml}${signatureHtml}${targetTag}`
+    );
+  } else {
+    newHtml = newHtml.replace(
+      /<\/div>$/,
+      () => `${photosHtml}${signatureHtml}</div>`
+    );
+  }
+
+  return {
+    ...mailInput,
+    text: newText,
+    html: newHtml,
+  };
+}
+
+function enrichAssetLoanEmail(
+  mailInput: MailSendInput,
+  loan: AssetLoanEmailData,
+  config?: MailConfig
+): MailSendInput {
+  const baseUrl = getAppBaseUrl(config);
+
+  const getAbsoluteUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${baseUrl}${cleanPath}`;
+  };
+
+  // 1. Gather all photos
+  const allPhotos = loan.items.flatMap((item) =>
+    (item.device.photos || []).map((photo) => ({
+      photo,
+      deviceName: item.device.name,
+      tag: item.device.assetTag,
+    }))
+  );
+
+  let photosHtml = "";
+  let photosText = "";
+  if (allPhotos.length > 0) {
+    photosText = "\nEquipment Photos:\n" + allPhotos.map(({ photo, deviceName, tag }) => {
+      const label = [deviceName, tag ? `(${tag})` : null, photo.caption].filter(Boolean).join(" - ");
+      const url = getAbsoluteUrl(photo.filePath);
+      return `- ${label}: ${url}`;
+    }).join("\n") + "\n";
+
+    photosHtml = `
+<h2 style="font-size:16px;margin-top:18px">Equipment Photos</h2>
+<div style="margin-top:8px">
+  ${allPhotos
+    .map(({ photo, deviceName, tag }) => {
+      const imgSrc = getAbsoluteUrl(photo.thumbnailPath || photo.filePath);
+      const label = [deviceName, tag ? `(${tag})` : null, photo.caption].filter(Boolean).join(" - ");
+      const safeImgSrc = escapeHtml(imgSrc);
+      const safeLabel = escapeHtml(label);
+      return `
+        <div style="display:inline-block;margin-right:12px;margin-bottom:12px;vertical-align:top;width:150px;font-family:Arial,sans-serif">
+          <div style="width:150px;height:112px;overflow:hidden;border:1px solid #cbd5e1;border-radius:6px;background-color:#f1f5f9">
+            <img src="${safeImgSrc}" alt="${safeLabel}" style="width:150px;height:112px;object-fit:cover" />
+          </div>
+          <p style="font-size:11px;color:#475569;margin-top:4px;margin-bottom:0;line-height:1.2;word-break:break-word">${safeLabel}</p>
+        </div>
+      `;
+    })
+    .join("")}
+</div>
+`;
+  }
+
+  // 2. Signature
+  let signatureHtml = "";
+  let signatureText = "";
+  const safeSignatureData = safeInlineSignatureData(loan.signatureData);
+  if (safeSignatureData) {
+    signatureText = "\nSignature captured and stored on record.\n";
+    signatureHtml = `
+<h2 style="font-size:16px;margin-top:18px">Signature</h2>
+<img src="${escapeHtml(safeSignatureData)}" alt="Signature" style="max-width:300px;border:1px solid #cbd5e1;border-radius:6px;background-color:#ffffff;display:block;margin-top:8px" />
+`;
+  }
+
+  // Append to plain text
+  let newText = mailInput.text;
+  if (photosText || signatureText) {
+    newText = mailInput.text.replace(
+      /(\nOpen:)/,
+      () => `${photosText}${signatureText}\nOpen:`
+    );
+  }
+
+  // Append to HTML right before the Open record link
+  let newHtml = mailInput.html;
+  const targetTag = `<p style="margin-top:18px">`;
+  if (newHtml.includes(targetTag)) {
+    newHtml = newHtml.replace(
+      targetTag,
+      () => `${photosHtml}${signatureHtml}${targetTag}`
+    );
+  } else {
+    newHtml = newHtml.replace(
+      /<\/div>$/,
+      () => `${photosHtml}${signatureHtml}</div>`
+    );
+  }
+
+  return {
+    ...mailInput,
+    text: newText,
+    html: newHtml,
+  };
+}
+
+function safeInlineSignatureData(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return /^data:image\/(?:png|jpeg|jpg|webp);base64,[a-z0-9+/=]+$/i.test(trimmed) ? trimmed : null;
 }

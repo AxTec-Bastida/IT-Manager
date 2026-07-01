@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { requestUrl } from "@/lib/public-url";
 
 const sessionCookieName = "warehouse_session";
 const publicPrefixes = ["/login", "/setup-admin", "/logout", "/api/auth", "/api/health", "/manifest.webmanifest", "/icons"];
@@ -15,7 +16,7 @@ export function proxy(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     if (hasSessionCookie && (pathname === "/login" || pathname === "/setup-admin")) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(requestUrl("/dashboard", request));
     }
     return NextResponse.next({ request: { headers: forwardedHeaders } });
   }
@@ -24,7 +25,7 @@ export function proxy(request: NextRequest) {
     if (pathname.startsWith("/api/") || pathname.startsWith("/uploads/")) {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = requestUrl("/login", request);
     loginUrl.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }

@@ -57,7 +57,7 @@ export type InventoryAsset = {
 export type InventorySignals = ReturnType<typeof buildInventorySignals>;
 
 const printerCategories = new Set(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"]);
-const mobileCategories = new Set(["PHONE", "TABLET"]);
+const mobileCategories = new Set(["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
 const networkCategories = new Set(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "DESKTOP", "ACCESS_POINT", "SWITCH", "CAMERA", "CAMERA_NVR", "NVR"]);
 const scannerCategories = new Set(["SCANNER"]);
 const accessoryCategories = new Set(["DOCKING_STATION", "OTHER"]);

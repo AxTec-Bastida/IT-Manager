@@ -1,4 +1,5 @@
 import type { DeviceCategory, DeviceStatus, MaintenanceResult, MaintenanceType } from "@prisma/client";
+import { isSledAsset as checkSledAsset } from "@/lib/asset-display";
 
 export const printerMaintenanceCategories = new Set<DeviceCategory>(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"]);
 export const scaleMaintenanceCategories = new Set<DeviceCategory>(["SCALE"]);
@@ -20,6 +21,8 @@ export type MaintenanceAsset = {
   maintenanceDueAt?: Date | string | null;
   lastCleanedAt?: Date | string | null;
   cleaningIntervalDays?: number | null;
+  brand?: string | null;
+  model?: string | null;
   maintenanceRecords?: Array<{
     id: string;
     maintenanceType: MaintenanceType;
@@ -69,8 +72,22 @@ export function isScaleAsset(asset: Pick<MaintenanceAsset, "category">) {
   return scaleMaintenanceCategories.has(asset.category as DeviceCategory);
 }
 
-export function supportsMaintenanceFocus(asset: Pick<MaintenanceAsset, "category">) {
-  return isPrinterAsset(asset) || isScaleAsset(asset);
+export function isScannerAsset(asset: Pick<MaintenanceAsset, "category">) {
+  return asset.category === "SCANNER";
+}
+
+export function isSledAsset(asset: Pick<MaintenanceAsset, "category" | "name" | "assetTag" | "brand" | "model">) {
+  return checkSledAsset({
+    category: asset.category,
+    name: asset.name,
+    assetTag: asset.assetTag,
+    brand: asset.brand,
+    model: asset.model,
+  });
+}
+
+export function supportsMaintenanceFocus(asset: Pick<MaintenanceAsset, "category" | "name" | "assetTag" | "brand" | "model">) {
+  return isPrinterAsset(asset) || isScaleAsset(asset) || isScannerAsset(asset) || isSledAsset(asset);
 }
 
 export function maintenanceContextForAsset(asset: Pick<MaintenanceAsset, "status" | "location" | "areaDepartment">): MaintenanceContext {
@@ -88,7 +105,7 @@ export function isMaintenanceExcluded(asset: Pick<MaintenanceAsset, "status" | "
   return context === "RETIRED" || context === "DECOMMISSIONED";
 }
 
-export function maintenanceProfileForAsset(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment">): MaintenanceProfile {
+export function maintenanceProfileForAsset(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment" | "name" | "assetTag" | "brand" | "model">): MaintenanceProfile {
   if (!supportsMaintenanceFocus(asset)) {
     return { context: "DECOMMISSIONED", intervalDays: null, label: "Not tracked", explanation: "This category does not use the printer/scale maintenance schedule." };
   }
@@ -106,22 +123,43 @@ export function maintenanceProfileForAsset(asset: Pick<MaintenanceAsset, "catego
       explanation: stockLike ? "Stock, spare, and stored scales use a longer yearly baseline interval." : "Active scales use a 3-month calibration/check interval.",
     };
   }
-  const intervalDays = stockLike ? printerStockMaintenanceDefaultDays : printerMaintenanceDefaultDays;
-  return {
-    context,
-    intervalDays,
-    label: stockLike ? "Printer stock/spare profile" : "Printer active profile",
-    explanation: stockLike ? "Stock, spare, and stored printers use a longer 6-month baseline interval." : "Active printers use the normal monthly maintenance interval.",
-  };
+  if (isPrinterAsset(asset)) {
+    const intervalDays = stockLike ? printerStockMaintenanceDefaultDays : printerMaintenanceDefaultDays;
+    return {
+      context,
+      intervalDays,
+      label: stockLike ? "Printer stock/spare profile" : "Printer active profile",
+      explanation: stockLike ? "Stock, spare, and stored printers use a longer 6-month baseline interval." : "Active printers use the normal monthly maintenance interval.",
+    };
+  }
+  if (isScannerAsset(asset)) {
+    const intervalDays = stockLike ? 365 : 180;
+    return {
+      context,
+      intervalDays,
+      label: stockLike ? "Scanner stock/spare profile" : "Scanner active profile",
+      explanation: stockLike ? "Stock, spare, and stored scanners use a longer yearly baseline interval." : "Active scanners use a 6-month cleaning/check interval.",
+    };
+  }
+  if (isSledAsset(asset)) {
+    const intervalDays = stockLike ? 365 : 180;
+    return {
+      context,
+      intervalDays,
+      label: stockLike ? "Sled stock/spare profile" : "Sled active profile",
+      explanation: stockLike ? "Stock, spare, and stored sleds use a longer yearly baseline interval." : "Active sleds use a 6-month physical/functional check interval.",
+    };
+  }
+  return { context: "DECOMMISSIONED", intervalDays: null, label: "Not tracked", explanation: "This category does not use the printer/scale maintenance schedule." };
 }
 
-export function defaultMaintenanceTypeForAsset(asset: Pick<MaintenanceAsset, "category">): MaintenanceType {
+export function defaultMaintenanceTypeForAsset(asset: Pick<MaintenanceAsset, "category" | "name" | "assetTag" | "brand" | "model">): MaintenanceType {
   if (isPrinterAsset(asset)) return "CLEAN_PRINTHEAD";
   if (isScaleAsset(asset)) return "CALIBRATION_CHECK";
   return "INSPECTION";
 }
 
-export function defaultNextDueAt(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment">, performedAt: Date) {
+export function defaultNextDueAt(asset: Pick<MaintenanceAsset, "category" | "status" | "location" | "areaDepartment" | "name" | "assetTag" | "brand" | "model">, performedAt: Date) {
   if (!supportsMaintenanceFocus(asset)) return null;
   const profile = maintenanceProfileForAsset(asset);
   return profile.intervalDays ? addDays(performedAt, profile.intervalDays) : null;
@@ -168,13 +206,19 @@ export function summarizeMaintenanceReview<T extends MaintenanceAsset>(assets: T
   const excluded = assets.filter(isMaintenanceExcluded);
   const printers = activeAssets.filter(isPrinterAsset);
   const scales = activeAssets.filter(isScaleAsset);
+  const scanners = activeAssets.filter(isScannerAsset);
+  const sleds = activeAssets.filter(isSledAsset);
   const withSummaries = assets.map((asset) => ({ asset, summary: buildMaintenanceSummary(asset, now) }));
   return {
     printers,
     scales,
+    scanners,
+    sleds,
     excluded,
     printersMissingHistory: printers.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
     scalesMissingHistory: scales.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
+    scannersMissingHistory: scanners.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
+    sledsMissingHistory: sleds.filter((asset) => (asset.maintenanceRecords?.length ?? 0) === 0),
     overdue: withSummaries.filter((item) => item.summary.status === "OVERDUE").map((item) => item.asset),
     dueSoon: withSummaries.filter((item) => item.summary.status === "DUE_SOON").map((item) => item.asset),
     noSchedule: withSummaries.filter((item) => supportsMaintenanceFocus(item.asset) && item.summary.status === "NO_SCHEDULE").map((item) => item.asset),

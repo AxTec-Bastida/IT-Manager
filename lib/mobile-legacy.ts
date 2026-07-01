@@ -107,7 +107,11 @@ export function isMobileOrSledLegacyAsset(device: Pick<MobileLegacyDevice, "asse
   const text = `${device.assetTag ?? ""} ${device.name ?? ""} ${device.model ?? ""} ${device.brand ?? ""} ${device.notes ?? ""}`.toLowerCase();
   return (
     device.category === "PHONE" ||
+    device.category === "IPOD" ||
+    device.category === "IPHONE" ||
+    device.category === "IPAD" ||
     device.category === "TABLET" ||
+    device.category === "SLED" ||
     text.includes("source: ipod") ||
     text.includes("source: iphone") ||
     text.includes("source: ipad") ||
@@ -246,12 +250,12 @@ export function mobilePairingStatus(device: MobileLegacyDevice) {
 export function isMobilePairExpected(device: MobileLegacyDevice) {
   const text = `${device.name} ${device.assetTag ?? ""} ${device.model ?? ""} ${device.brand ?? ""} ${device.notes ?? ""}`.toLowerCase();
   if (text.includes("ght-sld") || text.includes("source: sled")) return false;
-  return device.category === "PHONE" || device.category === "TABLET" || text.includes("source: ipod") || text.includes("source: iphone") || text.includes("ght-ipo") || text.includes("ght-iph");
+  return ["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"].includes(device.category) || text.includes("source: ipod") || text.includes("source: iphone") || text.includes("ght-ipo") || text.includes("ght-iph");
 }
 
 function buildPairingRelationship(mobile: MobileLegacyDevice, sled: MobileLegacyDevice, reference: string): DeviceRelationshipCandidate {
   const text = `${mobile.name} ${mobile.assetTag ?? ""} ${mobile.model ?? ""} ${reference}`.toLowerCase();
-  const relationshipType: DeviceRelationshipType = text.includes("iphone") || String(mobile.category) === "PHONE" ? "IPHONE_SLED_PAIR" : "IPOD_SLED_PAIR";
+  const relationshipType: DeviceRelationshipType = text.includes("iphone") || String(mobile.category) === "IPHONE" ? "IPHONE_SLED_PAIR" : "IPOD_SLED_PAIR";
   return {
     sourceDeviceId: mobile.id,
     targetDeviceId: sled.id,
@@ -283,7 +287,7 @@ function mobileReferenceType(value: string) {
 
 function deviceMatchesMobileReferenceType(device: MobileLegacyDevice, type: string) {
   const text = `${device.name} ${device.assetTag ?? ""} ${device.model ?? ""} ${device.brand ?? ""} ${device.notes ?? ""}`.toUpperCase();
-  if (type === "IPHONE") return device.category === "PHONE" || text.includes("IPHONE") || text.includes("GHT-IPH");
+  if (type === "IPHONE") return ["PHONE", "IPHONE"].includes(device.category) || text.includes("IPHONE") || text.includes("GHT-IPH");
   if (type === "IPAD") return text.includes("IPAD") || text.includes("GHT-IPA");
   if (type === "IPOD") return text.includes("IPOD") || text.includes("GHT-IPO");
   return true;

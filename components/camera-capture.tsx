@@ -103,10 +103,19 @@ export function CameraCapture({ photoType, onPhotoReady, disabled = false, reset
           },
         });
       } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: true,
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              facingMode: { ideal: "environment" },
+            },
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true,
+          });
+        }
       }
       streamRef.current = stream;
       setCameraOpen(true);

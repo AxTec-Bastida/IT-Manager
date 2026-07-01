@@ -55,7 +55,7 @@ describe("legacy workbook preview mapping", () => {
       iPad: [["#", "New ID", "Brand", "Model", "S/N", "IP Address", "Status"], [1, "GHT-IPA-1", "APPLE", "9th Gen", "SER-IPAD", "192.168.163.55", "Operations"]],
     }), "sample.xlsx");
 
-    expect(preview.rows[0].data.category).toBe("TABLET");
+    expect(preview.rows[0].data.category).toBe("IPAD");
     expect(preview.rows[0].data.ipAddress).toBeNull();
     expect(preview.rows[0].data.usesStaticIp).toBe(false);
     expect(preview.rows[0].data.movementAlertsEnabled).toBe(false);
@@ -183,7 +183,7 @@ describe("legacy workbook preview mapping", () => {
     expect(accessPoint?.data.category).toBe("ACCESS_POINT");
   });
 
-  it("imports Sled rows with a sled display name instead of a generic Other name", () => {
+  it("imports Sled rows with a sled display name and first-class Sled category", () => {
     const preview = buildLegacyPreview(workbookBuffer({
       Sled: [
         ["New ID", "A/N", "Brand", "Model", "S/N", "Assigned"],
@@ -193,7 +193,7 @@ describe("legacy workbook preview mapping", () => {
 
     expect(preview.rows[0].data.assetTag).toBe("GHT-SLD-190");
     expect(preview.rows[0].data.name).toBe("Sled GHT-SLD-190");
-    expect(preview.rows[0].data.category).toBe("OTHER");
+    expect(preview.rows[0].data.category).toBe("SLED");
     expect(preview.rows[0].data.assignedTo).toBeNull();
     expect(preview.rows[0].data.legacyAliases).toEqual([
       { aliasType: "OLD_AN", value: "190", sourceSheet: "Sled", sourceColumn: "A/N", sourceRow: 2 },

@@ -78,7 +78,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
   const isPrinter = ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(device.category);
   const isScale = device.category === "SCALE";
   const supportsMaintenance = isPrinter || isScale;
-  const isMobileAppleLike = ["PHONE", "TABLET"].includes(device.category);
+  const isMobileAppleLike = ["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"].includes(device.category);
   const showNetworkTracking = !isMobileAppleLike && Boolean(device.ipAddress || device.macAddress || device.usesStaticIp || device.movementAlertsEnabled);
   const latestMaintenance = device.maintenanceRecords[0];
   const maintenanceSummary = buildMaintenanceSummary(device);
@@ -437,7 +437,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
           )}
 
           {/* Mobile / Sled pairing widget */}
-          {(device.category === "PHONE" || isSledAsset(device)) && (
+          {(["PHONE", "IPOD", "IPHONE"].includes(device.category) || isSledAsset(device)) && (
             <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-semibold text-slate-950">Mobile / Sled Pairing</h2>
               {pairedRelationships.length ? (
@@ -468,7 +468,7 @@ export default async function DeviceDetailPage({ params, searchParams }: Props) 
               ) : (
                 <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm">
                   <p className="font-medium text-slate-950">No Sled or Phone paired</p>
-                  <p className="text-slate-500">This {device.category === "PHONE" ? "iPhone/iPod" : "Sled"} is not currently related to any companion device.</p>
+                  <p className="text-slate-500">This {["PHONE", "IPOD", "IPHONE"].includes(device.category) ? "iPhone/iPod" : "Sled"} is not currently related to any companion device.</p>
                   {canWriteInventory && (
                     <Link href={`/devices/${device.id}/edit`} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer">
                       Pair Companion Device

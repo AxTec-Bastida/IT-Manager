@@ -39,6 +39,8 @@ export function AssetLoanReturnForm({ loan }: { loan: LoanWithItems }) {
     }));
     const response = await fetch(`/api/loans/${loan.id}/return`, {
       method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ items, returnNotes: formData.get("returnNotes") }),
     });

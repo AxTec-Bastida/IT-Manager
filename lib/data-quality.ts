@@ -174,7 +174,7 @@ export function summarizeMissingFields(devices: ReviewDevice[]) {
     missingLocation: devices.filter((device) => !device.location && !device.areaDepartment),
     missingStatusOrCondition: [],
     missingSerialRequired: devices.filter((device) =>
-      ["LAPTOP", "SCANNER", "PHONE"].includes(device.category) && !device.serialNumber
+      ["LAPTOP", "SCANNER", "SLED", "PHONE", "IPOD", "IPHONE", "IPAD"].includes(device.category) && !device.serialNumber
     ),
     laptopMissingCharger: devices.filter((device) =>
       device.category === "LAPTOP" && device.chargerIncluded === null
@@ -194,8 +194,8 @@ export function summarizeMobileAssets(devices: ReviewDevice[]) {
     iPods: mobile.filter((device) => includesText(device, "ipod")).length,
     iPhones: mobile.filter((device) => includesText(device, "iphone")).length,
     iPads: mobile.filter((device) => includesText(device, "ipad")).length,
-    phones: mobile.filter((device) => device.category === "PHONE").length,
-    tablets: mobile.filter((device) => device.category === "TABLET").length,
+    phones: mobile.filter((device) => ["PHONE", "IPHONE"].includes(device.category)).length,
+    tablets: mobile.filter((device) => ["TABLET", "IPAD", "IPOD"].includes(device.category)).length,
     networkTrackingEnabled: mobile.filter((device) => device.usesStaticIp || device.isFixedAsset || device.movementAlertsEnabled).length,
     withIp: mobile.filter((device) => device.ipAddress).length,
     violations,
@@ -465,10 +465,10 @@ export function findPhysicalLabelAliasConflicts(devices: ReviewDevice[]) {
 
 export function findSledDisplayReview(devices: ReviewDevice[]) {
   return devices
-    .filter((device) => isSledAsset(device) && (device.category === "OTHER" || normalizeText(device.name).startsWith("other ")))
+      .filter((device) => isSledAsset(device) && device.category !== "SLED" && (device.category === "OTHER" || normalizeText(device.name).startsWith("other ")))
     .map((device) => ({
       ...device,
-      reason: device.category === "OTHER" ? "Sled asset is stored in the generic Other category because no dedicated Sled category exists yet." : "Sled display name still looks generic.",
+        reason: device.category === "OTHER" ? "Sled asset is stored in the generic Other category." : "Sled display name still looks generic.",
       suggestedCategoryLabel: "Sled",
       suggestedDisplayName: getAssetDisplayName(device),
       source: sourceFromNotes(device.notes),
@@ -744,7 +744,7 @@ export async function getDataQualityReview() {
       ambiguousPairings: mobileLegacy.ambiguousPairings,
       missingExpectedPairings: devices.filter((device) => {
         const text = `${device.name} ${device.assetTag ?? ""} ${device.model ?? ""} ${device.notes ?? ""}`.toLowerCase();
-        const expectsPairing = device.category === "PHONE" || text.includes("source: ipod") || text.includes("source: iphone") || text.includes("ipod") || text.includes("iphone");
+        const expectsPairing = ["PHONE", "IPOD", "IPHONE"].includes(device.category) || text.includes("source: ipod") || text.includes("source: iphone") || text.includes("ipod") || text.includes("iphone");
         const hasPairing = [...(device.sourceRelationships ?? []), ...(device.targetRelationships ?? [])].some((relationship) => ["PAIRED_WITH", "IPOD_SLED_PAIR", "IPHONE_SLED_PAIR"].includes(relationship.relationshipType) && ["ACTIVE", "NEEDS_REVIEW"].includes(relationship.status));
         return expectsPairing && !hasPairing;
       }),
@@ -1303,7 +1303,7 @@ function includesText(device: ReviewDevice, value: string) {
 }
 
 function isMobileAppleReviewAsset(device: ReviewDevice) {
-  if (device.category === "TABLET") return true;
+  if (["IPOD", "IPHONE", "IPAD", "TABLET"].includes(device.category)) return true;
   if (device.category !== "PHONE") return false;
   const text = `${device.name} ${device.model ?? ""} ${device.assetTag ?? ""}`.toLowerCase();
   return ["iphone", "ipod", "ipad", "apple"].some((value) => text.includes(value));
@@ -1336,7 +1336,7 @@ function suspiciousAssetNameReason(asset: ReviewDevice) {
   const accessPointName = name.startsWith("access point") || name === "access point" || name.includes(" access point ");
   if (!accessPointName) return "";
   if ((category === "LAPTOP" || model.includes("latitude") || assetTag.startsWith("ght-lp")) && accessPointName) return "Laptop/Latitude record is named Access Point.";
-  if (["LAPTOP", "DESKTOP", "PHONE", "TABLET", "OTHER"].includes(category)) return `${category.replaceAll("_", " ")} record has Access Point in the display name.`;
+  if (["LAPTOP", "DESKTOP", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET", "SLED", "OTHER"].includes(category)) return `${category.replaceAll("_", " ")} record has Access Point in the display name.`;
   return "";
 }
 

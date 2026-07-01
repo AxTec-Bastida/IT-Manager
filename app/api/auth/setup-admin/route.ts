@@ -1,16 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, getAuthSecretStatus, getSessionCookieOptions, hashPassword, sessionCookieName, validatePasswordStrength } from "@/lib/auth";
+import { requestUrl } from "@/lib/public-url";
 
 function setupError(request: NextRequest, message: string) {
-  const url = new URL("/setup-admin", request.url);
+  const url = requestUrl("/setup-admin", request);
   url.searchParams.set("error", message);
   return NextResponse.redirect(url, { status: 303 });
 }
 
 export async function POST(request: NextRequest) {
   const existingUsers = await prisma.appUser.count();
-  if (existingUsers > 0) return NextResponse.redirect(new URL("/login", request.url), { status: 303 });
+  if (existingUsers > 0) return NextResponse.redirect(requestUrl("/login", request), { status: 303 });
 
   const form = await request.formData();
   const name = String(form.get("name") ?? "").trim();
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const response = NextResponse.redirect(new URL("/admin/users", request.url), { status: 303 });
-  response.cookies.set(sessionCookieName, session.token, getSessionCookieOptions(session.expiresAt));
+  const response = NextResponse.redirect(requestUrl("/admin/users", request), { status: 303 });
+  response.cookies.set(sessionCookieName, session.token, getSessionCookieOptions(session.expiresAt, process.env, request));
   return response;
 }

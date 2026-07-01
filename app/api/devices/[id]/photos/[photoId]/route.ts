@@ -17,6 +17,7 @@ export async function PATCH(request: NextRequest, context: Context) {
     const photo = await prisma.assetPhoto.findFirst({ where: { id: photoId, assetId: id }, include: { asset: true } });
     if (!photo) return jsonError("Photo not found.", 404);
 
+    const photoType = body.photoType ? normalizePhotoType(body.photoType) : photo.photoType;
     const makePrimary = body.isPrimary === true;
     if (makePrimary) {
       await prisma.assetPhoto.updateMany({ where: { assetId: id }, data: { isPrimary: false } });
@@ -26,7 +27,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       where: { id: photoId },
       data: {
         caption: typeof body.caption === "string" ? body.caption.trim() || null : photo.caption,
-        photoType: body.photoType ? normalizePhotoType(body.photoType) : photo.photoType,
+        photoType,
         ...(makePrimary ? { isPrimary: true } : {}),
       },
     });

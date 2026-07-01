@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Repair and maintenance workflows</title>
+  <desc id="desc">RMA and maintenance process cards.</desc>
+  <rect width="1200" height="520" rx="28" fill="#f8fafc"/>
+  <defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity=".10"/></filter></defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="70" y="66" font-size="34" font-weight="700" fill="#0f172a">RMA, Repair, And Maintenance</text>
+    <text x="70" y="100" font-size="18" fill="#475569">Track repair batches and scheduled service without network polling.</text>
+    <g filter="url(#shadow)">
+      <rect x="90" y="145" width="480" height="260" rx="24" fill="#fff" stroke="#fde68a"/>
+      <text x="125" y="205" font-size="30" font-weight="700" fill="#78350f">RMA / Repair</text>
+      <text x="125" y="254" font-size="18" fill="#475569">Create case and add devices</text>
+      <text x="125" y="288" font-size="18" fill="#475569">Send batch to vendor or repair site</text>
+      <text x="125" y="322" font-size="18" fill="#475569">Receive repaired, replaced, lost, or rejected</text>
+      <rect x="630" y="145" width="480" height="260" rx="24" fill="#fff" stroke="#bfdbfe"/>
+      <text x="665" y="205" font-size="30" font-weight="700" fill="#1e3a8a">Maintenance</text>
+      <text x="665" y="254" font-size="18" fill="#475569">Printer cleaning and supplies</text>
+      <text x="665" y="288" font-size="18" fill="#475569">Scale checks and service notes</text>
+      <text x="665" y="322" font-size="18" fill="#475569">Due dates become alerts</text>
+    </g>
+    <rect x="260" y="438" width="680" height="42" rx="16" fill="#e2e8f0"/>
+    <text x="600" y="466" font-size="16" text-anchor="middle" fill="#334155">Current scope: manual records and reminders. No SNMP or polling.</text>
+  </g>
+</svg>

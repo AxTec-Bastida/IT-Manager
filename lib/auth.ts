@@ -1,6 +1,8 @@
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
 import type { AppRole, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AuthRequiredError, ForbiddenError } from "@/lib/auth-errors";
@@ -97,10 +99,17 @@ export function getSessionExpiresAt(now: Date = new Date()) {
 }
 
 export function shouldUseSecureSessionCookie(env: NodeJS.ProcessEnv = process.env) {
+  const explicit = env.SESSION_COOKIE_SECURE?.trim().toLowerCase();
+  if (explicit === "true") return true;
+  if (explicit === "false") return false;
+
   const configuredBaseUrl = env.APP_BASE_URL?.trim();
   if (configuredBaseUrl) {
     try {
-      return new URL(configuredBaseUrl).protocol === "https:";
+      const url = new URL(configuredBaseUrl);
+      if (url.protocol !== "https:") return false;
+      if (isLocalOrIpHostname(url.hostname)) return false;
+      return true;
     } catch {
       // Fall back to production mode when APP_BASE_URL is malformed.
     }
@@ -108,11 +117,26 @@ export function shouldUseSecureSessionCookie(env: NodeJS.ProcessEnv = process.en
   return env.NODE_ENV === "production";
 }
 
-export function getSessionCookieOptions(expiresAt: Date, env: NodeJS.ProcessEnv = process.env) {
+function isLocalOrIpHostname(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized.endsWith(".localhost") || Boolean(isIP(normalized));
+}
+
+function isHttpsRequest(request?: Pick<NextRequest, "headers" | "nextUrl"> | null) {
+  if (!request) return null;
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  if (forwardedProto === "https") return true;
+  if (forwardedProto === "http") return false;
+  return request.nextUrl.protocol === "https:";
+}
+
+export function getSessionCookieOptions(expiresAt: Date, env: NodeJS.ProcessEnv = process.env, request?: Pick<NextRequest, "headers" | "nextUrl"> | null) {
+  const requestIsHttps = isHttpsRequest(request);
+  const configuredSecure = shouldUseSecureSessionCookie(env);
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: shouldUseSecureSessionCookie(env),
+    secure: requestIsHttps === false ? false : configuredSecure,
     path: "/",
     maxAge: sessionLifetimeSeconds,
     expires: expiresAt,

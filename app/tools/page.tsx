@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { BookOpen, ExternalLink, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/badge";
@@ -36,6 +36,34 @@ export default async function ToolsPage({ searchParams }: Props) {
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         Store links only. Do not store passwords, tokens, API keys, or secrets in resource notes.
       </div>
+
+      <section className="grid gap-3 md:grid-cols-2">
+        <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><BookOpen size={20} /></span>
+            <div className="min-w-0">
+              <h2 className="font-semibold text-slate-950">Warehouse IT user manual</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">Daily workflow guide for scan, inventory, assignments, loans, stock, RMA, audits, alerts, and admin handoff.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <Link href="/manual/user" className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-3 text-sm font-semibold text-white hover:bg-slate-800">English manual</Link>
+            <Link href="/manual/user?lang=es" className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">Manual espanol</Link>
+          </div>
+        </article>
+        <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><ExternalLink size={20} /></span>
+            <div className="min-w-0">
+              <h2 className="font-semibold text-slate-950">Project stewardship</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">Built and handed off by Alejandro Bastida / AxTec Bastida for Warehouse IT operations.</p>
+              <a href="https://github.com/AxTec-Bastida/IT-Manager" target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <ExternalLink size={16} /> GitHub repository
+              </a>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <form className="sticky top-[73px] z-20 space-y-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur lg:static lg:p-4">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">

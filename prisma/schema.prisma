@@ -13,7 +13,11 @@ enum DeviceCategory {
   OTHER_PRINTER
   SCALE
   PHONE
+  IPOD
+  IPHONE
+  IPAD
   SCANNER
+  SLED
   LAPTOP
   DESKTOP
   MONITOR
@@ -1682,6 +1686,10 @@ model AssetLoan {
   termsText           String?
   checkoutNotes       String?
   returnNotes         String?
+  emailSentAt         DateTime?
+  emailTo             String?
+  emailCc             String?
+  emailError          String?
   items               AssetLoanItem[]
   emailLogs           EmailLog[]
   createdAt           DateTime           @default(now())

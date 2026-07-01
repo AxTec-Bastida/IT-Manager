@@ -85,8 +85,27 @@ describe("email notifications", () => {
         assignmentDate: new Date("2026-05-30T08:00:00Z"),
         termsText: "<script>alert(1)</script>",
         notes: "Use carefully",
+        signatureData: "data:image/png;base64,bW9jay1zaWduYXR1cmU=",
         employee: { fullName: "Jane User", email: "jane@example.com" },
-        items: [{ assignedCondition: "GOOD", asset: { id: "asset-1", name: "Laptop <One>", assetTag: "A-1", serialNumber: "S-1", model: "T14" } }],
+        items: [
+          {
+            assignedCondition: "GOOD",
+            asset: {
+              id: "asset-1",
+              name: "Laptop <One>",
+              assetTag: "A-1",
+              serialNumber: "S-1",
+              model: "T14",
+              photos: [
+                {
+                  filePath: "/uploads/assets/overview.jpg",
+                  thumbnailPath: "/uploads/assets/thumbs/overview.jpg",
+                  caption: "Front side",
+                },
+              ],
+            },
+          },
+        ],
       },
       "jane@example.com",
       undefined,
@@ -95,9 +114,13 @@ describe("email notifications", () => {
     expect(email.subject).toBe("Assignment receipt ASN-1");
     expect(email.text).toContain("Jane User");
     expect(email.text).toContain("https://inventory.example.com/assignments/assignment-1");
+    expect(email.text).toContain("Signature captured and stored on record.");
+    expect(email.text).toContain("https://inventory.example.com/uploads/assets/overview.jpg");
     expect(email.html).toContain('href="https://inventory.example.com/assignments/assignment-1"');
     expect(email.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(email.html).not.toContain("<script>alert(1)</script>");
+    expect(email.html).toContain('img src="data:image/png;base64,bW9jay1zaWduYXR1cmU="');
+    expect(email.html).toContain("https://inventory.example.com/uploads/assets/thumbs/overview.jpg");
   });
 
   it("generates an asset loan checkout body", () => {

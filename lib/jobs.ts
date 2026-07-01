@@ -3,6 +3,7 @@ import { runAlertRefresh } from "./alert-refresh";
 import { alertCandidateKey, alertRecordKey, type AlertCandidate } from "./alert-workflows";
 import { activeAssetLoanStatuses, borrowerLabel as assetLoanBorrowerLabel, isAssetLoanOverdue } from "./asset-loans";
 import { detectDuplicateExactValues, detectInvalidIps, detectMobileTrackingViolations, detectNegativeStock } from "./data-integrity";
+import { autoWorkflowEmailEnabled, sendAssetLoanWorkflowEmail } from "./email-workflows";
 import { refreshRmaReminders } from "./rma";
 import { activeStockIssueStatuses, borrowerLabel as stockIssueBorrowerLabel, isStockLoanOverdue } from "./stock-issues";
 import { isLegacyUnifiSyncEnabled } from "./unifi-disabled";
@@ -222,32 +223,54 @@ export async function runDueJobs(prisma: PrismaClient, now = new Date()) {
 }
 
 export async function runAssetLoanOverdueCheck(prisma: PrismaClient, now = new Date()) {
+  const settings = await prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+  const sendReminderEmails = autoWorkflowEmailEnabled(settings, "overdue-reminder");
   const loans = await prisma.assetLoan.findMany({
-    where: { status: { in: activeAssetLoanStatuses }, expectedReturnAt: { lt: startOfDay(now) } },
+    where: { status: { in: activeAssetLoanStatuses }, expectedReturnAt: { lte: endOfDay(now) } },
     include: { employee: true, temporaryBorrower: true, items: { include: { device: true } } },
   });
   let markedOverdue = 0;
   let alertsCreated = 0;
   let alertsUpdated = 0;
+  let emailsSent = 0;
+  let emailsSkipped = 0;
   for (const loan of loans) {
-    if (!isAssetLoanOverdue(loan, now)) continue;
-    if (loan.status !== "OVERDUE") {
-      await prisma.assetLoan.update({ where: { id: loan.id }, data: { status: "OVERDUE" } });
-      markedOverdue += 1;
+    if (isAssetLoanOverdue(loan, now)) {
+      if (loan.status !== "OVERDUE") {
+        await prisma.assetLoan.update({ where: { id: loan.id }, data: { status: "OVERDUE" } });
+        markedOverdue += 1;
+      }
+      const result = await upsertOperationalAlert(prisma, {
+        type: "ASSET_LOAN_OVERDUE",
+        source: "SYSTEM",
+        severity: "HIGH",
+        title: `Asset loan ${loan.loanNumber} overdue`,
+        message: `${loan.loanNumber} for ${assetLoanBorrowerLabel(loan)} is ${daysPastDue(loan.expectedReturnAt, now)} day(s) overdue with ${loan.items.filter((item) => item.returnStatus === "PENDING").length} pending asset(s).`,
+        metadata: JSON.stringify({ assetLoanId: loan.id, loanNumber: loan.loanNumber }),
+        duplicateKey: `asset-loan-overdue:${loan.id}`,
+      }, now);
+      alertsCreated += result.created;
+      alertsUpdated += result.updated;
     }
-    const result = await upsertOperationalAlert(prisma, {
-      type: "ASSET_LOAN_OVERDUE",
-      source: "SYSTEM",
-      severity: "HIGH",
-      title: `Asset loan ${loan.loanNumber} overdue`,
-      message: `${loan.loanNumber} for ${assetLoanBorrowerLabel(loan)} is ${daysPastDue(loan.expectedReturnAt, now)} day(s) overdue with ${loan.items.filter((item) => item.returnStatus === "PENDING").length} pending asset(s).`,
-      metadata: JSON.stringify({ assetLoanId: loan.id, loanNumber: loan.loanNumber }),
-      duplicateKey: `asset-loan-overdue:${loan.id}`,
-    }, now);
-    alertsCreated += result.created;
-    alertsUpdated += result.updated;
+
+    if (sendReminderEmails) {
+      const todayStart = startOfDay(now);
+      const sentLog = await prisma.emailLog.findFirst({
+        where: {
+          assetLoanId: loan.id,
+          type: "OVERDUE_ASSET_LOAN_REMINDER",
+          createdAt: { gte: todayStart }
+        }
+      });
+      if (!sentLog) {
+        await sendAssetLoanWorkflowEmail(prisma, loan.id, "overdue");
+        emailsSent += 1;
+      }
+    } else {
+      emailsSkipped += 1;
+    }
   }
-  return { loansChecked: loans.length, markedOverdue, alertsCreated, alertsUpdated };
+  return { loansChecked: loans.length, markedOverdue, alertsCreated, alertsUpdated, emailsSent, emailsSkipped };
 }
 
 export async function runStockLoanOverdueCheck(prisma: PrismaClient, now = new Date()) {
@@ -390,5 +413,11 @@ function daysPastDue(date: Date, now = new Date()) {
 function startOfDay(value: Date) {
   const date = new Date(value);
   date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
   return date;
 }

@@ -2,6 +2,10 @@
 
 Phone-first warehouse IT inventory tracking with IPAM, camera scanning, manual location context, employees, and long-term asset assignments.
 
+Built and handed off by Alejandro Bastida / AxTec Bastida.
+
+Source repository: https://github.com/AxTec-Bastida/IT-Manager
+
 ## What It Does
 
 - Tracks device inventory with IP, MAC, VLAN, range, location, model, serial, status, assignment, notes, and timestamps.
@@ -3007,5 +3011,22 @@ Open blockers remain:
 3. `BITLOCKER_VAULT_SECRET` stored in the approved password manager.
 
 Do not mark these blockers closed from source tests, HTTP smoke, or workstation-only checks. Do not commit `.env`, SMTP credentials, BitLocker recovery keys, database files, uploads, backups, certs, screenshots with sensitive data, or runtime files.
+
+## Bilingual Support
+
+The app now has a bilingual foundation for English and Spanish:
+
+- Language switcher in the sidebar/mobile drawer.
+- Locale cookie: `warehouse_locale`.
+- Language API: `POST /api/language`.
+- Translated shared navigation labels.
+- App-wide exact-label translation boundary for common labels, buttons, placeholders, and empty states.
+- English user manual: `/manual/user`.
+- Spanish user manual: `/manual/user?lang=es`.
+- Spanish handoff doc: `docs/MANUAL-DE-USUARIO.md`.
+- Implementation guide: `docs/BILINGUAL-APP-WORKFLOW.md`.
+- Developer guide: `docs/I18N-GUIDE.md`.
+
+Current scope: shared shell/navigation, the dashboard, scan page, intake hub, inventory chrome/results, the user manual, and common app-wide UI labels are bilingual. Complex workflow pages should still receive page dictionaries over time so validation, dynamic messages, and phone layouts stay safe.
 
 

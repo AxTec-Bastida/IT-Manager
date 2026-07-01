@@ -95,15 +95,28 @@ export function CameraScanner({ onDetected, onClose, title = "Scan label", targe
             decodeCallback
           );
         } catch {
-          // Fall back to generic video stream constraints
-          controls = await reader.decodeFromConstraints(
-            {
-              audio: false,
-              video: true,
-            },
-            videoElement!,
-            decodeCallback
-          );
+          try {
+            controls = await reader.decodeFromConstraints(
+              {
+                audio: false,
+                video: {
+                  facingMode: { ideal: "environment" },
+                },
+              },
+              videoElement!,
+              decodeCallback
+            );
+          } catch {
+            // Fall back to generic video stream constraints
+            controls = await reader.decodeFromConstraints(
+              {
+                audio: false,
+                video: true,
+              },
+              videoElement!,
+              decodeCallback
+            );
+          }
         }
 
         controlsRef.current = controls;

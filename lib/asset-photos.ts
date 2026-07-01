@@ -39,6 +39,8 @@ export async function createAssetPhotoUpload(input: AssetPhotoUploadInput) {
   await saveUploadedFile(input.file, "assets", storedFilename);
   const derivative = await generateThumbnailForUpload("assets", storedFilename);
 
+  const photoType = normalizePhotoType(input.photoType);
+
   const existingPrimaryCount = await client.assetPhoto.count({ where: { assetId: input.assetId, isPrimary: true } });
   const requestedPrimary = input.isPrimary === "on" || input.isPrimary === "true" || input.isPrimary === true;
   const isPrimary = shouldSetPrimaryPhoto(existingPrimaryCount, requestedPrimary);
@@ -51,7 +53,7 @@ export async function createAssetPhotoUpload(input: AssetPhotoUploadInput) {
   const photo = await client.assetPhoto.create({
     data: {
       assetId: input.assetId,
-      photoType: normalizePhotoType(input.photoType),
+      photoType,
       caption: caption || null,
       originalFilename: input.file.name || null,
       storedFilename,

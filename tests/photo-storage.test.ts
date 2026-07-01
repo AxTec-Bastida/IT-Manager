@@ -14,7 +14,7 @@ afterEach(async () => {
 });
 
 describe("photo compliance and storage helpers", () => {
-  it("keeps fixed asset location photos recommended without blocking normal serialized checklist", () => {
+  it("requires location-installed photos for fixed assets without blocking normal serialized assets", () => {
     const laptop = buildPhotoChecklist({
       category: "LAPTOP",
       photos: [{ photoType: "OVERVIEW" }, { photoType: "ASSET_TAG" }, { photoType: "SERIAL_LABEL" }, { photoType: "CONDITION" }],

@@ -141,7 +141,7 @@ export type MovementHistory = Pick<AssetLocationHistory, "assetId" | "apName" | 
 };
 
 const mobileStatuses = new Set(["LOANED_OUT"]);
-const mobileCategories = new Set(["SCANNER", "LAPTOP", "PHONE", "TABLET"]);
+const mobileCategories = new Set(["SCANNER", "SLED", "LAPTOP", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
 
 export function shouldEvaluateMovement(asset: MovementAsset) {
   return Boolean(

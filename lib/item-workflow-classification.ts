@@ -156,7 +156,7 @@ function stockRecordMatchesGenericTerm(item: WorkflowStockLike, value?: string |
 }
 
 function isSerializedAssetRecord(asset: WorkflowDeviceLike) {
-  return ["LAPTOP", "DESKTOP", "MONITOR", "SCANNER", "PHONE", "TABLET", "THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "ACCESS_POINT", "SWITCH", "CAMERA", "CAMERA_NVR", "NVR"].includes(String(asset.category ?? ""));
+  return ["LAPTOP", "DESKTOP", "MONITOR", "SCANNER", "SLED", "PHONE", "IPOD", "IPHONE", "IPAD", "TABLET", "THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "ACCESS_POINT", "SWITCH", "CAMERA", "CAMERA_NVR", "NVR"].includes(String(asset.category ?? ""));
 }
 
 function displayKey(item: WorkflowDeviceLike | WorkflowStockLike) {

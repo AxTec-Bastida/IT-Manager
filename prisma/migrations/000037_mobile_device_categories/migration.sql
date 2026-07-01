@@ -1,0 +1,3 @@
+-- SQLite stores Prisma enum values as text, so adding DeviceCategory values
+-- IPOD, IPHONE, IPAD, and SLED requires no table rewrite.
+-- This migration records the application-level enum change for deploy history.

@@ -176,7 +176,8 @@ export async function POST(request: NextRequest) {
           termsText: data.termsText,
           notes: data.notes,
           status: "ACTIVE",
-          emailTo: employee?.email ?? null,
+          emailTo: data.emailTo || employee?.email || null,
+          emailCc: data.emailCc || null,
           items: {
             create: assets.map((asset) => ({
               assetId: asset.id,

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { Camera } from "lucide-react";
+import { CameraScanner } from "@/components/camera-scanner";
 
 type Progress = {
   expected: number;
@@ -27,14 +29,13 @@ export function AuditScanForm({ auditId, initialProgress }: { auditId: string; i
   const [lastResult, setLastResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [lastResult]);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    const scannedValue = value.trim();
+  async function handleScan(scannedValue: string) {
     if (!scannedValue) return;
     setError("");
     startTransition(async () => {
@@ -58,6 +59,11 @@ export function AuditScanForm({ auditId, initialProgress }: { auditId: string; i
     });
   }
 
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    await handleScan(value.trim());
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -71,21 +77,44 @@ export function AuditScanForm({ auditId, initialProgress }: { auditId: string; i
 
       <form onSubmit={submit} className="sticky top-[73px] z-20 space-y-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
         {error ? <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-900">{error}</div> : null}
-        <label className="grid gap-2 text-sm font-semibold text-slate-700">
-          Scan asset label
-          <input
-            ref={inputRef}
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="Scan or type asset tag / alias / serial"
-            className="min-h-16 rounded-md border border-slate-300 px-4 text-lg font-semibold"
-            autoComplete="off"
-          />
-        </label>
+        <div className="grid gap-2 text-sm font-semibold text-slate-700">
+          <label htmlFor="audit-asset-scan">Scan asset label</label>
+          <div className="relative">
+            <input
+              id="audit-asset-scan"
+              ref={inputRef}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              placeholder="Scan or type asset tag / alias / serial"
+              className="w-full min-h-16 rounded-md border border-slate-300 pl-4 pr-16 text-lg font-semibold"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition-colors"
+              title="Scan with camera"
+            >
+              <Camera size={20} />
+            </button>
+          </div>
+        </div>
         <button disabled={isPending} className="min-h-14 w-full rounded-md bg-slate-950 px-4 text-base font-semibold text-white disabled:opacity-60">
           Record scan
         </button>
       </form>
+
+      {scannerOpen ? (
+        <CameraScanner
+          title="Scan asset tag / barcode"
+          onDetected={async (detectedValue) => {
+            setValue(detectedValue);
+            setScannerOpen(false);
+            await handleScan(detectedValue);
+          }}
+          onClose={() => setScannerOpen(false)}
+        />
+      ) : null}
 
       {lastResult ? <ResultCard auditId={auditId} result={lastResult} /> : null}
     </div>

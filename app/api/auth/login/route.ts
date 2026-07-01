@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, getSessionCookieOptions, hashSessionToken, normalizeLoginIdentifier, safeUserLabel, sanitizeRedirectPath, sessionCookieName, verifyPassword } from "@/lib/auth";
-import { appUrl } from "@/lib/public-url";
+import { requestUrl } from "@/lib/public-url";
 
 function redirectWithError(request: NextRequest, message: string, nextPath?: string) {
-  const url = appUrl("/login", request.url);
+  const url = requestUrl("/login", request);
   url.searchParams.set("error", message);
   if (nextPath) url.searchParams.set("next", nextPath);
   return NextResponse.redirect(url, { status: 303 });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const response = NextResponse.redirect(appUrl(nextPath, request.url), { status: 303 });
-  response.cookies.set(sessionCookieName, session.token, getSessionCookieOptions(session.expiresAt));
+  const response = NextResponse.redirect(requestUrl(nextPath, request), { status: 303 });
+  response.cookies.set(sessionCookieName, session.token, getSessionCookieOptions(session.expiresAt, process.env, request));
   return response;
 }

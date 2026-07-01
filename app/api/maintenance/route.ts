@@ -4,7 +4,7 @@ import { handleApiError, jsonError } from "@/lib/api";
 import { makeActivityActor, requirePermission } from "@/lib/auth";
 import { maintenanceRecordSchema } from "@/lib/validation";
 import { calculateStockMovement } from "@/lib/stock";
-import { defaultNextDueAt, isMaintenanceExcluded, isPrinterAsset, summarizeMaintenanceReview } from "@/lib/maintenance";
+import { defaultNextDueAt, isMaintenanceExcluded, isPrinterAsset, summarizeMaintenanceReview, supportsMaintenanceFocus } from "@/lib/maintenance";
 
 function numericPageCount(value?: string | null) {
   if (!value) return null;
@@ -31,9 +31,9 @@ function deviceMaintenanceUpdate(asset: { category: string; status: string; loca
 export async function GET() {
   try {
     await requirePermission("inventory.read");
-    const [assets, recent] = await Promise.all([
+    const [allAssets, recent] = await Promise.all([
       prisma.device.findMany({
-        where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE"] } },
+        where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "OTHER"] } },
         select: {
           id: true,
           name: true,
@@ -45,6 +45,8 @@ export async function GET() {
           maintenanceDueAt: true,
           lastCleanedAt: true,
           cleaningIntervalDays: true,
+          brand: true,
+          model: true,
           maintenanceRecords: { orderBy: { performedAt: "desc" }, take: 10 },
         },
         orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -55,6 +57,7 @@ export async function GET() {
         include: { asset: { select: { id: true, name: true, assetTag: true, category: true } }, stockItem: { select: { id: true, name: true } } },
       }),
     ]);
+    const assets = allAssets.filter(supportsMaintenanceFocus);
     return NextResponse.json({ summary: summarizeMaintenanceReview(assets), assets, recent });
   } catch (error) {
     return handleApiError(error);

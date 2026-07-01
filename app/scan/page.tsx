@@ -4,10 +4,14 @@ import { PageHeader } from "@/components/page-header";
 import { QuickScanPanel } from "@/components/quick-scan-panel";
 import { prisma } from "@/lib/prisma";
 import { canPerformAction, getCurrentUser } from "@/lib/auth";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function ScanPage() {
+  const locale = await getLocaleFromCookies();
+  const text = createTranslator(locale, "scan");
   const [activeAudit, currentUser] = await Promise.all([
     prisma.inventoryAuditSession.findFirst({
       where: { status: "ACTIVE" },
@@ -29,15 +33,15 @@ export default async function ScanPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Camera scan"
-        description="Scan QR codes, barcodes, serial labels, MAC labels, IP labels, or internal tags to find and update devices quickly."
+        title={text("title")}
+        description={text("description")}
       />
       {activeAudit && permissions.audits ? (
         <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950">
-          <p className="text-sm font-semibold">Active audit: {activeAudit.title}</p>
+          <p className="text-sm font-semibold">{text("activeAudit", { title: activeAudit.title })}</p>
           <Link href={`/audits/${activeAudit.id}/scan`} className="mt-3 inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white">
             <ScanLine size={16} />
-            Scan into active audit
+            {text("scanIntoActiveAudit")}
           </Link>
         </section>
       ) : null}

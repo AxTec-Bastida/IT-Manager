@@ -3,7 +3,7 @@ import { assignmentResponsibleLabel, getActiveAssignmentItems } from "@/lib/assi
 import { auditProgress, auditScopeLabel } from "@/lib/audits";
 import { categoryLabels, stockCategoryLabels, taskCategoryLabels } from "@/lib/constants";
 import { findDuplicateIps, findDuplicateMacs, summarizeAssetValueQuality, summarizePhotoCompliance } from "@/lib/data-quality";
-import { buildMaintenanceSummary, maintenanceResultLabels, summarizeMaintenanceReview } from "@/lib/maintenance";
+import { buildMaintenanceSummary, maintenanceResultLabels, summarizeMaintenanceReview, supportsMaintenanceFocus } from "@/lib/maintenance";
 import { prisma } from "@/lib/prisma";
 
 export const reportTypes = ["inventory", "assignments", "loans", "stock", "network", "photos", "audits", "rma", "warranty", "maintenance", "asset-values", "tasks"] as const;
@@ -391,16 +391,127 @@ async function getWarrantyReport() {
   ]);
 }
 
+function parsePageCount(value?: string | null) {
+  if (!value) return null;
+  const parsed = parseInt(value.trim(), 10);
+  return !isNaN(parsed) && parsed >= 0 ? parsed : null;
+}
+
 async function getMaintenanceReport() {
-  const [assets, recent] = await Promise.all([
+  const [allAssets, recent, printerRecords, consumableRecords] = await Promise.all([
     prisma.device.findMany({
-      where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE"] } },
+      where: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "OTHER"] } },
       include: { maintenanceRecords: { orderBy: { performedAt: "desc" }, take: 10 } },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
     prisma.maintenanceRecord.findMany({ include: { asset: true }, orderBy: { performedAt: "desc" }, take: 25 }),
+    prisma.maintenanceRecord.findMany({
+      where: {
+        asset: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"] } },
+        measuredValue: { not: null },
+      },
+      include: { asset: true },
+      orderBy: { performedAt: "desc" },
+    }),
+    prisma.maintenanceRecord.findMany({
+      where: {
+        asset: { category: { in: ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"] } },
+        maintenanceType: { in: [
+          "TONER_REPLACEMENT",
+          "INK_REPLACEMENT",
+          "DRUM_REPLACEMENT",
+          "FUSER_REPLACEMENT",
+          "CUTTER_REPLACEMENT",
+          "REPLACE_PLATEN_ROLLER",
+          "REPLACE_ROLLER",
+          "REPLACE_PRINTHEAD"
+        ] }
+      },
+      include: { asset: true },
+      orderBy: { performedAt: "desc" },
+    }),
   ]);
+
+  const assets = allAssets.filter(supportsMaintenanceFocus);
   const review = summarizeMaintenanceReview(assets);
+
+  const pageCountMap = new Map<string, {
+    year: number;
+    name: string;
+    tag: string | null;
+    id: string;
+    readings: number[];
+  }>();
+
+  for (const rec of printerRecords) {
+    const val = parsePageCount(rec.measuredValue);
+    if (val === null) continue;
+    const year = new Date(rec.performedAt).getFullYear();
+    const key = `${year}-${rec.assetId}`;
+    if (!pageCountMap.has(key)) {
+      pageCountMap.set(key, {
+        year,
+        name: rec.asset.name,
+        tag: rec.asset.assetTag,
+        id: rec.assetId,
+        readings: [],
+      });
+    }
+    pageCountMap.get(key)!.readings.push(val);
+  }
+
+  const pageCountRows = Array.from(pageCountMap.values()).map((stat) => {
+    const max = Math.max(...stat.readings);
+    const min = Math.min(...stat.readings);
+    const diff = max - min;
+    return {
+      label: `${stat.tag || stat.name} - Year ${stat.year}`,
+      value: `${max.toLocaleString()} pages`,
+      helper: `Annual usage: ${diff.toLocaleString()} pages (${stat.readings.length} readings)`,
+      href: `/devices/${stat.id}/maintenance`,
+    };
+  });
+
+  const consumableMap = new Map<string, {
+    year: number;
+    name: string;
+    tag: string | null;
+    id: string;
+    counts: Record<string, number>;
+    total: number;
+  }>();
+
+  for (const rec of consumableRecords) {
+    const year = new Date(rec.performedAt).getFullYear();
+    const key = `${year}-${rec.assetId}`;
+    if (!consumableMap.has(key)) {
+      consumableMap.set(key, {
+        year,
+        name: rec.asset.name,
+        tag: rec.asset.assetTag,
+        id: rec.assetId,
+        counts: {},
+        total: 0,
+      });
+    }
+    const entry = consumableMap.get(key)!;
+    const type = rec.maintenanceType;
+    entry.counts[type] = (entry.counts[type] || 0) + 1;
+    entry.total += 1;
+  }
+
+  const consumableRows = Array.from(consumableMap.values()).map((stat) => {
+    const details = Object.entries(stat.counts)
+      .map(([type, count]) => `${type.replace("_REPLACEMENT", "").replace("REPLACE_", "").replaceAll("_", " ").toLowerCase()}: ${count}`)
+      .join(", ");
+    return {
+      label: `${stat.tag || stat.name} - Year ${stat.year}`,
+      value: `${stat.total} replaced`,
+      helper: details,
+      href: `/devices/${stat.id}/maintenance`,
+    };
+  });
+
   return baseReport("maintenance", [
     { label: "Printers", value: review.printers.length, href: "/maintenance/printers" },
     { label: "Scales", value: review.scales.length, href: "/maintenance/scales" },
@@ -422,6 +533,8 @@ async function getMaintenanceReport() {
     { title: "Missing maintenance baseline", rows: review.printersMissingHistory.concat(review.scalesMissingHistory).slice(0, 25).map((asset) => ({ label: asset.assetTag || asset.name, value: asset.category.replaceAll("_", " "), helper: "No maintenance/check history", href: `/devices/${asset.id}/maintenance/new` })) },
     { title: "Failed / needs follow-up", emptyText: "No failed maintenance records.", rows: review.failedNeedsFollowUp.slice(0, 25).map(({ asset, record }) => ({ label: asset.assetTag || asset.name, value: maintenanceResultLabels[record.result], helper: record.notes || asset.name, href: `/devices/${asset.id}/maintenance`, actionHref: `/tasks/new?title=${encodeURIComponent(`Maintenance follow-up: ${asset.name}`)}&category=MAINTENANCE&relatedDeviceId=${asset.id}` })) },
     { title: "Printer page counts / consumables", emptyText: "No printer records with page counts or consumable details.", rows: recent.filter((record) => ["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER"].includes(record.asset.category) && (record.measuredValue || record.partSerialNumber || record.previousPartInfo || record.newPartInfo)).map((record) => ({ label: record.asset.assetTag || record.asset.name, value: record.measuredValue || record.maintenanceType.replaceAll("_", " "), helper: [record.maintenanceType.replaceAll("_", " "), record.previousPartInfo, record.newPartInfo, record.partSerialNumber].filter(Boolean).join(" / "), href: `/devices/${record.assetId}/maintenance` })) },
+    { title: "Yearly Printer Page Counts", emptyText: "No printer page count statistics recorded by calendar year.", rows: pageCountRows },
+    { title: "Yearly Printer Consumables", emptyText: "No printer consumable replacement statistics recorded by calendar year.", rows: consumableRows },
     { title: "Recently completed", rows: recent.map((record) => ({ label: record.asset.assetTag || record.asset.name, value: record.maintenanceType.replaceAll("_", " "), helper: `${maintenanceResultLabels[record.result]} / ${dateText(record.performedAt)}`, href: `/devices/${record.assetId}/maintenance` })) },
   ]);
 }

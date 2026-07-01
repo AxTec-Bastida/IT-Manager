@@ -48,8 +48,12 @@ export function defaultUsefulLifeMonths(category?: DeviceCategory | string | nul
     case "LAPTOP":
     case "DESKTOP":
     case "PHONE":
+    case "IPOD":
+    case "IPHONE":
+    case "IPAD":
     case "TABLET":
     case "SCANNER":
+    case "SLED":
     case "DOCKING_STATION":
       return 36;
     case "THERMAL_PRINTER":

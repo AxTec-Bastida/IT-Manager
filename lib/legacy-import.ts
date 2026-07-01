@@ -103,10 +103,10 @@ export const legacySheetConfigs: Record<string, SheetConfig> = {
   "Validate IP": { kind: "helper", defaultSelected: false, headerRow: 1 },
   ImpInvoice: { kind: "factura", defaultSelected: true, headerRow: 1 },
   DBTAG: { kind: "helper", defaultSelected: false, headerRow: 1 },
-  Sled: { kind: "asset", defaultSelected: true, headerRow: 1, category: "OTHER" },
-  iPod: { kind: "asset", defaultSelected: true, headerRow: 1, category: "TABLET" },
-  iPhone: { kind: "asset", defaultSelected: true, headerRow: 1, category: "PHONE" },
-  iPad: { kind: "asset", defaultSelected: true, headerRow: 1, category: "TABLET" },
+  Sled: { kind: "asset", defaultSelected: true, headerRow: 1, category: "SLED" },
+  iPod: { kind: "asset", defaultSelected: true, headerRow: 1, category: "IPOD" },
+  iPhone: { kind: "asset", defaultSelected: true, headerRow: 1, category: "IPHONE" },
+  iPad: { kind: "asset", defaultSelected: true, headerRow: 1, category: "IPAD" },
   Baterias: { kind: "stock", defaultSelected: true, headerRow: 2, stockCategory: "BATTERY", stockItemType: "CONSUMABLE" },
   Tablet: { kind: "asset", defaultSelected: true, headerRow: 1, category: "TABLET" },
   Candados: { kind: "stock", defaultSelected: false, headerRow: 1, stockCategory: "OTHER", stockItemType: "SUPPLY" },
@@ -247,7 +247,7 @@ export function inferLegacyCategory(sheetName: string, row: Record<string, unkno
 }
 
 export function isMobileAppleCategory(sheetName: string, category: DeviceCategory) {
-  return ["iPod", "iPhone", "iPad", "Tablet"].includes(sheetName) || category === "PHONE" || category === "TABLET";
+  return ["iPod", "iPhone", "iPad", "Tablet"].includes(sheetName) || ["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"].includes(category);
 }
 
 export function shouldAllowStaticTracking(category: DeviceCategory, ipAddress?: string | null) {

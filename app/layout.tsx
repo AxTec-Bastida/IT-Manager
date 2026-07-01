@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppNav } from "@/components/nav";
+import { TranslationBoundary } from "@/components/translation-boundary";
 import { getCurrentUser, sanitizeRedirectPath } from "@/lib/auth";
+import { localeCookieName, normalizeLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
@@ -60,7 +63,9 @@ export default function RootLayout({
 
 async function LayoutShell({ children }: { children: React.ReactNode }) {
   const headerStore = await headers();
+  const cookieStore = await cookies();
   const pathname = headerStore.get("x-auth-pathname") ?? "";
+  const locale = normalizeLocale(cookieStore.get(localeCookieName)?.value);
   const isPublicPage = pathname === "/login" || pathname === "/setup-admin" || pathname === "/logout";
   const [settings, currentUser, userCount] = await Promise.all([
     prisma.appSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } }).catch(() => ({ siteName: "Warehouse IT Inventory" })),
@@ -75,11 +80,13 @@ async function LayoutShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-slate-100 text-slate-950">
         <div className="min-h-screen lg:flex">
-          <AppNav siteName={settings.siteName} user={currentUser ? { name: currentUser.name, role: currentUser.role } : null} />
-          <main className="mx-auto w-full max-w-[1680px] min-w-0 px-4 pb-32 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:py-8">{children}</main>
+          <AppNav siteName={settings.siteName} user={currentUser ? { name: currentUser.name, role: currentUser.role } : null} locale={locale} />
+          <main className="mx-auto w-full max-w-[1680px] min-w-0 px-4 pb-32 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:py-8">
+            <TranslationBoundary locale={locale}>{children}</TranslationBoundary>
+          </main>
         </div>
       </body>
     </html>

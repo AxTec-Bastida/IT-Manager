@@ -14,7 +14,10 @@ export default async function AdminInventoryDefaultsPage() {
   const defaultPrefixes = [
     { category: "LAPTOP", prefix: "GHT-LP", description: "Laptops issued to staff or contractors" },
     { category: "SLED", prefix: "GHT-SLD", description: "Scanning sleds used in Ops" },
-    { category: "PHONE", prefix: "GHT-PH", description: "iPod/iPhone devices used for scanning" },
+    { category: "IPOD", prefix: "GHT-IPO", description: "iPod devices used with sleds" },
+    { category: "IPHONE", prefix: "GHT-IPH", description: "iPhone devices used with sleds" },
+    { category: "IPAD", prefix: "GHT-IPA", description: "iPad devices and tablets" },
+    { category: "PHONE", prefix: "GHT-PH", description: "Generic phones when not iPhone-specific" },
     { category: "THERMAL_PRINTER", prefix: "GHT-PR", description: "Zebra label and thermal printers" },
     { category: "OTHER", prefix: "GHT-OT", description: "Other general equipment" },
   ];
@@ -53,7 +56,7 @@ export default async function AdminInventoryDefaultsPage() {
               </div>
               <div className="py-3 flex justify-between text-sm">
                 <span className="text-slate-600 font-medium">Photo Intake Requirement</span>
-                <span className="font-semibold text-slate-950">Required for Laptop/Sled/Phone, optional others</span>
+                <span className="font-semibold text-slate-950">Required for Laptop/Sled/iPod/iPhone/iPad, optional others</span>
               </div>
             </div>
           </section>

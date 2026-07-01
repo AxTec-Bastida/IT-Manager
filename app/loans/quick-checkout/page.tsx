@@ -58,6 +58,8 @@ export default async function QuickCheckoutPage({ searchParams }: Props) {
         openHref: `/employees/${employee.id}`,
         activeAssetLoans: employee.assetLoans.length,
         activeStockLoans: employee.stockIssues.length,
+        email: employee.email,
+        supervisorEmail: employee.supervisorEmail,
       }
     : temporaryBorrower
       ? {
@@ -69,6 +71,7 @@ export default async function QuickCheckoutPage({ searchParams }: Props) {
           openHref: `/temporary-borrowers/${temporaryBorrower.id}`,
           activeAssetLoans: temporaryBorrower.assetLoans.length,
           activeStockLoans: temporaryBorrower.stockIssues.length,
+          email: temporaryBorrower.email,
         }
       : null;
 

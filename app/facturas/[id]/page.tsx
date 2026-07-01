@@ -9,13 +9,15 @@ import { facturaStatusLabels, facturaStatusTone, reviewFacturaHardDeleteSafety }
 import { unlinkedQuantity } from "@/lib/factura-line-items";
 import { Badge } from "@/components/badge";
 import { FacturaLifecycleActions } from "@/components/factura-lifecycle-actions";
+import { FacturaLinkedAssetsPanel } from "@/components/factura-linked-assets-panel";
+import { FacturaLinkedStockPanel } from "@/components/factura-linked-stock-panel";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function FacturaDetailPage({ params }: Props) {
-  const [canWriteInventory, canWriteTasks, canManageAdmin] = await Promise.all([hasPagePermission("inventory.write"), hasPagePermission("tasks.write"), hasPagePermission("admin.manage")]);
+  const [canWriteInventory, canWriteStock, canWriteTasks, canManageAdmin] = await Promise.all([hasPagePermission("inventory.write"), hasPagePermission("stock.write"), hasPagePermission("tasks.write"), hasPagePermission("admin.manage")]);
   const { id } = await params;
   const factura = await prisma.factura.findUnique({
     where: { id },
@@ -30,6 +32,19 @@ export default async function FacturaDetailPage({ params }: Props) {
   });
   if (!factura) notFound();
   const deleteReview = reviewFacturaHardDeleteSafety(factura);
+
+  const [unlinkedAssets, unlinkedStockItems] = await Promise.all([
+    prisma.device.findMany({
+      where: { facturaId: null },
+      select: { id: true, name: true, assetTag: true, serialNumber: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.stockItem.findMany({
+      where: { facturaId: null },
+      select: { id: true, name: true, sku: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -228,27 +243,25 @@ export default async function FacturaDetailPage({ params }: Props) {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="font-semibold text-slate-950">Linked assets</h2>
-          <div className="mt-3 divide-y divide-slate-100">
-            {factura.assets.map((asset) => (
-              <Link key={asset.id} href={`/devices/${asset.id}`} className="block py-3 text-sm hover:bg-slate-50">
-                <p className="font-medium text-slate-950">{asset.assetTag ? `${asset.assetTag} - ` : ""}{asset.name}</p>
-                <p className="text-slate-500">{asset.serialNumber || "No serial"} • {asset.photos.length} photo(s)</p>
-              </Link>
-            ))}
-            {factura.assets.length === 0 ? <p className="text-sm text-slate-500">No assets linked.</p> : null}
+          <div className="mt-3">
+            <FacturaLinkedAssetsPanel
+              facturaId={factura.id}
+              linkedAssets={factura.assets}
+              unlinkedAssets={unlinkedAssets}
+              canWrite={canWriteInventory}
+            />
           </div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="font-semibold text-slate-950">Linked stock</h2>
-          <div className="mt-3 divide-y divide-slate-100">
-            {factura.stockItems.map((item) => (
-              <Link key={item.id} href={`/stock/${item.id}`} className="block py-3 text-sm hover:bg-slate-50">
-                <p className="font-medium text-slate-950">{item.sku ? `${item.sku} - ` : ""}{item.name}</p>
-                <p className="text-slate-500">{item.quantityOnHand} on hand</p>
-              </Link>
-            ))}
-            {factura.stockItems.length === 0 ? <p className="text-sm text-slate-500">No stock items linked.</p> : null}
+          <div className="mt-3">
+            <FacturaLinkedStockPanel
+              facturaId={factura.id}
+              linkedStockItems={factura.stockItems}
+              unlinkedStockItems={unlinkedStockItems}
+              canWrite={canWriteStock}
+            />
           </div>
         </div>
       </section>

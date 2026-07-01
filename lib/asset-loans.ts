@@ -32,6 +32,8 @@ export type CreateAssetLoanInput = {
   conditionOut?: DeviceCondition | null;
   accessoriesOut?: string | null;
   allowAssigned?: boolean;
+  emailTo?: string | null;
+  emailCc?: string | null;
 };
 
 export type ReturnAssetLoanItemInput = {
@@ -143,6 +145,8 @@ export async function createAssetLoan(prisma: PrismaClient, input: CreateAssetLo
         termsAccepted: Boolean(input.termsAccepted),
         termsText: clean(input.termsText),
         checkoutNotes: clean(input.checkoutNotes),
+        emailTo: clean(input.emailTo),
+        emailCc: clean(input.emailCc),
         items: {
           create: devices.map((device) => ({
             deviceId: device.id,

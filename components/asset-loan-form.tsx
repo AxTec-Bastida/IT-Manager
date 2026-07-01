@@ -14,8 +14,8 @@ type DeviceOption = Pick<Device, "id" | "name" | "assetTag" | "serialNumber" | "
 type LoanWithItems = AssetLoan & { items: Array<AssetLoanItem & { device: DeviceOption }> };
 
 type Props = {
-  employees: Pick<Employee, "id" | "fullName" | "employeeId" | "department">[];
-  temporaryBorrowers: Pick<TemporaryBorrower, "id" | "tempId" | "name" | "department" | "area">[];
+  employees: Array<Pick<Employee, "id" | "fullName" | "employeeId" | "department" | "email" | "supervisorEmail">>;
+  temporaryBorrowers: Array<Pick<TemporaryBorrower, "id" | "tempId" | "name" | "department" | "area" | "email">>;
   devices: DeviceOption[];
   loan?: LoanWithItems | null;
   initialDeviceIds?: string[];
@@ -32,6 +32,48 @@ export function AssetLoanForm({ employees, temporaryBorrowers, devices, loan, in
   const [saving, setSaving] = useState(false);
   const inputClass = "w-full min-h-14 rounded-md border border-slate-300 bg-white px-3 py-2 text-base text-slate-950 shadow-sm focus:border-slate-950 focus:outline-none sm:min-h-12 sm:text-sm";
   const labelClass = "space-y-1 text-sm font-medium text-slate-700";
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(loan?.employeeId ?? initialEmployeeId);
+  const [selectedTempId, setSelectedTempId] = useState(loan?.temporaryBorrowerId ?? initialTemporaryBorrowerId);
+
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId);
+  const selectedTemporaryBorrower = temporaryBorrowers.find((b) => b.id === selectedTempId);
+
+  const defaultEmail = borrowerKind === "employee" ? selectedEmployee?.email || "" : selectedTemporaryBorrower?.email || "";
+  const supervisorEmail = borrowerKind === "employee" ? selectedEmployee?.supervisorEmail || "" : "";
+
+  const [customEmailTo, setCustomEmailTo] = useState(loan?.emailTo ?? defaultEmail);
+  const [customEmailCc, setCustomEmailCc] = useState(loan?.emailCc ?? "");
+  const [hasUserEditedTo, setHasUserEditedTo] = useState(Boolean(loan?.emailTo));
+
+  const handleEmployeeChange = (empId: string) => {
+    setSelectedEmployeeId(empId);
+    const emp = employees.find((e) => e.id === empId);
+    if (!hasUserEditedTo) {
+      setCustomEmailTo(emp?.email || "");
+    }
+  };
+
+  const handleTempChange = (tempId: string) => {
+    setSelectedTempId(tempId);
+    const temp = temporaryBorrowers.find((b) => b.id === tempId);
+    if (!hasUserEditedTo) {
+      setCustomEmailTo(temp?.email || "");
+    }
+  };
+
+  const handleKindChange = (kind: "employee" | "temporary") => {
+    setBorrowerKind(kind);
+    if (!hasUserEditedTo) {
+      if (kind === "employee") {
+        const emp = employees.find((e) => e.id === selectedEmployeeId);
+        setCustomEmailTo(emp?.email || "");
+      } else {
+        const temp = temporaryBorrowers.find((b) => b.id === selectedTempId);
+        setCustomEmailTo(temp?.email || "");
+      }
+    }
+  };
 
   const selectedDevices = devices.filter((device) => selected.has(device.id));
   const assignedSelected = selectedDevices.filter((device) => device.employeeId || device.assignedTo);
@@ -87,7 +129,7 @@ export function AssetLoanForm({ employees, temporaryBorrowers, devices, loan, in
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <label className={labelClass}>
             Borrower type
-            <select className={inputClass} value={borrowerKind} onChange={(event) => setBorrowerKind(event.target.value as "employee" | "temporary")}>
+            <select className={inputClass} value={borrowerKind} onChange={(event) => handleKindChange(event.target.value as "employee" | "temporary")}>
               <option value="employee">Employee</option>
               <option value="temporary">Temporary borrower</option>
             </select>
@@ -95,7 +137,7 @@ export function AssetLoanForm({ employees, temporaryBorrowers, devices, loan, in
           {borrowerKind === "employee" ? (
             <label className={labelClass}>
               Employee
-              <select className={inputClass} name="employeeId" defaultValue={loan?.employeeId ?? initialEmployeeId} required={borrowerKind === "employee"}>
+              <select className={inputClass} name="employeeId" value={selectedEmployeeId} onChange={(e) => handleEmployeeChange(e.target.value)} required={borrowerKind === "employee"}>
                 <option value="">Select employee</option>
                 {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.fullName} {employee.employeeId ? `(${employee.employeeId})` : ""}</option>)}
               </select>
@@ -103,7 +145,7 @@ export function AssetLoanForm({ employees, temporaryBorrowers, devices, loan, in
           ) : (
             <label className={labelClass}>
               Temporary borrower
-              <select className={inputClass} name="temporaryBorrowerId" defaultValue={loan?.temporaryBorrowerId ?? initialTemporaryBorrowerId} required={borrowerKind === "temporary"}>
+              <select className={inputClass} name="temporaryBorrowerId" value={selectedTempId} onChange={(e) => handleTempChange(e.target.value)} required={borrowerKind === "temporary"}>
                 <option value="">Select temporary borrower</option>
                 {temporaryBorrowers.map((borrower) => <option key={borrower.id} value={borrower.id}>{borrower.name} ({borrower.tempId})</option>)}
               </select>
@@ -197,6 +239,70 @@ export function AssetLoanForm({ employees, temporaryBorrowers, devices, loan, in
             <p className="mb-2 text-sm font-semibold text-slate-700">Borrower signature (optional)</p>
             <SignaturePad name="signatureData" />
             {loan?.signatureData ? <p className="mt-2 text-xs text-slate-500">This loan already has a saved signature. Drawing a new one will replace it.</p> : null}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. EMAIL CONFIRMATION SETTINGS */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+        <div>
+          <h2 className="font-semibold text-base text-slate-950">Email Confirmation Settings</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Define recipient and CC addresses for the checkout notification.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-xs font-semibold text-slate-700 block">
+            Send receipt to
+            <input
+              className="w-full min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none mt-1"
+              name="emailTo"
+              value={customEmailTo}
+              onChange={(e) => {
+                setCustomEmailTo(e.target.value);
+                setHasUserEditedTo(true);
+              }}
+              placeholder={defaultEmail || "Optional recipient override"}
+            />
+          </label>
+
+          <label className="space-y-1 text-xs font-semibold text-slate-700 block">
+            CC recipient list (comma separated)
+            <input
+              className="w-full min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-slate-950 focus:outline-none mt-1"
+              name="emailCc"
+              value={customEmailCc}
+              onChange={(e) => setCustomEmailCc(e.target.value)}
+              placeholder="hr@example.com, director@example.com"
+            />
+          </label>
+        </div>
+
+        {/* Dynamic preview list */}
+        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs">
+          <p className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">Email Notification Routing Preview</p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            <div>
+              <span className="text-slate-500 font-medium">To (Borrower):</span>
+              <span className="font-semibold text-slate-800 ml-1 block truncate font-mono">
+                {customEmailTo.trim() || "(No recipient email)"}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 font-medium">CC (Directs, Managers & IT):</span>
+              <span className="font-semibold text-slate-800 ml-1 block font-mono">
+                {[
+                  "ops@g-global.com",
+                  supervisorEmail,
+                  "it.techstyle@g-global.com",
+                  customEmailCc
+                ]
+                  .filter((email) => email && email.trim())
+                  .map((email) => email.trim())
+                  .join(", ") || "(No CC lists)"}
+              </span>
+            </div>
           </div>
         </div>
       </section>

@@ -44,8 +44,8 @@ export class InstallInputError extends Error {
 }
 
 const defaultEligibleCategories = new Set(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "DESKTOP", "ACCESS_POINT", "SWITCH", "CAMERA", "NVR", "CAMERA_NVR"]);
-const conditionalEligibleCategories = new Set(["SCANNER", "DOCKING_STATION", "LAPTOP", "OTHER", "MONITOR"]);
-const mobileCategories = new Set(["PHONE", "TABLET"]);
+const conditionalEligibleCategories = new Set(["SCANNER", "SLED", "DOCKING_STATION", "LAPTOP", "OTHER", "MONITOR"]);
+const mobileCategories = new Set(["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
 const unavailableStatuses = new Set(["RETIRED", "LOST", "DISPOSED", "MISSING", "IN_REPAIR_RMA", "LOANED_OUT"]);
 
 export function isInstallEligibleAsset(asset: Pick<InstallAsset, "category" | "usesStaticIp" | "isFixedAsset" | "ipAddress" | "macAddress">) {

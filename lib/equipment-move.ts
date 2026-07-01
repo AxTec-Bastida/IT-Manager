@@ -47,8 +47,8 @@ export class MoveInputError extends Error {
   }
 }
 
-const moveDefaultCategories = new Set(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "DESKTOP", "ACCESS_POINT", "SWITCH", "CAMERA", "NVR", "CAMERA_NVR", "DOCKING_STATION"]);
-const mobileCategories = new Set(["PHONE", "TABLET"]);
+const moveDefaultCategories = new Set(["THERMAL_PRINTER", "MFP_PRINTER", "OTHER_PRINTER", "SCALE", "SCANNER", "SLED", "DESKTOP", "ACCESS_POINT", "SWITCH", "CAMERA", "NVR", "CAMERA_NVR", "DOCKING_STATION"]);
+const mobileCategories = new Set(["PHONE", "IPOD", "IPHONE", "IPAD", "TABLET"]);
 const unusualMoveStatuses = new Set(["LOANED_OUT", "IN_REPAIR_RMA", "LOST", "MISSING", "RETIRED", "DISPOSED"]);
 
 export function isMoveUsefulAsset(asset: Pick<MoveAsset, "category" | "location" | "areaDepartment" | "usesStaticIp" | "isFixedAsset" | "ipAddress" | "macAddress">) {

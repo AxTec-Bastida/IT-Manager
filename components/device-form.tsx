@@ -40,16 +40,16 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
   const [serialNumber, setSerialNumber] = useState(device?.serialNumber ?? searchParams.get("serialNumber") ?? "");
   const [category, setCategory] = useState<DeviceCategory>(device?.category ?? defaults?.category ?? "OTHER");
 
-  const isSled = category === "OTHER" && (isSledAsset({ name, category, brand: "", model: "", assetTag: "" }) || name.toLowerCase().includes("sled"));
-  const showPairingField = (category === "PHONE" || isSled) && devices.length > 0;
+  const isMobilePairCategory = ["PHONE", "IPOD", "IPHONE"].includes(category);
+  const isSled = category === "SLED" || (category === "OTHER" && (isSledAsset({ name, category, brand: "", model: "", assetTag: "" }) || name.toLowerCase().includes("sled")));
+  const showPairingField = (isMobilePairCategory || isSled) && devices.length > 0;
   const filteredPairOptions = showPairingField
     ? devices.filter((d) => {
         if (d.id === device?.id) return false;
-        if (category === "PHONE") {
+        if (isMobilePairCategory) {
           return isSledAsset(d);
-        } else {
-          return d.category === "PHONE";
         }
+        return ["PHONE", "IPOD", "IPHONE"].includes(d.category);
       })
     : [];
 
@@ -127,7 +127,7 @@ export function DeviceForm({ device, ranges, employees = [], facturas = [], zone
           <legend className="px-2 text-sm font-semibold text-slate-950">Mobile / Sled pairing</legend>
           <div className="grid gap-4 lg:grid-cols-2">
             <label className={labelClass}>
-              {category === "PHONE" ? "Paired Sled (exclusive for iPod/iPhone/Sleds)" : "Paired iPhone/iPod (exclusive for iPod/iPhone/Sleds)"}
+              {isMobilePairCategory ? "Paired Sled (exclusive for iPod/iPhone/Sleds)" : "Paired iPhone/iPod (exclusive for iPod/iPhone/Sleds)"}
               <select className={inputClass} name="pairedDeviceId" defaultValue={initialPairedId}>
                 <option value="">No paired device (Unpaired)</option>
                 {filteredPairOptions.map((pair) => (

@@ -13,8 +13,8 @@ export default async function EditLoanPage({ params }: Context) {
   const { id } = await params;
   const [loan, employees, temporaryBorrowers, devices] = await Promise.all([
     prisma.assetLoan.findUnique({ where: { id }, include: { items: { include: { device: { include: { employee: { select: { fullName: true } } } } } } } }),
-    prisma.employee.findMany({ where: { status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true, employeeId: true, department: true } }),
-    prisma.temporaryBorrower.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, tempId: true, name: true, department: true, area: true } }),
+    prisma.employee.findMany({ where: { status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true, employeeId: true, department: true, email: true, supervisorEmail: true } }),
+    prisma.temporaryBorrower.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, tempId: true, name: true, department: true, area: true, email: true } }),
     prisma.device.findMany({
       where: { OR: [{ status: { notIn: blockedAssetLoanStatuses } }, { assetLoanItems: { some: { loanId: id } } }] },
       include: { employee: { select: { fullName: true } } },

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Activity, AlertTriangle, BarChart3, BriefcaseBusiness, Camera, ChevronDown, ClipboardCheck, ClipboardList, Database, ExternalLink, FileSpreadsheet, LayoutDashboard, ListChecks, LogOut, Map, MapPinned, Menu, Package, PackageCheck, PackagePlus, Palette, Radar, ReceiptText, RotateCcw, Router, ScanLine, SearchX, Settings, ShieldCheck, Tags, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { navText, type Locale } from "@/lib/i18n";
 
 const primaryLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -73,6 +75,56 @@ const navGroups = [
 
 type NavUser = { name: string; role: "ADMIN" | "IT_STAFF" | "VIEWER" | "AUDITOR" } | null;
 type NavLinkConfig = { href: string; label: string; icon: LucideIcon };
+type NavGroupConfig = { label: string; links: NavLinkConfig[] };
+
+const linkTranslationKeys: Record<string, keyof typeof navText.en.links> = {
+  "/dashboard": "dashboard",
+  "/scan": "quickScan",
+  "/devices": "inventory",
+  "/alerts": "alerts",
+  "/workspace": "itWorkspace",
+  "/intake": "intake",
+  "/assignments": "assignments",
+  "/loans": "assetLoans",
+  "/rma": "rma",
+  "/stock": "stockroom",
+  "/stock/issue": "stockIssue",
+  "/stock/issues": "issueHistory",
+  "/maintenance": "maintenance",
+  "/tasks": "tasks",
+  "/po-tracker": "poTracker",
+  "/reports": "reports",
+  "/tools": "resources",
+  "/offline": "offlineQueue",
+  "/offline/conflicts": "offlineConflicts",
+  "/employees": "employees",
+  "/temporary-borrowers": "temporaryBorrowers",
+  "/facturas": "facturas",
+  "/map": "map",
+  "/zones": "zones",
+  "/missing": "missing",
+  "/admin": "adminCenter",
+  "/settings": "settings",
+  "/admin/ui-preview": "uiPreview",
+  "/admin/users": "users",
+  "/import/legacy-sheet": "legacyImport",
+  "/data-quality": "dataQuality",
+  "/photos/compliance": "photoCompliance",
+  "/labels": "labels",
+  "/backups": "backups",
+  "/jobs": "jobs",
+  "/ranges": "ranges",
+  "/scanner": "scanner",
+  "/conflicts": "conflicts",
+  "/activity": "activity",
+};
+
+const groupTranslationKeys: Record<string, keyof typeof navText.en.groups> = {
+  Workflows: "workflows",
+  Workspace: "workspace",
+  Records: "records",
+  Admin: "admin",
+};
 
 function canSeeAdminLink(link: NavLinkConfig, user: NavUser) {
   if (!user) return false;
@@ -91,6 +143,21 @@ function visibleGroups(user: NavUser) {
     .filter((group) => group.links.length > 0);
 }
 
+function localizeLink(link: NavLinkConfig, locale: Locale): NavLinkConfig {
+  const key = linkTranslationKeys[link.href];
+  return key ? { ...link, label: navText[locale].links[key] } : link;
+}
+
+function localizeGroups(groups: NavGroupConfig[], locale: Locale): NavGroupConfig[] {
+  return groups.map((group) => {
+    const key = groupTranslationKeys[group.label];
+    return {
+      label: key ? navText[locale].groups[key] : group.label,
+      links: group.links.map((link) => localizeLink(link, locale)),
+    };
+  });
+}
+
 function hrefPath(href: string) {
   return href.split("?")[0];
 }
@@ -103,10 +170,12 @@ function isActive(pathname: string, href: string) {
 function NavLink({ link, pathname, compact = false, onNavigate }: { link: { href: string; label: string; icon: LucideIcon }; pathname: string; compact?: boolean; onNavigate?: () => void }) {
   const Icon = link.icon;
   const active = isActive(pathname, link.href);
+  const isLogout = link.href === "/logout";
 
   return (
     <Link
       href={link.href}
+      prefetch={isLogout ? false : undefined}
       onClick={onNavigate}
       className={clsx(
         "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950",
@@ -130,21 +199,24 @@ function NavMenuContent({
   groups,
   pathname,
   user,
+  locale,
   compact = false,
   onNavigate,
 }: {
-  groups: ReturnType<typeof visibleGroups>;
+  groups: NavGroupConfig[];
   pathname: string;
   user: NavUser;
+  locale: Locale;
   compact?: boolean;
   onNavigate?: () => void;
 }) {
   return (
     <>
       <div className="space-y-1">
-        {primaryLinks.map((link) => (
-          <NavLink key={link.href} link={link} pathname={pathname} compact={compact} onNavigate={onNavigate} />
-        ))}
+        {primaryLinks.map((link) => {
+          const localized = localizeLink(link, locale);
+          return <NavLink key={link.href} link={localized} pathname={pathname} compact={compact} onNavigate={onNavigate} />;
+        })}
       </div>
 
       <div className="space-y-2">
@@ -170,8 +242,9 @@ function NavMenuContent({
           );
         })}
         {user ? (
-          <NavLink link={{ href: "/logout", label: "Sign out", icon: LogOut }} pathname={pathname} compact={compact} onNavigate={onNavigate} />
+          <NavLink link={{ href: "/logout", label: navText[locale].links.signOut, icon: LogOut }} pathname={pathname} compact={compact} onNavigate={onNavigate} />
         ) : null}
+        {user ? <LanguageSwitcher locale={locale} label={navText[locale].language} compact={compact} /> : null}
       </div>
     </>
   );
@@ -195,7 +268,7 @@ export function GGlobalLogo({ className }: { className?: string }) {
   );
 }
 
-export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) {
+export function AppNav({ siteName, user, locale }: { siteName: string; user: NavUser; locale: Locale }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -222,14 +295,15 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
 
   if (pathname === "/login" || pathname === "/setup-admin") return null;
 
-  const groups = visibleGroups(user);
-  const stockLink = navGroups.flatMap((group) => group.links).find((link) => link.href === "/stock")!;
-  const taskLink = navGroups.flatMap((group) => group.links).find((link) => link.href === "/tasks")!;
-  const mobileLinks = [primaryLinks.find((link) => link.href === "/scan")!, primaryLinks.find((link) => link.href === "/devices")!, stockLink, taskLink];
+  const localizedPrimaryLinks = primaryLinks.map((link) => localizeLink(link, locale));
+  const groups = localizeGroups(visibleGroups(user), locale);
+  const stockLink = groups.flatMap((group) => group.links).find((link) => link.href === "/stock")!;
+  const taskLink = groups.flatMap((group) => group.links).find((link) => link.href === "/tasks")!;
+  const mobileLinks = [localizedPrimaryLinks.find((link) => link.href === "/scan")!, localizedPrimaryLinks.find((link) => link.href === "/devices")!, stockLink, taskLink];
   const moreActive = [
-    primaryLinks.find((link) => link.href === "/dashboard")!,
-    primaryLinks.find((link) => link.href === "/alerts")!,
-    primaryLinks.find((link) => link.href === "/workspace")!,
+    localizedPrimaryLinks.find((link) => link.href === "/dashboard")!,
+    localizedPrimaryLinks.find((link) => link.href === "/alerts")!,
+    localizedPrimaryLinks.find((link) => link.href === "/workspace")!,
     ...groups.flatMap((group) => group.links).filter((link) => !mobileLinks.some((mobile) => mobile.href === link.href)),
   ].some((link) => isActive(pathname, link.href));
 
@@ -280,7 +354,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
           </div>
         </div>
         <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-4">
-          <NavMenuContent groups={groups} pathname={pathname} user={user} />
+          <NavMenuContent groups={groups} pathname={pathname} user={user} locale={locale} />
         </nav>
       </aside>
 
@@ -315,7 +389,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
               </button>
             </div>
             <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-28 pt-3">
-              <NavMenuContent groups={groups} pathname={pathname} user={user} compact onNavigate={() => setDrawerOpen(false)} />
+              <NavMenuContent groups={groups} pathname={pathname} user={user} locale={locale} compact onNavigate={() => setDrawerOpen(false)} />
             </nav>
           </aside>
         </>
@@ -336,7 +410,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
                 )}
               >
                 <Icon size={19} />
-                {link.href === "/devices" ? "Inventory" : link.href === "/stock" ? "Stockroom" : link.href === "/tasks" ? "Tasks" : link.href === "/scan" ? "Scan" : link.label}
+                {link.href === "/devices" ? navText[locale].links.inventory : link.href === "/stock" ? navText[locale].links.stockMobile : link.href === "/tasks" ? navText[locale].links.tasksMobile : link.href === "/scan" ? navText[locale].links.scanMobile : link.label}
               </Link>
             );
           })}
@@ -353,7 +427,7 @@ export function AppNav({ siteName, user }: { siteName: string; user: NavUser }) 
               )}
             >
               <Menu size={19} />
-              Menu
+              {locale === "es" ? "Menú" : "Menu"}
             </button>
           </div>
         </div>

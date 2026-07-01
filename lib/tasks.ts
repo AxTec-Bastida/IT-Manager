@@ -16,7 +16,6 @@ export function taskAssigneeLabel(task: TaskWithAssignee) {
 export function cleanTaskCategory(category: TaskCategory | string): TaskCategory {
   const map: Partial<Record<TaskCategory, TaskCategory>> = {
     INVENTORY: "ASSET_FOLLOW_UP",
-    MAINTENANCE: "REPAIR_RMA",
     STOCK: "STOCK_CONSUMABLES",
     PURCHASE: "PURCHASE_PO",
     RMA: "REPAIR_RMA",
@@ -31,6 +30,13 @@ export function suggestedTaskCategoryFromSource(input: { sourceType?: string | n
   if (input.auditId || input.sourceType === "audit") return "AUDIT_FINDING";
   if (input.rmaId || input.sourceType === "rma") return "REPAIR_RMA";
   if (input.stockItemId || input.sourceType === "stock") return "STOCK_CONSUMABLES";
+  if (input.sourceType === "maintenance") return "MAINTENANCE";
+  if (input.alertType) {
+    const at = input.alertType;
+    if (at.includes("MAINTENANCE") || at.includes("CLEANING") || at.includes("TONER") || at.includes("INK") || at.includes("DRUM") || at.includes("PRINTHEAD") || at.includes("ROLLER")) {
+      return "MAINTENANCE";
+    }
+  }
   if (input.deviceId || input.sourceType === "asset") return "ASSET_FOLLOW_UP";
   if (input.alertType?.includes("CONFLICT") || input.alertType?.includes("IP") || input.alertType?.includes("MAC")) return "NETWORK_IP_MAC";
   if (input.alertType?.includes("WARRANTY")) return "WARRANTY_FACTURA";
